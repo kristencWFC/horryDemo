@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horry Electric Payment</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* DEMO STAND-IN for the co-op's hosted Quick-Pay page / a PCI-certified hosted payment
+     page. The card number is checked and tokenized IN THIS BROWSER; only a test token,
+     the last four digits and the brand are sent to the server — never the card number. */
+  :root { --paper:#f4f6f3; --card:#fff; --ink:#1b2a22; --muted:#5d6b63; --line:#d9e0da; --brand:#0b6b3a; --bad:#b42318; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.45 "IBM Plex Sans", system-ui, sans-serif; }
+  .top { background:var(--brand); color:#fff; padding:14px 16px; font-weight:600; }
+  .wrap { max-width:440px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .amt { font-size:32px; font-weight:600; margin:4px 0 2px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+  input { width:100%; font:inherit; padding:10px; border:1px solid var(--line); border-radius:8px; }
+  .row { display:flex; gap:10px; } .row > div { flex:1; }
+  button { width:100%; margin-top:16px; font:inherit; font-weight:600; padding:12px; border:0; border-radius:8px; background:var(--brand); color:#fff; }
+  .note { font-size:12px; color:var(--muted); margin-top:12px; }
+  .err { color:var(--bad); font-size:14px; margin-top:10px; }
+  .done { text-align:center; } .done .big { font-size:44px; color:var(--brand); }
+</style>
+</head>
+<body>
+<div class="top">Horry Electric Cooperative · Secure payment</div>
+<div class="wrap"><div class="card" id="card">Loading…</div></div>
+<script>
+  const id = new URLSearchParams(location.search).get('s');
+  const card = document.getElementById('card');
+  const luhn = (n) => { let s = 0, alt = false; for (let i = n.length - 1; i >= 0; i--) { let d = +n[i]; if (alt) { d *= 2; if (d > 9) d -= 9; } s += d; alt = !alt; } return n.length >= 13 && s % 10 === 0; };
+  const brand = (n) => (/^4/.test(n) ? 'VISA' : /^5[1-5]|^2[2-7]/.test(n) ? 'MASTERCARD' : /^3[47]/.test(n) ? 'AMEX' : /^6/.test(n) ? 'DISCOVER' : 'CARD');
+  const money = (n) => '$' + Number(n).toFixed(2);
+
+  function done(s) {
+    card.innerHTML = `<div class="done"><div class="big">✓</div><h2>Payment received</h2><p>${money(s.amount)} on card ending ${s.last4}</p><p>Confirmation <b>${s.confirmation}</b></p><p class="note">You can return to your call.</p></div>`;
+  }
+
+  fetch('api/pay/' + id).then((r) => r.json()).then((s) => {
+    if (s.error) { card.textContent = 'This payment link is not valid.'; return; }
+    if (s.status === 'approved') return done(s);
+    if (s.status === 'expired') { card.textContent = 'This payment link has expired. Please call us for a new one.'; return; }
+    card.innerHTML = `<div class="muted">Account ${s.account} · ${s.memberName}</div><div class="amt">${money(s.amount)}</div>
+      <label>Card number</label><input id="num" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242">
+      <div class="row"><div><label>Expiry (MM/YY)</label><input id="exp" inputmode="numeric" placeholder="12/29"></div><div><label>Security code</label><input id="cvv" inputmode="numeric" placeholder="123"></div></div>
+      <label>Billing ZIP</label><input id="zip" inputmode="numeric" placeholder="29588">
+      <button id="pay">Pay ${money(s.amount)}</button><div class="err" id="err"></div>
+      <p class="note">Demo payment page (test cards only). Your card number is tokenized on this device and never sent to Horry Electric's phone system, the virtual assistant or our representatives.</p>`;
+    document.getElementById('pay').onclick = async () => {
+      const n = document.getElementById('num').value.replace(/\D/g, '');
+      const err = document.getElementById('err');
+      if (!luhn(n)) { err.textContent = 'Please check the card number.'; return; }
+      // Test-token convention: a card ending 0002 declines (matches the gateway mock).
+      const token = 'tok_test_' + Math.random().toString(36).slice(2, 10) + n.slice(-4);
+      const r = await fetch('api/pay/' + id + '/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, last4: n.slice(-4), brand: brand(n) }) }).then((x) => x.json());
+      if (r.status === 'approved') done({ amount: s.amount, last4: r.last4, confirmation: r.confirmation });
+      else err.textContent = r.error || 'The card was declined. Please try another card.';
+    };
+  });
+</script>
+</body>
+</html>

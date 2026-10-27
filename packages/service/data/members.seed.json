@@ -1,0 +1,77 @@
+{
+  "_comment": "Fictional Horry Electric members, shaped like NextGen CIS UPN accounts (AllUpnAccounts + UpnAccountsFinancialInformation). MemberSep = 8-digit member number + 3-digit separator, 11 chars left-padded. Phones are 555-01xx except Linda Hardee's cell = Kristen's cell (the default demo caller; the ops console can point that ANI at any member). SubStation/Circuit drive outage matching.",
+  "members": [
+    {
+      "MemberSep": "00212040001", "Name": "HARDEE LINDA", "FirstName": "Linda",
+      "ServAddr": "4810 DICK POND RD", "City": "MYRTLE BEACH", "Zip": "29588",
+      "CellPhone": "2142823566", "Telephone": "8435550101", "EmailAddr": "linda.hardee@example.com",
+      "AcctStatus": "A", "Rate": "RES-1", "Meter": "124639041", "Location": "76638017000",
+      "SubStation": 7, "Circuit": 2, "PrioritySvc": 0,
+      "CurrentBalance": 142.18, "AmountDue": 142.18, "PastDueAmount": 0, "DueDate": "11/12/26", "CutOffDate": null,
+      "LastPayment": 131.40, "PaymentDate": "10/09/26", "BillDate": "10/21/26", "OnCutOffList": false,
+      "AllowArrangementFlag": true, "CardProfileExists": true, "Last4CcDigits": "4242", "CardBrand": "VISA",
+      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": true,
+      "KwhLast30": 1210, "KwhPriorMonth": 1105, "KwhSameMonthLastYear": 1180
+    },
+    {
+      "MemberSep": "00187520002", "Name": "JORDAN MARCUS", "FirstName": "Marcus",
+      "ServAddr": "2215 PEACHTREE RD", "City": "MYRTLE BEACH", "Zip": "29588",
+      "CellPhone": "8435550142", "Telephone": "8435550143", "EmailAddr": "mjordan@example.com",
+      "AcctStatus": "A", "Rate": "RES-1", "Meter": "124618158", "Location": "76638034000",
+      "SubStation": 7, "Circuit": 2, "PrioritySvc": 1,
+      "CurrentBalance": 96.40, "AmountDue": 96.40, "PastDueAmount": 0, "DueDate": "11/14/26", "CutOffDate": null,
+      "LastPayment": 102.77, "PaymentDate": "10/12/26", "BillDate": "10/23/26", "OnCutOffList": false,
+      "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
+      "BankDraft": true, "LevelizedBillAmount": 0, "Paperless": false,
+      "KwhLast30": 780, "KwhPriorMonth": 802, "KwhSameMonthLastYear": 760
+    },
+    {
+      "MemberSep": "00230115001", "Name": "SKIPPER DOROTHY", "FirstName": "Dorothy",
+      "ServAddr": "1420 CULTRA RD", "City": "CONWAY", "Zip": "29526",
+      "CellPhone": "8435550118", "Telephone": "8435550119", "EmailAddr": null,
+      "AcctStatus": "A", "Rate": "RES-1", "Meter": "124677302", "Location": "74315051000",
+      "SubStation": 3, "Circuit": 1, "PrioritySvc": 0,
+      "CurrentBalance": 174.99, "AmountDue": 368.99, "PastDueAmount": 194.00, "DueDate": "10/28/26", "CutOffDate": "11/04/26",
+      "LastPayment": 50.00, "PaymentDate": "09/30/26", "BillDate": "10/07/26", "OnCutOffList": true,
+      "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
+      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": false,
+      "KwhLast30": 1640, "KwhPriorMonth": 1320, "KwhSameMonthLastYear": 1290
+    },
+    {
+      "MemberSep": "00198844001", "Name": "NGUYEN DAVID", "FirstName": "David",
+      "ServAddr": "731 HWY 9 BUS", "City": "LORIS", "Zip": "29569",
+      "CellPhone": "8435550165", "Telephone": null, "EmailAddr": "dnguyen@example.com",
+      "AcctStatus": "A", "Rate": "RES-1", "Meter": "124690177", "Location": "66338012000",
+      "SubStation": 11, "Circuit": 4, "PrioritySvc": 0,
+      "CurrentBalance": 211.07, "AmountDue": 211.07, "PastDueAmount": 0, "DueDate": "11/18/26", "CutOffDate": null,
+      "LastPayment": 188.12, "PaymentDate": "10/15/26", "BillDate": "10/27/26", "OnCutOffList": false,
+      "AllowArrangementFlag": false, "CardProfileExists": true, "Last4CcDigits": "1881", "CardBrand": "MASTERCARD",
+      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": true,
+      "KwhLast30": 1450, "KwhPriorMonth": 1410, "KwhSameMonthLastYear": 1500
+    },
+    {
+      "MemberSep": "00244501003", "Name": "BELLAMY GRACE", "FirstName": "Grace",
+      "ServAddr": "4120 HWY 501", "City": "AYNOR", "Zip": "29511",
+      "CellPhone": "8435550177", "Telephone": "8435550178", "EmailAddr": "gbellamy@example.com",
+      "AcctStatus": "A", "Rate": "RES-1", "Meter": "124601993", "Location": "71122045000",
+      "SubStation": 5, "Circuit": 3, "PrioritySvc": 0,
+      "CurrentBalance": 158.00, "AmountDue": 158.00, "PastDueAmount": 0, "DueDate": "11/20/26", "CutOffDate": null,
+      "LastPayment": 158.00, "PaymentDate": "10/20/26", "BillDate": "10/28/26", "OnCutOffList": false,
+      "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
+      "BankDraft": true, "LevelizedBillAmount": 158.00, "Paperless": true,
+      "KwhLast30": 990, "KwhPriorMonth": 1010, "KwhSameMonthLastYear": 970
+    },
+    {
+      "MemberSep": "00176230001", "Name": "CAUSEY ROBERT", "FirstName": "Robert",
+      "ServAddr": "2601 HWY 90", "City": "LONGS", "Zip": "29568",
+      "CellPhone": "8435550190", "Telephone": null, "EmailAddr": null,
+      "AcctStatus": "A", "Rate": "RES-1", "Meter": "124655410", "Location": "69901022000",
+      "SubStation": 9, "Circuit": 3, "PrioritySvc": 0,
+      "CurrentBalance": 287.56, "AmountDue": 287.56, "PastDueAmount": 0, "DueDate": "11/16/26", "CutOffDate": null,
+      "LastPayment": 164.20, "PaymentDate": "10/14/26", "BillDate": "10/25/26", "OnCutOffList": false,
+      "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
+      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": false,
+      "KwhLast30": 2210, "KwhPriorMonth": 1380, "KwhSameMonthLastYear": 1460
+    }
+  ]
+}

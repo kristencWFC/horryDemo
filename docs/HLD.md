@@ -1,6 +1,10 @@
 # Horry Electric Cooperative Demo — High Level Design
 
-Status: **v0.1 draft** (2026-10-27) — design only, nothing built. Customer demo
+Status: **v0.2** (2026-10-27 evening) — decisions 1–4 and 6 made (TODO.md). **Built:**
+service (mock NextGen CIS, outages + restoration notifier, Storm Mode → WxCC global
+variable, payments: card on file / secure link, 12 agent tools, Storm Console + pay
+page), ElevenLabs agent "horryDemo" configured, freeSWITCH `horryelectric` registry
+entry. **Not built:** widgets, dashboard, web chat, Twilio Pay keypad, SIP number. Customer demo
 **Wed 2026-11-04, 10:00 AM ET** (Dale Johnson, IT Manager, + 8–10 across business
 functions; brought by Nick Mazzarese, Cisco). Pre-demo discovery call this week (Jerry
 Lyon attending). Source: Nick's 10-point discovery summary
@@ -8,7 +12,9 @@ Lyon attending). Source: Nick's 10-point discovery summary
 `02-sales/wxcc-contact-center/2026-10-27-opportunity-intake-notes.md`.
 
 Research behind this design: `docs/research/nisc-meridian.md`,
-`docs/research/pci-payments.md`.
+`docs/research/nextgen-cis-api.md` (CONFIDENTIAL — Meridian proprietary),
+`docs/research/pci-payments.md`. Flow build sheet: `docs/wxcc-flow-notes.md`. Agent:
+`docs/elevenlabs-agent-setup.md`. Runbook: `OPERATIONS.md`.
 
 ---
 
@@ -40,22 +46,24 @@ their manual single-code system), sentiment, and a summary of every call.
 | 6 | Email ticketing, **web chat**, social | Web chat on a mock horryelectric.com (Infinity pattern); email → AI-tagged queue tasks (§2.8) | 5 |
 | 7 | Desk phones + softphones | Narrative only (Webex Calling devices) | — |
 | 8 | Cloud OK | Narrative | — |
-| 9 | **NISC (formerly Meridian) CIS screen pop** | Mock CIS account card on every call; AI uses the same lookups | 3, 4 |
-| 10 | **Recording + PCI without affecting SAQ D** | Secure keypad payment (Twilio Pay → Stripe test); card never on the WxCC/AI path, so recording needs no pause | 3, 4 |
+| 9 | **NISC (formerly Meridian) CIS screen pop** | Member card from the **NextGen CIS Integration API** (mocked with the real paths/shapes); AI uses the same calls | 3, 4 |
+| 10 | **Recording + PCI without affecting SAQ D** | AI payments that never touch a card number: card on file (`saleWithProfile`), secure text link (token), keypad via Twilio Pay (phase 4); card never on the WxCC/AI path, so recording needs no pause | 3, 4 |
 
 ## 2. Components
 
 ### 2.1 Storm Mode (the supervisor switch)
 
-One flag in the middleware, flipped from a **supervisor page** and a **desktop widget
-toggle** (supervisor layout). The WxCC flow's first HTTP node reads it:
+**Decision (Kristen, 2026-10-27): Storm Mode is a WxCC Global Variable**
+(`Global_StormMode`) that the flow reads directly; a button in the **supervisor's desktop
+widget** flips it. Built path: widget / Storm Console → `POST api/mode {storm}` → the
+middleware PUTs the variable's `defaultValue` through the WxCC Config API
+(`organization/{org}/cad-variable/{id}`) with a dedicated Service App token
+(`src/mode.ts`, `src/webex.ts`). The flow change is one Case node on the global
+(`docs/wxcc-flow-notes.md`); `GET api/mode` stays as a fallback and for our pages.
+*Verify on the first live test that a new contact sees the new value without republishing.*
 
-```
-GET {mw}/api/mode?dnis=…  →  "storm" | "normal" | "overflow"
-```
-
-- `normal` → today's routing straight to the billing / member-services queue.
-- `storm` → every call to the outage line (and the main line's outage branch) bridges to
+- off → today's routing straight to the billing / member-services queue.
+- on → every call to the outage line (and the main line's outage branch) bridges to
   the AI outage agent first. Only escalations reach humans.
 - `overflow` (stretch) → AI only when `Q_Horry_Outage` waits exceed N — the middleware
   answers from WxCC queue stats (pattern: kc-wiki `wxcc-apis-skills-and-stats`).
@@ -64,9 +72,6 @@ The switch is logged (who, when) and shown as a banner on every page and widget.
 dashboard can also *suggest* storm mode when the reports-per-minute curve spikes ("12
 outage reports in 3 minutes from Socastee — turn on Storm Mode?").
 
-**Why a middleware flag, not a WxCC global variable:** one place to flip it from our own
-pages, auditable, and the flow change is a single HTTP node + Case. A Control Hub global
-variable is the production-native alternative; mention it as an option.
 
 ### 2.2 AI outage agent (ElevenLabs via freeSWITCH)
 
@@ -148,33 +153,43 @@ The piece that manages the promises the AI made. A store of
 - Paced sends with a live progress bar (the home-services SMS blast pacing) — "1,240
   members notified in 40 seconds" is the beat.
 
-### 2.4 Mock NISC / Meridian CIS
+### 2.4 NextGen CIS (Meridian UPN) — mocked to the real API
 
-**Finding:** Horry's member portal ("MyEnergy Online", myenergy.horryelectric.com) is
-Meridian Cooperative's product (Meridian = the former SEDC; billing suite UPN /
-utilityPOWERnet). **Meridian merged into NISC on 2026-08-01** — hence "NISC (formerly
-Meridian)". There is **no public API documentation** for either; integrations are partner
-/ NDA work. We could not find "NextGen CIS" as a public NISC or Meridian product, and no
-prior WFC work referencing NISC/Meridian/NextGen exists in GitHub KC or GitHub WFC Repos
-— **open decision #6**.
+**Confirmed:** Horry's CIS is Meridian Cooperative's UPN (their "MyEnergy Online" portal
+is Meridian's; Meridian merged into NISC 2026-08-01), and **"NextGen CIS Integration" is
+Meridian's REST API for third-party IVR/kiosk vendors** — Kristen supplied the v2.6 guide
+from earlier WFC work. Summary of what we use: `docs/research/nextgen-cis-api.md`
+(confidential).
 
-The mock is a small adapter with the realistic field set, so swapping in the real API
-later is one file:
+Built (`src/nextgen-mock.ts` + `src/nextgen.ts`): this service serves a mock at
+`/mock/NextGenCISIntegration/...` with the **real paths and JSON field names** — token
+(≈2-minute bearer), `UpnAccountsInfo` (phone/address/email → MemberSep),
+`UpnAccountsFinancialInformation` (balance, due, past due, cut-off, extension allowed,
+card/bank profiles, PaymentToken), `GetUsageHistory`, `UpdateUpnAccounts` (AI notes),
+`RequestPaymentExtension`, `ValidatePayment`, and the Payment Gateway `ivr/sale` (Token
+only) + `ivr/saleWithProfile`. The client talks HTTP to `NEXTGEN_BASE_URL`; going live is
+the base URL + UPN API credentials + Meridian client id/API key.
 
-- `lookupByPhone(ani)`, `lookupByAccount(acct)`, `lookupByAddress(addr, lastName)`
-- account: `accountNumber`, `memberName`, `serviceAddress`, `accountStatus`, `rateClass`
-  (RES-1), `meterNumber`, `servicePointId`, `feeder`, `substation`, `lifeSupport`
-- billing: `currentBalance`, `pastDue`, `dueDate`, `lastBillAmount/Date`,
-  `lastPaymentAmount/Date/Method`, `disconnectPending` + `disconnectDate`,
-  `eligibleForExtension`, `bankDraft`, `equalPay` ("Rest Easy"), `paperless`, `prepaid`
-- `postPayment(token, amount)`, `createExtension(date)`, `createServiceOrder(type)`
-- usage: `kwhLast30`, `averageMonthlyBill` (for "why is my bill so high" — AI compares to
-  last year and the weather)
+Outage location fields (SubStation, Circuit, Location) come from `AllUpnAccounts`; the
+OMS itself is still a stand-in (`src/outages.ts`) — OMS vendor open.
 
-Seeded personas with Conway / Socastee / Myrtle Beach / Loris / Aynor addresses, one of
-them mapped to Kristen's cell (agentLiveAssist "Sally Smith" pattern).
+Six seeded members (`data/members.seed.json`) in Socastee/Myrtle Beach, Conway, Loris,
+Aynor and Longs; Linda Hardee's cell = Kristen's cell, and the Storm Console's **Demo
+caller** picker points that phone at any member per scene.
 
 ### 2.5 Secure payments (PCI) — AI-taken and agent-handed
+
+**Built 2026-10-27 — three methods, best first** (details `research/pci-payments.md`):
+1. **Card on file** (`pay_with_card_on_file` → ValidatePayment → gateway
+   `saleWithProfile`): zero card data anywhere.
+2. **Secure text link** (`send_payment_link` → `pay.html` tokenizes on the member's phone →
+   gateway `sale` with `Token`; `check_payment_status` confirms on the call).
+3. **Keypad** via Twilio Pay — the design below; tool answers "unavailable" until built.
+
+Stripe is no longer in the design: payments post through the (mocked) **Meridian Payment
+Gateway** that Horry's IVR uses today. Open question for Meridian: which token types the
+gateway accepts — that picks the production capture (Meridian hosted page, Twilio Pay
+Generic Connector, or a PCI vault).
 
 **Finding (honest version):** ElevenLabs holds a PCI DSS Level 1 Service Provider
 certification and supports keypad (DTMF) input — **but keypad digits reach the LLM as a
@@ -189,7 +204,7 @@ AI: confirms account, balance, amount ("Shall I take a payment of 142 dollars 18
   → tool start_secure_payment(amount)  → mw mints a payment session
   → freeSWITCH moves the caller leg to a Twilio number running <Pay>  (AI leg parked)
         caller keys card → expiry → ZIP on the keypad
-        Twilio → Stripe (test mode) → token / charge  → action URL gets result + last4 only
+        Twilio → Pay Connector → token → Meridian gateway sale (Token)  → action URL gets result + last4 only
   → TwiML <Dial> back to freeSWITCH with X-Pay-Result / X-Pay-Ref headers
   → AI resumes: "Your payment of 142 dollars 18 on the Visa ending 4242 went through —
      confirmation P 7 K 2 9 1. Anything else?"   (or failure → retry once / escalate)
@@ -230,7 +245,7 @@ processor's test mode." **Never say:** "the AI is PCI compliant", "ElevenLabs ma
 compliant", "you'll become SAQ A".
 
 **Risks / prerequisites:** a **dedicated Twilio account/project** (PCI Mode is
-account-wide and irreversible), a Stripe test account + Pay Connector, and **RFC 2833
+account-wide and irreversible), a Pay Connector the Meridian gateway accepts (Generic Connector; ask Meridian), and **RFC 2833
 DTMF end to end** WxCC → CUBE → freeSWITCH → Twilio — test this first, it is the single
 thing that can sink the scene. Fallback: env-gated simulator (keypad page in the browser
 standing in for the phone's keypad) so the demo still runs.
@@ -310,7 +325,7 @@ calls made in the room move the numbers.
         ├─ AiOps / Metrics  dashboard baseline + live overlay
         └─ AgentHub (WS)    widgets
         env-gated adapters (unset = simulator): ElevenLabs, Twilio SMS, Twilio Pay +
-        Stripe, Anthropic, WxCC stats
+        Anthropic, WxCC stats
 ```
 
 Stack and conventions per `../CLAUDE.md`. State: in-memory + JSON snapshots
@@ -345,4 +360,4 @@ Stack and conventions per `../CLAUDE.md`. State: in-memory + JSON snapshots
 | **Should** | Live agent → secure pay → back; billing assistant; nested-outage catch |
 | **Could** | Storm roster page; email inbox beat; text-to-report; Spanish; overflow mode |
 
-## 6. Open decisions — see TODO.md "Decisions"
+## 6. Decisions — see TODO.md "Decisions" (1–4, 6 made 2026-10-27; SIP number open)

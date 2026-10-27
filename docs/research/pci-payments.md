@@ -43,3 +43,32 @@
 ## Sales wording
 
 See HLD §2.5 — use verbatim; never say "the AI is PCI compliant" or "you'll become SAQ A".
+
+## Kristen's questions (2026-10-27): "Do most use Stripe? Is that PCI SAQ D?"
+
+- **Stripe is not what co-ops typically use.** Electric co-ops on Meridian process through
+  their CIS vendor's gateway — the **Meridian Payment Gateway** (Elavon/Fusebox behind it;
+  `nextgen-cis-api.md`) — or a utility-billing processor such as InvoiceCloud or Paymentus.
+  In this demo Stripe is not used at all: payments post through the (mocked) Meridian
+  gateway, the same calls Horry's real IVR vendor makes.
+- **SAQ type is not decided by the processor.** It is decided by how card data touches
+  *the merchant's own* systems and people. SAQ D is the catch-all for merchants whose
+  environment stores, processes or transmits card data — e.g. agents hearing or keying
+  card numbers, recordings that capture them, an IVR that collects digits and posts them
+  to the gateway. That is almost certainly why Horry is SAQ D today.
+- **"Without affecting their SAQ D status"** = the new contact center must not ADD to
+  their card-data environment. Descoped capture (card on file, hosted link, or keypad
+  entry into a PCI-certified service) keeps WxCC, recordings, the AI and agents out of the
+  card-data flow — it doesn't add scope and may reduce it. Whether Horry can drop to a
+  smaller SAQ depends on their other channels (kiosks, walk-in, portal) — their QSA decides.
+
+## Demo payment methods, in order of preference (built 2026-10-27)
+
+1. **Card on file** — `pay_with_card_on_file` → ValidatePayment → `saleWithProfile`. Zero
+   card data anywhere. Works for any member with `CardProfileExists`.
+2. **Secure text link** — `send_payment_link` → member pays on their own phone
+   (`pay.html`, demo stand-in for Meridian's hosted Quick-Pay / a PCI-certified hosted
+   page; the page tokenizes in the browser and posts only token + last four) → gateway
+   `sale` with `Token`. Works today with no extra accounts.
+3. **Keypad (Twilio Pay)** — `start_keypad_payment` returns "unavailable" until the
+   dedicated PCI-Mode Twilio account + connector exist; the agent then offers the link.

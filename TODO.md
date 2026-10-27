@@ -5,59 +5,63 @@ Nick confirming).
 
 ## STATE (handoff)
 
-2026-10-27: repo created, design drafted (`docs/HLD.md`), research saved
-(`docs/research/`). **Nothing built.** Waiting on Kristen's answers to the decisions below.
+2026-10-27 evening — **service + agent built, not deployed.**
 
-## Decisions (Kristen)
+- Repo `GitHub KC/horryDemo` → `kristencWFC/horryDemo` (Kristen created it; local commits
+  NOT pushed). The empty `GitHub KC/horry-electric` folder is a leftover (locked by an
+  editor) — delete it.
+- Service builds clean; local end-to-end smoke passed (call-context → initiation →
+  outage status → SMS signup → billing with usage vs last year → payment link → token
+  sale → balance drops; lookup by address → extension → outage report → escalate;
+  ETR change + restore → texts; OUT reply → nested ticket; card on file → approved).
+- ElevenLabs agent `horryDemo` configured (12 tools, Savannah, Crete/Infinity voice,
+  Horry initiation + post-call webhooks). **No SIP number yet** (1150 refused).
+- freeSWITCH repo commit `87bb1f6` adds the `horryelectric` solution (not pushed).
 
-1. **Infra** — kcdev2 **:8165** (next free per kc-wiki topology), prefix `/horry/`, systemd
-   `horry-demo`, `/opt/horry-electric`. Confirm against live nginx.
-2. **Secure payments** — OK to provision a **dedicated Twilio account/project with PCI
-   Mode** (irreversible, account-wide) + Stripe test account? Or simulate payments for Nov 4?
-3. **Storm Mode switch** — middleware flag read by the flow (recommended) vs a WxCC
-   global variable.
-4. **WxCC** — new DID + EP `EP_KC_Horry`, flow `KC_Horry_Electric`, queues
-   `Q_Horry_Outage` + `Q_Horry_Billing`, team for the demo. Designer build by Kristen.
-5. **ElevenLabs** — new agent "Horry Electric" (persona name/voice?), next free SIP number
-   (1126–1130 appear taken — confirm), freeSWITCH registry `horryelectric`.
-6. **"NextGen CIS"** — no public NISC/Meridian product by that name and no prior WFC repo
-   work found. Which client did we integrate with it for? If we have its API docs, the mock
-   CIS should mirror its shapes.
-7. **Scope cut** (HLD §5) — agree Must/Should/Could.
-8. **Discovery-call questions** — OMS vendor (Futura?), outage line 843-369-2212 vs main
-   line, email ticketing meaning, payment processor today (InvoiceCloud?), NISC CallCapture
-   IVR in use with the Mitel?
+## Decisions
 
-## Phase 1 — scaffold (after decisions)
+1. ✅ kcdev2 **:8165**, `/horry/`, systemd `horry-demo`, `/opt/horryDemo`.
+2. ✅ Dedicated PCI-Mode Twilio account — yes (Kristen). Stripe dropped: payments go via the
+   Meridian Payment Gateway (mock). Pay Connector choice depends on Meridian's token answer.
+3. ✅ Storm Mode = **WxCC global variable**, flipped from the supervisor desktop widget
+   (middleware writes it via Config API + Service App).
+4. ✅ Queues `Q_Horry_Outage` / `Q_Horry_Billing`; agent `horryDemo`; Savannah + Jessica voice.
+   ❗ **SIP number**: ElevenLabs says "1150 already exists" (not in our workspace). Pick
+   another (e.g. 1151 / 11500) → `node scripts/provision-agent.mjs --sip-number <n> agent_5701m5zn0g2jegma4z7p0wpc255m`.
+5. ⏳ (pending) — Kristen.
+6. ✅ NextGen CIS = Meridian's IVR/RPS API; Horry runs Meridian UPN. Mock mirrors it.
+7. Scope cut (HLD §5) — assumed agreed.
+8. Discovery-call questions: OMS vendor (Futura?); NextGen API enabled on their UPN +
+   NISC support post-merger; which card tokens Meridian's gateway accepts; outage line
+   843-369-2212 vs main; what "email ticketing" means to them; NISC CallCapture IVR in use?
 
-- [ ] npm workspaces (shared / service / widgets), env.ts, JSON store, deploy/ unit + nginx
-- [ ] Mock CIS + seeded personas (one on Kristen's cell)
-- [ ] ModeStore + supervisor page + `GET api/mode`
+## Kristen's next steps (in order)
 
-## Phase 2 — voice AI
-
-- [ ] call-context, conversation-initiation, tools (get_member, get_outage_status,
-      report_outage, subscribe_restoration, get_balance, start_secure_payment, escalate)
-- [ ] ElevenLabs agent setup doc + provisioning script
-- [ ] freeSWITCH registry + config block (in freeSWITCH repo — needs Kristen's OK)
-- [ ] wxcc-flow-notes.md build sheet
-
-## Phase 3 — outage + notify
-
-- [ ] OutageStore + outages page (ETR, mark restored), NotifyEngine (SMS, AI callback),
-      nested-outage reply handling
+- [ ] Push `horryDemo` + `freeSWITCH` (87bb1f6)
+- [ ] Pick the SIP number (above); tell Claude or run the one-liner
+- [ ] Deploy per `OPERATIONS.md` (server `.env` table) + nginx snippet on the front box
+- [ ] FS box: pull, add `horryelectric` block to server `config.json`, restart ivr-controller
+- [ ] Control Hub: `Global_StormMode` variable, EP + DID, queues; Service App (config write)
+- [ ] Designer: `KC_Horry_Electric` per `docs/wxcc-flow-notes.md`
+- [ ] Twilio: SMS number inbound webhook → `/horry/webhooks/twilio/sms`; PCI-Mode account for Pay
 
 ## Phase 4 — payments
 
-- [ ] Twilio Pay webhooks + Stripe connector; freeSWITCH out-and-back; pay simulator
-- [ ] Agent-initiated secure pay + return-to-agent flow notes
+- [x] Card on file (`saleWithProfile`), secure link (`pay.html` → token sale)
+- [ ] Twilio Pay keypad out-and-back (FS → Twilio `<Pay>` → back with X-Pay-* headers)
+- [ ] Agent-initiated secure pay + return to the same agent (flow notes "phase 4")
 
-## Phase 5 — widgets, chat, dashboard
+## Phase 5 — widgets, chat, dashboard (next build session)
 
-- [ ] member card, AI summary/journey, billing assistant, supervisor toggle; layout JSON
-- [ ] web chat site page
-- [ ] dashboard (aiops baseline + live overlay, tags, sentiment, drill-in)
+- [ ] Desktop widgets: member card (NextGen screen pop), "what the AI did" journey +
+      transcript, billing assistant (Claude tool loop over the same tools), supervisor
+      **Storm Mode button** (→ `POST api/mode`); layout `KC_Horry.json` (widgets first)
+- [ ] Web chat on a mock horryelectric.com page (home-services `chat.ts` pattern)
+- [ ] Storm-day dashboard (aiops baseline + live overlay; tags, sentiment, drill-in)
+- [ ] Real voice restoration callbacks (ElevenLabs outbound) — simulated today
+- [ ] Agent data-collection fields (sentiment, call_reason) for post-call analysis
+- [ ] Email inbox beat (optional), storm roster page (optional)
 
 ## Phase 6 — docs
 
-- [ ] DEMO-STEPS.md, OPERATIONS.md, kc-wiki topology claim for :8165
+- [ ] DEMO-STEPS.md run-of-show; kc-wiki topology claim for :8165

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horry Storm Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#f7f4ee; --card:#fffdf9; --ink:#1d1b18; --muted:#6b655c; --line:#e2dccf; --accent:#c2521b; --ok:#2f7d4f; --warn:#b7791f; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#151412; --card:#1d1b18; --ink:#f1ece3; --muted:#a39b8f; --line:#34302a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:14px/1.45 "IBM Plex Sans", system-ui, sans-serif; }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:18px; font-weight:600; }
+  .meta { font:12px "IBM Plex Mono", monospace; color:var(--muted); }
+  main { padding:20px 24px; display:grid; gap:18px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; min-width:0; }
+  section h2 { margin:0 0 10px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td, th { text-align:left; padding:6px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:500; color:var(--muted); font-size:12px; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .pill { display:inline-block; font:11px "IBM Plex Mono", monospace; padding:2px 7px; border-radius:20px; border:1px solid var(--line); }
+  .pill.ok { color:var(--ok); border-color:var(--ok); } .pill.bad { color:var(--bad); border-color:var(--bad); } .pill.warn { color:var(--warn); border-color:var(--warn); }
+  .storm { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .switch { width:64px; height:34px; border-radius:20px; background:var(--line); position:relative; cursor:pointer; border:0; padding:0; }
+  .switch::after { content:""; position:absolute; top:4px; left:4px; width:26px; height:26px; border-radius:50%; background:#fff; transition:left .15s; }
+  .switch.on { background:var(--accent); } .switch.on::after { left:34px; }
+  .banner { display:none; background:var(--accent); color:#fff; padding:8px 24px; font-weight:600; }
+  .banner.on { display:block; }
+  textarea, select, input { font:inherit; width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:var(--paper); color:var(--ink); }
+  .journey { font:12px "IBM Plex Mono", monospace; color:var(--muted); margin:4px 0 0; padding-left:16px; }
+  .full { grid-column: 1 / -1; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="banner" id="banner">STORM MODE ON — the AI outage assistant is answering the outage line</div>
+<header>
+  <h1>Horry Electric · Storm Console</h1>
+  <span class="meta" id="health">…</span>
+</header>
+<main>
+  <section>
+    <h2>01 · Storm Mode</h2>
+    <div class="storm">
+      <button class="switch" id="stormSwitch" aria-label="Storm Mode"></button>
+      <div><div id="stormText" style="font-weight:600">…</div><div class="meta" id="stormMeta"></div></div>
+    </div>
+    <p class="muted" style="margin:12px 0 6px">Announcement the AI says once on every call (optional)</p>
+    <textarea id="broadcast" rows="2" placeholder="e.g. Crews from Santee Cooper are helping us restore power tonight."></textarea>
+    <div style="margin-top:6px"><button id="saveBroadcast">Save announcement</button></div>
+  </section>
+
+  <section>
+    <h2>02 · Demo caller</h2>
+    <p class="muted" style="margin:0 0 8px">Which member the presenter's phone is, when it calls in.</p>
+    <label class="meta">Presenter phone</label>
+    <input id="demoAni" placeholder="10 digits">
+    <label class="meta" style="display:block;margin-top:8px">Plays the member</label>
+    <select id="demoMember"></select>
+    <div style="margin-top:8px"><button id="saveDemo">Save</button> <button id="reset">Reset demo data</button></div>
+  </section>
+
+  <section class="full">
+    <h2>03 · Outages (OMS stand-in)</h2>
+    <table><thead><tr><th>Outage</th><th>Area</th><th>Members</th><th>Cause / crew</th><th>Estimate</th><th>Subscribers</th><th></th></tr></thead><tbody id="outages"></tbody></table>
+  </section>
+
+  <section>
+    <h2>04 · Restoration notifications</h2>
+    <table><thead><tr><th>Member</th><th>How</th><th>Outage</th><th>Status</th></tr></thead><tbody id="subs"></tbody></table>
+  </section>
+
+  <section>
+    <h2>05 · Texts</h2>
+    <div class="meta" id="smsMode"></div>
+    <table><thead><tr><th>When</th><th>To / from</th><th>Message</th></tr></thead><tbody id="sms"></tbody></table>
+  </section>
+
+  <section class="full">
+    <h2>06 · AI conversations</h2>
+    <table><thead><tr><th>Started</th><th>Caller</th><th>What happened</th><th>Tags</th><th>Result</th></tr></thead><tbody id="calls"></tbody></table>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const j = (u, o) => fetch(u, o).then((r) => r.json());
+  const post = (u, body) => j(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) });
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const t = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
+  let storm = false;
+
+  async function refresh() {
+    const [h, m, o, s, sms, c] = await Promise.all([j('health'), j('api/mode'), j('api/outages'), j('api/subscriptions'), j('api/sms'), j('api/calls')]);
+    $('health').textContent = `NextGen ${h.nextgen} · Twilio ${h.twilio ? 'live' : 'simulated'} · WxCC variable ${h.wxcc ? 'live' : 'local only'} · FS relay ${h.fsRelay ? 'live' : 'simulated'}`;
+    storm = m.storm === 'true';
+    $('stormSwitch').classList.toggle('on', storm);
+    $('banner').classList.toggle('on', storm);
+    $('stormText').textContent = storm ? 'Storm Mode is ON' : 'Storm Mode is off';
+    $('stormMeta').textContent = `${m.updatedBy} · ${t(m.updatedAt)} · WxCC: ${m.wxcc}${m.wxccError ? ' — ' + m.wxccError : ''}`;
+    if (document.activeElement !== $('broadcast')) $('broadcast').value = m.broadcast || '';
+
+    $('outages').innerHTML = o.outages.map((x) => `<tr>
+      <td><span class="meta">${esc(x.id)}</span><br><span class="pill ${x.status === 'active' ? 'bad' : 'ok'}">${x.status}</span> <span class="meta">${esc(x.source)}</span></td>
+      <td>${esc(x.area)}</td><td>${x.customers}</td><td>${esc(x.cause)}<br><span class="muted">${esc(x.crew)}</span></td>
+      <td>${esc(x.etrText)}</td><td>${x.subscribers}</td>
+      <td>${x.status === 'active' ? `<button data-etr="${x.id}">+30 min</button> <button class="primary" data-restore="${x.id}">Mark restored</button>` : `<span class="meta">${t(x.restoredAt)}</span>`}</td></tr>`).join('');
+
+    $('subs').innerHTML = s.subscriptions.map((x) => `<tr><td>${esc(x.memberName)}<br><span class="meta">${esc(x.address)}</span></td>
+      <td>${x.channel === 'sms' ? 'Text' : 'Call'} <span class="meta">${esc(x.phone)}</span></td><td class="meta">${esc(x.outageId)}</td>
+      <td><span class="pill ${x.status === 'still_out' || x.status === 'failed' ? 'bad' : x.status === 'waiting' ? 'warn' : 'ok'}">${x.status.replace('_', ' ')}</span>${x.reply ? `<br><span class="meta">${esc(x.reply)}</span>` : ''}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">None yet</td></tr>';
+
+    $('smsMode').textContent = sms.live ? 'Sending through Twilio' : 'Simulated — messages are not actually sent';
+    $('sms').innerHTML = sms.messages.slice(0, 15).map((x) => `<tr><td class="meta">${t(x.at)}</td><td>${x.direction === 'in' ? '← ' : '→ '}${esc(x.to)}<br><span class="meta">${esc(x.purpose)} · ${x.status}</span></td><td>${esc(x.body)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">None yet</td></tr>';
+
+    $('calls').innerHTML = c.calls.slice(0, 25).map((x) => `<tr><td class="meta">${t(x.startedAt)}<br>${x.stormMode ? '<span class="pill warn">storm</span>' : ''}</td>
+      <td>${esc(x.memberName || 'Unknown caller')}<br><span class="meta">${esc(x.ani)}</span></td>
+      <td>${x.summary ? esc(x.summary) : ''}<ul class="journey">${x.journey.map((s) => `<li>${t(s.at)} ${esc(s.step)} — ${esc(s.detail)}</li>`).join('')}</ul></td>
+      <td>${x.tags.map((g) => `<span class="pill">${esc(g)}</span>`).join(' ')}${x.sentiment ? `<br><span class="pill ${x.sentiment === 'negative' ? 'bad' : x.sentiment === 'positive' ? 'ok' : ''}">${x.sentiment}</span>` : ''}</td>
+      <td>${x.escalation ? `<span class="pill bad">to ${esc(x.escalation.department)} · ${esc(x.escalation.urgency)}</span><br><span class="meta">${esc(x.escalation.reason)}</span>` : x.outcome ? '<span class="pill ok">resolved by AI</span>' : '<span class="meta">in progress</span>'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No AI conversations yet</td></tr>';
+  }
+
+  async function loadDemo() {
+    const [s, m] = await Promise.all([j('api/settings'), j('api/members')]);
+    $('demoAni').value = s.demoAni;
+    $('demoMember').innerHTML = m.members.map((x) => `<option value="${x.memberSep}" ${x.memberSep === s.demoMemberSep ? 'selected' : ''}>${esc(x.name)} — ${esc(x.address)}${x.inOutage ? ' (in an outage)' : ''}${x.pastDue > 0 ? ' (past due)' : ''}</option>`).join('');
+  }
+
+  $('stormSwitch').onclick = async () => { await post('api/mode', { storm: !storm, by: 'Storm console' }); refresh(); };
+  $('saveBroadcast').onclick = async () => { await post('api/mode/broadcast', { text: $('broadcast').value }); refresh(); };
+  $('saveDemo').onclick = async () => { await j('api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demoAni: $('demoAni').value, demoMemberSep: $('demoMember').value }) }); loadDemo(); };
+  $('reset').onclick = async () => { if (confirm('Re-seed outages, clear calls and restore member balances?')) { await post('api/reset'); refresh(); loadDemo(); } };
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.etr) { await post(`api/outages/${b.dataset.etr}/etr`, { addMinutes: 30 }); refresh(); }
+    if (b.dataset.restore) { await post(`api/outages/${b.dataset.restore}/restore`); refresh(); }
+  });
+  refresh(); loadDemo(); setInterval(refresh, 2500);
+</script>
+</body>
+</html>

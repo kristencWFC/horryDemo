@@ -1,0 +1,102 @@
+{
+  "_comment": "Webhook tools for the 'horryDemo' ElevenLabs agent (Savannah). scripts/provision-agent.mjs turns these into ElevenLabs tool objects: every tool POSTs JSON to {{PUBLIC_BASE_URL}}/api/tools/<name-with-dashes> with header X-Tool-Secret. call_guid and caller_id are auto-filled (the LLM never handles them). Responses are flat and always include next_step. CARD NUMBERS NEVER PASS THROUGH ANY TOOL — payments go by secure link or keypad (HLD §2.5).",
+  "common": {
+    "method": "POST",
+    "header": "X-Tool-Secret",
+    "auto_params": {
+      "call_guid": { "dynamic_variable": "sip_call_guid", "description": "Call correlation id — filled automatically." },
+      "caller_id": { "dynamic_variable": "system__caller_id", "description": "Caller's number — filled automatically." }
+    }
+  },
+  "tools": [
+    {
+      "name": "lookup_member",
+      "description": "Find the member's account when they were not recognised from the number they called from, or when they want a different account. Give ONE of: a 10-digit phone number, the service address, or the account number. The response says whether a match was found and who it is; confirm the service address with the caller before going on.",
+      "params": {
+        "phone_number": { "type": "string", "description": "10-digit phone number the caller said, digits only.", "required": false },
+        "service_address": { "type": "string", "description": "Street address where they have service, as spoken, e.g. '1420 Cultra Road'.", "required": false },
+        "account_number": { "type": "string", "description": "Account number the caller read out, digits only.", "required": false }
+      }
+    },
+    {
+      "name": "get_outage_status",
+      "description": "Check whether there is a known outage at the identified member's service location. Returns whether it is known, the area, how many members are affected, the cause, crew status and the estimated restoration time. Always call this before telling a caller anything about an outage.",
+      "params": {}
+    },
+    {
+      "name": "report_outage",
+      "description": "Report an outage for the identified member when get_outage_status says it is NOT already known (or the caller says they are still out after a restoration). Ask the triage questions first, one at a time. The response gives a reference number to read back digit by digit.",
+      "params": {
+        "whole_house": { "type": "string", "description": "yes if the whole house is out, partial if only some lights or appliances, unknown", "required": true },
+        "neighbors_out": { "type": "string", "description": "yes | no | unknown — are neighbours out too", "required": true },
+        "hazard": { "type": "string", "description": "none | wires_down | sparking | tree_on_line | fire — anything they can see", "required": true },
+        "details": { "type": "string", "description": "Anything else they noticed, e.g. 'heard a loud bang around 2pm'.", "required": false }
+      }
+    },
+    {
+      "name": "subscribe_restoration",
+      "description": "Sign the member up to be notified when their power is restored (and if the restoration estimate changes). Only call after the caller chose text or a phone call, and confirmed the number to use.",
+      "params": {
+        "channel": { "type": "string", "description": "sms or voice", "required": true },
+        "phone_number": { "type": "string", "description": "10-digit number to notify, digits only. Omit to use the number they called from.", "required": false }
+      }
+    },
+    {
+      "name": "get_billing",
+      "description": "Get the identified member's billing summary: amount due, due date, past-due amount, cut-off date, last payment, whether a payment extension is allowed, bank draft and levelized (Rest Easy) billing. Always call it before quoting any amount.",
+      "params": {}
+    },
+    {
+      "name": "request_payment_extension",
+      "description": "Request a payment extension for the identified member. Only when get_billing says an extension is allowed and the caller agreed to the date. The response says approved or denied, with a confirmation number.",
+      "params": {
+        "pay_by_date": { "type": "string", "description": "The date the member will pay by, as YYYY-MM-DD.", "required": true }
+      }
+    },
+    {
+      "name": "pay_with_card_on_file",
+      "description": "Charge the card the member already has on file with the co-op (get_billing shows card_on_file, e.g. 'card ending 4242'). No card details are needed or spoken. Only call after the caller said a clear yes to the amount AND to using the card ending in those four digits.",
+      "params": {
+        "amount": { "type": "number", "description": "Dollar amount, e.g. 142.18", "required": true }
+      }
+    },
+    {
+      "name": "send_payment_link",
+      "description": "Text the member a secure payment link for a given amount (they pay on their own phone; no card details are ever given on the call). Call after the caller agreed to the amount and the number to text.",
+      "params": {
+        "amount": { "type": "number", "description": "Dollar amount, e.g. 142.18", "required": true },
+        "phone_number": { "type": "string", "description": "10-digit mobile number to text, digits only. Omit to use the number they called from.", "required": false }
+      }
+    },
+    {
+      "name": "start_keypad_payment",
+      "description": "Start a secure keypad payment: the caller enters their card on the phone keypad into a PCI-certified payment service you cannot hear. Call after the caller agreed to the amount. If the response says keypad payments are unavailable, offer the text link instead.",
+      "params": {
+        "amount": { "type": "number", "description": "Dollar amount, e.g. 142.18", "required": true }
+      }
+    },
+    {
+      "name": "check_payment_status",
+      "description": "Check whether the payment you started (link or keypad) has gone through. Returns pending, approved (with the card brand, last four digits and confirmation number) or declined.",
+      "params": {}
+    },
+    {
+      "name": "escalate",
+      "description": "Connect the caller to a person. Say your ONE hold sentence first, then call this. Use for emergencies (wires down, sparking, fire, medical), when the caller asks for a person, is upset, or needs something you cannot do.",
+      "params": {
+        "department": { "type": "string", "description": "outage | billing | member_services", "required": true },
+        "urgency": { "type": "string", "description": "emergency | priority | normal", "required": true },
+        "reason": { "type": "string", "description": "Short slug, e.g. wires_down, asked_for_person, payment_declined, account_not_found", "required": true },
+        "summary": { "type": "string", "description": "One or two sentences for the person taking the call: who, where, what you already did.", "required": true }
+      }
+    },
+    {
+      "name": "wrap_up",
+      "description": "Record how the call ended when it did NOT need a person. Call once, just before your goodbye.",
+      "params": {
+        "outcome": { "type": "string", "description": "One sentence: what the caller needed and what you did.", "required": true },
+        "tags": { "type": "string", "description": "Comma-separated reasons, from: outage_known, outage_reported, restoration_signup, billing_inquiry, payment, payment_extension, high_bill, account_update, other", "required": true }
+      }
+    }
+  ]
+}

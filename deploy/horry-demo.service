@@ -1,0 +1,30 @@
+[Unit]
+Description=Horry Electric Cooperative demo middleware (horryDemo)
+After=network-online.target
+Wants=network-online.target
+# StartLimit* belong in [Unit], NOT [Service] — in [Service] modern systemd ignores
+# StartLimitIntervalSec with only a load-time warning and the rate limit silently
+# never applies (kc-wiki deploy-pattern-nginx-systemd, found 2026-08-04).
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+# Same user as the other kc-dev-2 demos (stillwater, live-translate, agent-test-tool).
+User=kristenc
+# WorkingDirectory must be the service package dir: dist/index.js resolves its data
+# dir (../data) and dotenv CWD from here.
+WorkingDirectory=/opt/horryDemo/packages/service
+ExecStart=/usr/bin/node dist/index.js
+# "-" = optional: a missing/empty .env is a fully working demo (all-simulated mode).
+EnvironmentFile=-/opt/horryDemo/.env
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/horryDemo
+PrivateTmp=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+{
+  "name": "horry-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Horry Electric Cooperative demo — storm-mode AI outage agent, NextGen CIS billing, secure payments, WxCC",
+  "workspaces": [
+    "packages/service"
+  ],
+  "scripts": {
+    "build": "npm run build -w @horry-demo/service",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev -w @horry-demo/service",
+    "start": "node packages/service/dist/index.js",
+    "provision-agent": "node scripts/provision-agent.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
