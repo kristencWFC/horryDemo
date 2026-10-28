@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supervisor widget preview · Horry Electric</title>
+<style>
+  body { margin: 0; background: #e9edf2; font: 13px 'Segoe UI', system-ui, sans-serif; }
+  .frame { max-width: 520px; margin: 24px auto; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  p { max-width: 520px; margin: 16px auto 0; color: #5f6c7b; }
+</style>
+</head>
+<body>
+<p>Preview of the supervisor widget as it appears on the WxCC Desktop. Changes here are real: they flip Storm Mode and edit the outage queue.</p>
+<div class="frame"><horry-supervisor id="sup" supervisor="Preview page"></horry-supervisor></div>
+<script>
+  // Same origin as the service; set before the bundle upgrades the element.
+  document.getElementById('sup').setAttribute('server', new URL('.', location.href).href);
+</script>
+<script src="widgets/horry-widgets.js"></script>
+</body>
+</html>

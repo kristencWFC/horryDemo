@@ -14,7 +14,13 @@ Every HTTP node: **timeout 10 s** (the 2 s default fails silently). Responses ar
 | Flow | `KC_Horry_Electric` | below |
 | Desktop layout | `KC_Horry.json` | later — widgets first (lockstep rule) |
 
-Service App for the variable write: scope `cjp:config_write` (+ `cjp:config_read`); org
+Outage queue staffing: the supervisor widget edits **`Q_Horry_Outage`'s distribution group**
+(adds/removes teams; normal staffing is snapshotted and restored by "Return to normal"). Put the
+queue id in `WXCC_OUTAGE_QUEUE_ID`. Set the queue to **team-based** routing and give it one
+distribution group with the normal team(s). Create the extra department teams the demo picks from
+(e.g. Billing & Collections, Engineering, Operations Dispatch) — they need no other config.
+
+Service App for the variable write and the queue edit: scope `cjp:config_write` (+ `cjp:config_read`); org
 admin authorizes once → `WEBEX_CLIENT_ID/SECRET/REFRESH_TOKEN` in the server `.env`.
 **Use a Service App no other box uses** (refresh tokens rotate — kc-wiki
 webex-service-app-auth).

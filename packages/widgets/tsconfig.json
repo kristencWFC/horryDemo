@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    // Lit 3 + esbuild gotcha: with define-semantics class fields, plain field
+    // initializers shadow Lit's reactive accessors and the widgets render a
+    // blank page. Assignment semantics (false) + static `properties` is the
+    // donors' proven shape (creteDemo widgets).
+    "useDefineForClassFields": false,
+    "experimentalDecorators": true,
+    // No @types auto-include: the hoisted @types/node would shadow the DOM's
+    // number-returning setTimeout/setInterval.
+    "types": [],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"]
+}

@@ -5,10 +5,11 @@
   "type": "module",
   "description": "Horry Electric Cooperative demo — storm-mode AI outage agent, NextGen CIS billing, secure payments, WxCC",
   "workspaces": [
-    "packages/service"
+    "packages/service",
+    "packages/widgets"
   ],
   "scripts": {
-    "build": "npm run build -w @horry-demo/service",
+    "build": "npm run build -w @horry-demo/service && npm run build -w @horry-demo/widgets",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "dev": "npm run dev -w @horry-demo/service",

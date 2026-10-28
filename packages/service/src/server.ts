@@ -40,6 +40,20 @@ export async function buildServer(deps: Deps): Promise<FastifyInstance> {
     });
   }
 
+  // Desktop widgets bundle (packages/widgets → dist/horry-widgets.js) at /widgets/.
+  const widgetsDist = join(here, '..', '..', 'widgets', 'dist');
+  if (existsSync(widgetsDist)) {
+    await f.register(fastifyStatic, {
+      root: widgetsDist,
+      prefix: '/widgets/',
+      decorateReply: false,
+      cacheControl: false, // no-cache: the Desktop otherwise serves a stale bundle after deploys
+      setHeaders: (res) => {
+        res.header('cache-control', 'no-cache');
+      },
+    });
+  }
+
   registerNextGenMock(f, deps.members);
   registerRoutes(f, deps);
   return f;

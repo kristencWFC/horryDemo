@@ -63,6 +63,7 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 
 ## Phase 5 — widgets, chat, dashboard (next build session)
 
+- [x] Supervisor widget (Storm Mode button + outage queue staffing) — 2026-10-28
 - [ ] Desktop widgets: member card (NextGen screen pop), "what the AI did" journey +
       transcript, billing assistant (Claude tool loop over the same tools), supervisor
       **Storm Mode button** (→ `POST api/mode`); layout `KC_Horry.json` (widgets first)
@@ -71,8 +72,10 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 - [ ] Real voice restoration callbacks (ElevenLabs outbound) — simulated today
 - [ ] Agent data-collection fields (sentiment, call_reason) for post-call analysis
 - [ ] Email inbox beat (optional), storm roster page (optional)
-- [ ] **Storm roster** (gap vs discovery item 3 — they plan to add up to 50 staff to an outage
-      queue): pre-built storm team, softphone login, supervisor adds people to Q_Horry_Outage. To decide.
+- [x] **Outage queue staffing** (discovery item 3; Kristen 2026-10-28: add the extra staff's
+      TEAMS to the outage queue) — in `<horry-supervisor>` with the Storm Mode button; `staffing.ts`
+      edits Q_Horry_Outage's distribution group via Config API (sim teams when unset). VERIFY the
+      queue PUT on the first live test. Preview `/supervisor.html`; layout snippet docs/desktop-layout.md
 - [ ] **Billing screen pop** (Kristen 2026-10-28): widget shows key NISC data (balance, due,
       cut-off, payment history, usage, outage) + a FAKE billing-system account page the call opens
       (generic look — not NISC branding)

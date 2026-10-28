@@ -48,6 +48,10 @@ const EnvSchema = z.object({
   WEBEX_CLIENT_ID: z.string().optional(),
   WEBEX_CLIENT_SECRET: z.string().optional(),
   WEBEX_REFRESH_TOKEN: z.string().optional(),
+
+  // Storm staffing: the outage queue whose team list the supervisor widget edits (same
+  // Service App). Unset = simulated teams.
+  WXCC_OUTAGE_QUEUE_ID: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -62,6 +66,9 @@ export const wxccConfigured = (): boolean =>
   Boolean(
     env.WEBEX_ORG_ID && env.WXCC_STORM_VARIABLE_ID && env.WEBEX_CLIENT_ID && env.WEBEX_CLIENT_SECRET && env.WEBEX_REFRESH_TOKEN
   );
+
+export const staffingConfigured = (): boolean =>
+  Boolean(env.WEBEX_ORG_ID && env.WXCC_OUTAGE_QUEUE_ID && env.WEBEX_CLIENT_ID && env.WEBEX_CLIENT_SECRET && env.WEBEX_REFRESH_TOKEN);
 
 export const baseUrl = (): string => env.PUBLIC_BASE_URL.replace(/\/$/, '');
 

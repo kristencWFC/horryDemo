@@ -4,7 +4,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { env, baseUrl, last10, twilioConfigured, wxccConfigured } from './env.js';
+import { env, baseUrl, last10, twilioConfigured, wxccConfigured, staffingConfigured } from './env.js';
 import { JsonStore } from './store.js';
 import type { MemberStore, Member } from './members.js';
 import { displayName, displayAddress } from './members.js';
@@ -16,6 +16,7 @@ import type { Sms } from './sms.js';
 import { twilioSignatureOk } from './sms.js';
 import type { Payments } from './payments.js';
 import type { ModeStore } from './mode.js';
+import type { StaffingStore } from './staffing.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 
 export interface Deps {
@@ -27,6 +28,7 @@ export interface Deps {
   sms: Sms;
   payments: Payments;
   mode: ModeStore;
+  staffing: StaffingStore;
 }
 
 interface Settings {
@@ -135,6 +137,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     nextgen: nextgen.isMock ? 'mock' : 'live',
     twilio: twilioConfigured(),
     wxcc: wxccConfigured(),
+    staffing: staffingConfigured(),
     fsRelay: fsRelayConfigured(),
     storm: mode.get().storm,
   }));
@@ -157,6 +160,24 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const b = (req.body ?? {}) as { storm?: boolean | string; by?: string; broadcast?: string };
     const storm = b.storm === true || b.storm === 'true';
     return mode.set(storm, b.by ?? 'supervisor', b.broadcast);
+  });
+  // Storm staffing (supervisor widget): which teams take outage-queue calls.
+  f.get('/api/staffing', async () => d.staffing.get());
+  f.post('/api/staffing', async (req, reply) => {
+    const b = (req.body ?? {}) as { teamIds?: unknown; by?: string };
+    const ids = Array.isArray(b.teamIds) ? b.teamIds.map(String) : [];
+    try {
+      return await d.staffing.set(ids, b.by ?? 'supervisor');
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+  });
+  f.post('/api/staffing/reset', async (req, reply) => {
+    try {
+      return await d.staffing.reset(String(((req.body ?? {}) as { by?: string }).by ?? 'supervisor'));
+    } catch (err) {
+      return reply.code(502).send({ error: (err as Error).message });
+    }
   });
   f.post('/api/mode/broadcast', async (req) => mode.setBroadcast(String(((req.body ?? {}) as { text?: string }).text ?? '')));
 
