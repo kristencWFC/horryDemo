@@ -52,10 +52,11 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 ## Kristen's next steps (in order)
 
 - [x] Push `horryDemo` (2026-10-28)
-- [ ] Push `freeSWITCH` (87bb1f6 + the 1151 sipNumber commit) — origin kristencWFC/freeSWITCH
+- [x] Push `freeSWITCH` (87bb1f6 + db02a1b, the 1151 sipNumber commit) — kc-dev-2 pulls workflowconcepts/freeSWITCH
 - [x] SIP number 1151
-- [ ] Deploy per `OPERATIONS.md` (server `.env` table) + nginx snippet on the front box
-- [ ] FS box: pull, add `horryelectric` block to server `config.json`, restart ivr-controller
+- [x] Deploy on kc-dev-2 (`/opt/horryDemo`, systemd `horry-demo`, ce402a9) + nginx `/horry/` — public `/horry/health` OK 2026-10-28
+- [x] FS box: pulled db02a1b, `horryelectric` block (cloned from `homeservices`, sipNumber 1151) in server `config.json`, ivr-controller restarted active — 2026-10-28
+- [ ] Server `.env`: Service App creds + `WXCC_STORM_VARIABLE_ID` + `WXCC_OUTAGE_QUEUE_ID` → `/health` shows `wxcc:true`, `staffing:true`
 - [x] Control Hub: `Global_StormMode` (String, false), team `KC_HorryElectric`, queue `Q_Horry_Outage` — 2026-10-28
 - [x] Firewall: tcp:8165 nginx box → kc-dev-2 — 2026-10-28
 - [ ] Control Hub: EP + DID, `Q_Horry_Billing`, extra department teams, Service App (config write)
