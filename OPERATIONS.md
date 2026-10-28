@@ -30,6 +30,8 @@ sudo systemctl daemon-reload && sudo systemctl enable --now horry-demo
 curl -s localhost:8165/health
 # front box (10.128.0.14): add deploy/nginx-horry.conf.snippet to the kcdev2 site
 sudo nginx -t && sudo systemctl reload nginx
+# GCP: add tcp:8165 to the firewall rule that lets the nginx box reach kc-dev-2
+#   (allow-list is ports-only; without it nginx 502s — kc-wiki kcdev2-nginx-and-firewall)
 curl -s https://kcdev2.workflowconcepts.com/horry/health
 ```
 
