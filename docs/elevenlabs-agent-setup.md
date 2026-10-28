@@ -15,7 +15,7 @@
 | Initiation webhook | `https://kcdev2.workflowconcepts.com/horry/webhooks/elevenlabs/conversation-initiation` (+ X-Tool-Secret); `enable_conversation_initiation_client_data_from_webhook: true` |
 | Post-call webhook | workspace webhook `525b8fcf712a4bf6a168673e0d5dc9e7` → `/horry/webhooks/elevenlabs/post-call` (HMAC; secret in local `.env` as `ELEVENLABS_WEBHOOK_SECRET` — copy to the server `.env`) |
 | Built-ins | end_call kept (directive description), transfer_to_number removed |
-| SIP number | **NOT YET** — `1150` refused: "Phone number 1150 already exists" (not in our workspace; SIP numbers look globally unique). Pick another, then `node scripts/provision-agent.mjs --sip-number <n> agent_5701m5zn0g2jegma4z7p0wpc255m` (allowlist 34.41.17.98/32, media_encryption allowed) and set it in the freeSWITCH `horryelectric` block |
+| SIP number | **`1151`** — `phnum_9801m618sxsmfrfsc51z7nj7s5nq`, created + assigned 2026-10-28, supports_inbound verified (allowlist 34.41.17.98/32, media_encryption allowed). `1150` was refused: "already exists" outside our workspace — SIP numbers are globally unique. Set `sipNumber: "1151"` in the freeSWITCH `horryelectric` block |
 
 **The agent was cloned from Crete.** Its six Crete tools (classify_reason, log_intake,
 send_otp, verify_otp, verify_voice, get_work_order_status —

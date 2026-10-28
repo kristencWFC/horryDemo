@@ -37,7 +37,8 @@ Read `docs/HLD.md` and `TODO.md` (STATE + Decisions) first.
   `scripts/provision-agent.mjs` from `agent/system-prompt.txt` + `agent/tools.json`
   (`--patch` after edits). It was cloned from Crete: the six detached Crete tools are
   Crete's live tools — never delete them. Details: `docs/elevenlabs-agent-setup.md`.
-- **SIP number not assigned** — 1150 refused as "already exists" (TODO decision 4).
+- **ElevenLabs SIP number `1151`** (`phnum_9801m618sxsmfrfsc51z7nj7s5nq`, inbound, allowlist
+  34.41.17.98/32). 1150 was refused — ElevenLabs SIP numbers are globally unique.
 - `ELEVENLABS_API_KEY` in `.env` is the shared workspace key from home-services (Kristen
   asked for it 2026-10-27). `TOOL_SHARED_SECRET` is Horry's own and is baked into the
   agent's tool headers — changing it means re-running `--patch`.

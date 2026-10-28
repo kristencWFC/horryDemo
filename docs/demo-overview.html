@@ -1,0 +1,314 @@
+<title>Horry Electric Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* WFC document look (wfc-design skill): one 960px column, numbered sections, hairline tables, mono pills. */
+  :root {
+    --bg: #f6f5f0; --fg: #1b2230; --muted: #5d6679; --line: #c8ccd6; --panel: #ffffff;
+    --accent: #b4540c; --accent-soft: #fbe8d6; --report: #2d5a99; --report-soft: #e2ebf7;
+    --ok: #1f7a3d; --hold: #8a5a00; --bad: #b42318;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141820; --fg: #e5e8ee; --muted: #9ba4b6; --line: #384052; --panel: #1c2230;
+      --accent: #e98c3c; --accent-soft: #3a2615; --report: #7aa6e6; --report-soft: #1d2a40;
+      --ok: #5cc98a; --hold: #e0b04a; --bad: #f08a80; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141820; --fg: #e5e8ee; --muted: #9ba4b6; --line: #384052; --panel: #1c2230;
+    --accent: #e98c3c; --accent-soft: #3a2615; --report: #7aa6e6; --report-soft: #1d2a40;
+    --ok: #5cc98a; --hold: #e0b04a; --bad: #f08a80; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width: 960px; margin: 0 auto; display: grid; gap: 40px; }
+  header { display: grid; gap: 10px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 2rem; font-weight: 600; line-height: 1.15; margin: 0; text-wrap: balance; }
+  h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  .lede { font-size: 1.1rem; max-width: 62ch; }
+  section { display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr); }
+  a { color: var(--report); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  ul, ol { padding-left: 22px; margin: 0; display: grid; gap: 8px; max-width: 72ch; }
+  .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 4px 4px 0; max-width: 72ch; margin-top: 8px; }
+  .pill { display: inline-block; font-family: var(--mono); font-size: 0.72rem; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .pill.done { border-color: var(--ok); color: var(--ok); } .pill.todo { border-color: var(--accent); color: var(--accent); }
+  .pill.hold { border-color: var(--hold); color: var(--hold); } .pill.open { border-color: var(--report); color: var(--report); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+  .cards > div { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .cards .k { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .cards p { margin: 0; font-size: 0.93rem; }
+  .steps { counter-reset: s; list-style: none; padding: 0; gap: 14px; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+  .steps li::before { content: counter(s); display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 14px; background: var(--accent); color: var(--panel); font-weight: 600; font-size: 0.85rem; }
+  .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; padding: 8px; }
+  .sheet svg { display: block; width: 100%; min-width: 760px; height: auto; }
+  button { font: inherit; font-size: 0.85rem; padding: 6px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--fg); cursor: pointer; }
+  button:hover { border-color: var(--fg); } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .stepbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 0; }
+  .caption { min-height: 3.2em; margin: 8px 0 0; max-width: 72ch; }
+  .caption .eyebrow { display: block; margin-bottom: 2px; }
+  .node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  .node.on rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .node .t { fill: var(--fg); font: 600 14px var(--sans); }
+  .node .s { fill: var(--muted); font: 400 11.5px var(--mono); }
+  .edge { fill: none; stroke: var(--muted); stroke-width: 1.6; }
+  .edge.on { stroke: var(--accent); stroke-width: 2.8; stroke-dasharray: 8 6; animation: flow .7s linear infinite; }
+  .elabel { fill: var(--muted); font: 400 11px var(--mono); }
+  .arrowhead { fill: var(--muted); }
+  @keyframes flow { to { stroke-dashoffset: -14; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · WxCC demo · Kristen Christopher · 2026-10-28 · in build</div>
+    <h1>Horry Electric Demo</h1>
+    <p class="lede">On Wednesday, November 4 at 10:00 AM ET we show Horry Electric a contact center
+    that stays calm during a storm. A supervisor turns on Storm Mode with one button. An AI agent
+    named Savannah then answers outage calls, finds the member's account, and signs them up for a
+    text when power comes back. Bills and payments use their NextGen CIS billing system, and no
+    one ever reads a card number out loud.</p>
+  </header>
+
+  <section>
+    <h2>1. What we show them</h2>
+    <p>Each card maps to an item on the discovery worksheet Horry filled in.</p>
+    <div class="cards">
+      <div><span class="k">Item 3 · storm days</span><h3>Storm Mode AI</h3>
+        <p>One button on the supervisor's desktop turns it on. Savannah takes outage calls, says if the outage is already known and gives the estimate.</p></div>
+      <div><span class="k">Item 3 · after the storm</span><h3>Restoration texts</h3>
+        <p>Members get a text when the estimate changes and when power is back. If they reply OUT, a new ticket opens for that address.</p></div>
+      <div><span class="k">Item 3 · reporting</span><h3>Storm-day dashboard</h3>
+        <p>Calls the AI handled, outages reported, sentiment, and a summary of every call with a link to drill in.</p></div>
+      <div><span class="k">Item 9 · billing</span><h3>NextGen CIS on the desktop</h3>
+        <p>The agent's widget shows balance, due date, cut-off, usage and payment history from NISC. A mock billing screen opens on the member's account, and Savannah reads the same data.</p></div>
+      <div><span class="k">Item 9 · payments</span><h3>Payments without card numbers</h3>
+        <p>Card on file, a secure text link, or the phone keypad. A live agent can hand the caller to secure pay and get them back.</p></div>
+      <div><span class="k">Item 6 · digital</span><h3>Web chat, AI first</h3>
+        <p>Chat from horryelectric.com goes to Savannah first. If the member needs a person, the chat moves to a live agent with the history intact.</p></div>
+      <div><span class="k">Item 6 · email</span><h3>Email pick board</h3>
+        <p>Emails to the co-op appear on a shared board. Each one shows the member's account and a suggested reply. Agents pick what to work, and supervisors can assign emails.</p></div>
+      <div><span class="k">Cisco · out of the box</span><h3>Auto wrap-up summary</h3>
+        <p>When a live agent ends the call, Webex AI Assistant writes the call summary. We show ours for the AI part of the call and Cisco's for the agent part.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. How a call moves</h2>
+    <p>Pick a situation, then step through it. Boxes and arrows in orange are the ones in use at that step.</p>
+    <div class="controls" id="scenarios" role="group" aria-label="Situations"></div>
+    <div class="sheet">
+      <svg viewBox="0 0 1000 410" role="img" aria-label="Call path from the member through Webex Contact Center, freeSWITCH and the ElevenLabs AI agent, with the Horry service, NextGen CIS, text messages and the live agent desktop">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <path class="edge" id="e-sup-wxcc" d="M255 92 L255 168" marker-end="url(#ah)"/>
+        <text class="elabel" x="263" y="135">Storm Mode on</text>
+        <path class="edge" id="e-caller-wxcc" d="M142 200 L178 200" marker-end="url(#ah)"/>
+        <path class="edge" id="e-wxcc-fs" d="M332 200 L388 200" marker-end="url(#ah)"/>
+        <text class="elabel" x="334" y="190">bridge</text>
+        <path class="edge" id="e-fs-el" d="M522 200 L568 200" marker-end="url(#ah)"/>
+        <path class="edge" id="e-el-svc" d="M645 168 L645 92" marker-end="url(#ah)"/>
+        <text class="elabel" x="653" y="135">tools</text>
+        <path class="edge" id="e-svc-cis" d="M722 60 L788 60" marker-end="url(#ah)"/>
+        <path class="edge" id="e-svc-sms" d="M722 78 L800 168" marker-end="url(#ah)"/>
+        <path class="edge" id="e-wxcc-agent" d="M255 232 L255 318" marker-end="url(#ah)"/>
+        <text class="elabel" x="263" y="280">queue</text>
+        <path class="edge" id="e-el-back" d="M645 232 L645 350 L334 350" marker-end="url(#ah)"/>
+        <text class="elabel" x="420" y="342">hand back with what Savannah collected</text>
+        <path class="edge" id="e-cis-agent" d="M875 92 L875 380 L334 380" marker-end="url(#ah)"/>
+        <text class="elabel" x="560" y="398">account and billing on the agent's screen</text>
+
+        <g class="node" id="n-sup"><rect x="180" y="30" width="150" height="62" rx="6"/><text class="t" x="196" y="56">Supervisor</text><text class="s" x="196" y="76">Storm Mode button</text></g>
+        <g class="node" id="n-caller"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Member</text><text class="s" x="36" y="216">calls in</text></g>
+        <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">checks Storm Mode</text></g>
+        <g class="node" id="n-fs"><rect x="390" y="170" width="130" height="62" rx="6"/><text class="t" x="406" y="196">freeSWITCH</text><text class="s" x="406" y="216">our bridge</text></g>
+        <g class="node" id="n-el"><rect x="570" y="170" width="150" height="62" rx="6"/><text class="t" x="586" y="196">Savannah (AI)</text><text class="s" x="586" y="216">ElevenLabs voice</text></g>
+        <g class="node" id="n-svc"><rect x="570" y="30" width="150" height="62" rx="6"/><text class="t" x="586" y="56">Horry service</text><text class="s" x="586" y="76">outages · payments</text></g>
+        <g class="node" id="n-cis"><rect x="790" y="30" width="170" height="62" rx="6"/><text class="t" x="806" y="56">NextGen CIS</text><text class="s" x="806" y="76">accounts · billing</text></g>
+        <g class="node" id="n-sms"><rect x="790" y="170" width="170" height="62" rx="6"/><text class="t" x="806" y="196">Texts</text><text class="s" x="806" y="216">restoration · pay link</text></g>
+        <g class="node" id="n-agent"><rect x="180" y="320" width="150" height="62" rx="6"/><text class="t" x="196" y="346">Live agent</text><text class="s" x="196" y="366">desktop widgets</text></g>
+      </svg>
+    </div>
+    <p class="caption" id="caption" aria-live="polite"></p>
+    <div class="stepbar">
+      <button id="back" type="button">Back</button>
+      <button id="next" type="button">Next step</button>
+      <button id="play" type="button">Play</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Taking payments with no card numbers</h2>
+    <p>Anything a caller says or keys in on the phone reaches the AI as text. So Savannah never
+    asks for a card number. She uses one of three ways to pay, and none of them lets a card number
+    reach the AI, an agent, a recording or our service.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Method</th><th>How it works</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Card on file</td><td>Savannah reads back the card ending and the amount. On a yes, Meridian's payment gateway charges the saved card.</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Secure text link</td><td>The member gets a link and pays on their phone. Only a token comes back to us, and Savannah confirms the payment went through.</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Phone keypad</td><td>Twilio Pay collects the digits outside the AI, then hands the caller back. This needs its own PCI-mode Twilio account.</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Agent hands off to pay</td><td>A live agent sends the caller to secure pay, and the call comes back to the same agent when it's done.</td><td><span class="pill todo">to do</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><strong>The PCI message.</strong> Horry probably uses SAQ D today, since agents hear card numbers. With
+    this design their contact center never handles a card number, so they add no PCI scope. Their auditor decides
+    the final SAQ.</div>
+  </section>
+
+  <section>
+    <h2>4. Web chat and email</h2>
+    <h3>Web chat: AI first, then a live agent</h3>
+    <p>This works like the Infinity demo. A chat bubble sits on a copy of horryelectric.com. Savannah answers in
+    text with the same tools she uses on the phone: account lookup, outage status, billing and the
+    payment link. When the member asks for a person, or Savannah can't help, the chat moves to a live
+    agent with the full history. Savannah's part never has to be repeated.</p>
+    <div class="note"><strong>[CONFIRM] Kristen.</strong> Where does the escalated chat land? Option 1 is our desktop
+    widget, which is how Infinity works and is quick to build. Option 2 is a real WxCC chat queue through Webex
+    Connect, which looks more like Cisco's product but takes longer.</div>
+    <h3 style="margin-top:20px">Email: a pick board instead of a ticket queue</h3>
+    <p>We think "email ticketing" means they want emails to be tracked and owned, not left in a shared
+    inbox. Our pick system already does that for calls in the Crete demo, and we can reuse it for email.</p>
+    <ul>
+      <li>Emails to the co-op become cards on a board with the member's account, the topic (outage, billing, start or stop service) and how long the email has waited.</li>
+      <li>An agent picks an email and it opens on their desktop with the member's account details. A supervisor can assign an email to a specific agent.</li>
+      <li>AI drafts a reply from the member's account. For example, "your payment of $142.18 posted on 10/28". The agent edits and sends it.</li>
+      <li>On storm days the board groups emails by outage, so one reply about the outage can answer many members.</li>
+    </ul>
+    <div class="note"><strong>[CONFIRM] discovery call.</strong> Ask what "email ticketing" means to them before we build the full
+    board. Today their email may be a shared inbox, or it may come from a web form.</div>
+  </section>
+
+  <section>
+    <h2>5. Demo members</h2>
+    <p>These people are fictional, and the presenter's phone can be set to call in as any of them.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Member</th><th>Town</th><th>Story</th><th class="num">Balance</th></tr></thead>
+      <tbody>
+        <tr><td>Linda Hardee</td><td>Myrtle Beach</td><td>Lives in the Socastee outage (1,240 members, tree on line). Signs up for texts and has a card on file.</td><td class="num">$142.18</td></tr>
+        <tr><td>Marcus Jordan</td><td>Myrtle Beach</td><td>On life support, in the same outage. Reports a wire down and goes straight to a person.</td><td class="num">$96.40</td></tr>
+        <tr><td>Dorothy Skipper</td><td>Conway</td><td>$194 past due with a cut-off date. Asks for an extension or pays by text link.</td><td class="num">$174.99</td></tr>
+        <tr><td>Grace Bellamy</td><td>Aynor</td><td>In the Aynor outage. Pays by bank draft on a budget plan.</td><td class="num">$158.00</td></tr>
+        <tr><td>David Nguyen</td><td>Loris</td><td>Billing questions on a normal day.</td><td class="num">$211.07</td></tr>
+        <tr><td>Robert Causey</td><td>Longs</td><td>High bill. Savannah compares his usage with last year.</td><td class="num">$287.56</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>6. Where the build stands</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Status</th><th>Piece</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill done">done</span></td><td>Savannah, the AI agent</td><td>Same voice as the Crete and Infinity demos. Has 12 tools for outages, billing and payments. SIP number 1151.</td></tr>
+        <tr><td><span class="pill done">done</span></td><td>Horry service</td><td>Mock of NextGen CIS, outages, restoration texts, payments, and the Storm Console page. Tested end to end on a laptop.</td></tr>
+        <tr><td><span class="pill done">done</span></td><td>freeSWITCH bridge</td><td>Horry's entry added to our freeSWITCH server's settings.</td></tr>
+        <tr><td><span class="pill open">in progress</span></td><td>Deploy to kcdev2</td><td>Kristen is doing this now.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>WxCC setup</td><td>Global variable, entry point, queues and Service App in Control Hub, plus the flow in Designer.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Desktop widgets</td><td>Member card with the key NISC account details (balance, due date, cut-off, payment history, usage, outage status). Also what the AI did, the billing assistant, and the supervisor's Storm Mode button.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Billing screen pop</td><td>A mock billing-system account page. The call opens it on the member's account, the way Horry's own system would open.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 4).</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Web chat</td><td>AI first, then a live agent (section 4).</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Storm-day dashboard</td><td>AI stats, sentiment and call summaries.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Cisco auto wrap-up summary</td><td>Turn on AI Assistant summaries for the Horry queues and show one after an escalated call.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Keypad pay, agent hand-off to pay</td><td>Waiting on the PCI-mode Twilio account.</td></tr>
+        <tr><td><span class="pill hold">waiting</span></td><td>Restoration voice callbacks</td><td>Simulated for now. Texts are real.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>7. Questions for the discovery call</h2>
+    <ul>
+      <li>Is the NextGen CIS API turned on for Horry's system, and will NISC keep supporting it after the Meridian merger?</li>
+      <li>Which card tokens does Meridian's payment gateway accept? This decides how keypad payments connect.</li>
+      <li>Which outage management system do they use (Futura?), and could we read it live later?</li>
+      <li>Is the outage line 843-369-2212 separate from the main number?</li>
+      <li>What do they mean by "email ticketing"?</li>
+      <li>Do they use NISC's CallCapture IVR today?</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+  const scenarios = [
+    { name: 'Storm Mode, outage known', steps: [
+      { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'The supervisor clicks Storm Mode on their desktop. The flow now sends members to Savannah.' },
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Linda calls. The flow sees Storm Mode is on and looks up who is calling.' },
+      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The call bridges through our freeSWITCH to Savannah. She greets Linda by name and already knows her area is out.' },
+      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'Savannah confirms the service address. The outage is already reported: Socastee, 1,240 members, a tree on the line, about 2½ hours.' },
+      { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Linda asks for a text. She gets one if the estimate changes and another when power is back. If she replies OUT, a new ticket opens.' },
+      { nodes: ['el'], edges: [], text: 'Savannah wraps up and hangs up. No agent was needed, and the call shows on the storm dashboard with a summary and sentiment.' }
+    ]},
+    { name: 'Wire down, to a person', steps: [
+      { nodes: ['caller', 'wxcc', 'fs', 'el'], edges: ['e-caller-wxcc', 'e-wxcc-fs', 'e-fs-el'], text: 'Marcus calls during the storm and Savannah answers.' },
+      { nodes: ['el'], edges: [], text: 'He says a line is down by his driveway. Savannah tells him to stay at least 35 feet away.' },
+      { nodes: ['el', 'agent'], edges: ['e-el-back'], text: 'Savannah says one line about connecting him, then hands the call back to WxCC marked as an emergency outage call.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'He goes first in the outage queue. The agent sees his account, the life-support flag and what Savannah already collected.' }
+    ]},
+    { name: 'Paying a past-due bill', steps: [
+      { nodes: ['caller', 'wxcc', 'fs', 'el'], edges: ['e-caller-wxcc', 'e-wxcc-fs', 'e-fs-el'], text: 'Dorothy calls about her bill. She is $194 past due and has a cut-off date coming.' },
+      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'Savannah reads her balance, due date and cut-off date from NextGen CIS.' },
+      { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Dorothy has no card on file, so Savannah texts her a secure payment link. She pays on her phone and no card number is spoken.' },
+      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'Savannah checks the payment and confirms the new balance. A note goes on the account.' }
+    ]},
+    { name: 'Normal day', steps: [
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Storm Mode is off, so the flow routes the call as it does on any normal day.' },
+      { nodes: ['wxcc', 'agent'], edges: ['e-wxcc-agent'], text: 'The call queues to an agent.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: "The member's card pops on the agent's screen with balance, due date, usage and outage status. The billing assistant helps with the rest." }
+    ]}
+  ];
+
+  let sc = 0, st = 0, timer = null;
+  const box = document.getElementById('scenarios');
+  scenarios.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = s.name;
+    b.addEventListener('click', () => { stop(); sc = i; st = 0; render(); });
+    box.appendChild(b);
+  });
+
+  function render() {
+    const s = scenarios[sc], step = s.steps[st];
+    [...box.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === sc)));
+    document.querySelectorAll('.node').forEach(n => n.classList.toggle('on', step.nodes.includes(n.id.slice(2))));
+    document.querySelectorAll('.edge').forEach(e => e.classList.toggle('on', step.edges.includes(e.id)));
+    const cap = document.getElementById('caption');
+    cap.innerHTML = '';
+    const eb = document.createElement('span');
+    eb.className = 'eyebrow'; eb.textContent = 'Step ' + (st + 1) + ' of ' + s.steps.length;
+    cap.append(eb, document.createTextNode(step.text));
+    document.getElementById('back').disabled = st === 0;
+    document.getElementById('next').disabled = st === s.steps.length - 1;
+  }
+  function stop() { clearInterval(timer); timer = null; document.getElementById('play').textContent = 'Play'; }
+  document.getElementById('back').addEventListener('click', () => { stop(); if (st > 0) { st--; render(); } });
+  document.getElementById('next').addEventListener('click', () => { stop(); if (st < scenarios[sc].steps.length - 1) { st++; render(); } });
+  document.getElementById('play').addEventListener('click', () => {
+    if (timer) return stop();
+    if (st === scenarios[sc].steps.length - 1) st = 0;
+    render();
+    document.getElementById('play').textContent = 'Pause';
+    timer = setInterval(() => {
+      if (st >= scenarios[sc].steps.length - 1) return stop();
+      st++; render();
+    }, 3200);
+  });
+  render();
+</script>

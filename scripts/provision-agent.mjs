@@ -22,7 +22,7 @@
 //   node scripts/provision-agent.mjs --dump <agent_id>    → print an agent + its tools
 //   node scripts/provision-agent.mjs --create [--dry-run] → create tools + a NEW agent from the template
 //   node scripts/provision-agent.mjs --patch <agent_id>   → re-push prompt / tools only (audio untouched)
-//   node scripts/provision-agent.mjs --sip-number 1150 <agent_id> → SIP trunk number + assign
+//   node scripts/provision-agent.mjs --sip-number 1151 <agent_id> → SIP trunk number + assign
 //
 // Env (.env at the repo root): ELEVENLABS_API_KEY (workspace key), PUBLIC_BASE_URL,
 // TOOL_SHARED_SECRET, ELEVENLABS_AGENT_ID, ELEVENLABS_BRANCH_ID (optional),
@@ -282,7 +282,7 @@ async function create() {
   const body = buildAgentBody(template, toolIds);
   const r = await el('POST', '/v1/convai/agents/create', body);
   console.log(`\nAGENT CREATED: ${r.agent_id ?? r.id}\n`);
-  console.log('Next: set the post-call webhook (workspace → webhooks) and copy its secret to ELEVENLABS_WEBHOOK_SECRET; then --sip-number 1150 <agent_id>.');
+  console.log('Next: set the post-call webhook (workspace → webhooks) and copy its secret to ELEVENLABS_WEBHOOK_SECRET; then --sip-number 1151 <agent_id>.');
 }
 
 async function configure(agentId) {
@@ -305,7 +305,7 @@ async function configure(agentId) {
     'Next: 1) post-call webhook → --create-post-call-webhook --write-env (secret → ELEVENLABS_WEBHOOK_SECRET);',
     '      2) pronunciation: --pronounce "Horry=Ore-ee" if the voice says it wrong;',
     '           3) post-call webhook → PUBLIC_BASE_URL/webhooks/elevenlabs/post-call, secret → ELEVENLABS_WEBHOOK_SECRET;',
-    '           4) --sip-number 1150 <agent_id>, then verify supports_inbound in the UI.',
+    '           4) --sip-number 1151 <agent_id>, then verify supports_inbound in the UI.',
   ].join('\n'));
 }
 
