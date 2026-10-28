@@ -83,6 +83,8 @@
     named Savannah then answers outage calls, finds the member's account, and signs them up for a
     text when power comes back. Bills and payments use their NextGen CIS billing system, and no
     one ever reads a card number out loud.</p>
+    <div class="note"><strong>Demo line: (972) 430-9658.</strong> Call it to reach Horry's demo contact center.
+    It goes live once the flow is built in Designer. With Storm Mode on, Savannah answers first.</div>
   </header>
 
   <section>
@@ -288,8 +290,9 @@
         <tr><td><span class="pill done">done</span></td><td>WFC AI Controller</td><td>Horry added to the WFC AI Controller, which connects the call to Savannah. SIP number 1151 is live.</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Supervisor widget</td><td>Storm Mode button, the message Savannah reads to callers, and outage queue staffing (pick the teams).</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Call review dashboard</td><td>Sample storm day plus live calls. Live-agent summaries are simulated until we confirm Cisco's summary API.</td></tr>
-        <tr><td><span class="pill open">in progress</span></td><td>Deploy to kcdev2</td><td>Kristen is doing this now.</td></tr>
-        <tr><td><span class="pill open">in progress</span></td><td>WxCC setup</td><td>Global_StormMode is created. Still to do: entry point, queues, extra department teams and Service App in Control Hub, plus the flow in Designer.</td></tr>
+        <tr><td><span class="pill done">done</span></td><td>Deploy to kcdev2</td><td>Horry service is live, and the WFC AI Controller sends Horry calls to Savannah on 1151.</td></tr>
+        <tr><td><span class="pill done">done</span></td><td>Service App</td><td>Connected. Storm Mode and outage queue staffing now change the real WxCC settings. The staffing panel only offers Horry's own teams (names starting KC_Horry).</td></tr>
+        <tr><td><span class="pill open">in progress</span></td><td>WxCC setup</td><td>Done: Global_StormMode, team KC_HorryElectric, queue Q_Horry_Outage, demo line (972) 430-9658. Still to do: entry point mapping check, Q_Horry_Billing, the KC_Horry department teams, then the flow in Designer.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Agent widgets</td><td>Member card with the key NISC account details (balance, due date, cut-off, payment history, usage, outage status), what the AI did, and the billing assistant.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Billing screen pop</td><td>A mock billing-system account page. The call opens it on the member's account, the way Horry's own system would open.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 6).</td></tr>
