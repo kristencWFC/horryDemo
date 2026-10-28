@@ -14,6 +14,17 @@ export interface JourneyStep {
   detail: string;
 }
 
+/** The live-agent part of an escalated call: Cisco AI Assistant's wrap-up summary (or a
+ *  simulated stand-in until the summaries API is confirmed — see agent-summaries.ts). */
+export interface AgentLeg {
+  agentName: string;
+  team: string;
+  endedAt: string;
+  wrapUpCode: string;
+  summary: { reason: string; actions: string; status: string; followUp: string };
+  source: 'cisco' | 'posted' | 'simulated';
+}
+
 export interface CallRow {
   guid: string;
   ani: string;
@@ -35,6 +46,7 @@ export interface CallRow {
   transcript?: { role: 'agent' | 'user'; text: string }[];
   outageId?: string;
   paymentId?: string;
+  agentLeg?: AgentLeg;
 }
 
 export class CallStore extends EventEmitter {

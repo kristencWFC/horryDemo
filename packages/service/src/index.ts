@@ -9,6 +9,7 @@ import { Payments } from './payments.js';
 import { ModeStore } from './mode.js';
 import { StaffingStore } from './staffing.js';
 import { wireNotifier } from './notify.js';
+import { wireAgentSummaries } from './agent-summaries.js';
 import { buildServer } from './server.js';
 import { fsRelayConfigured } from './freeswitch.js';
 
@@ -21,6 +22,7 @@ const payments = new Payments(nextgen);
 const mode = new ModeStore(dataDir);
 const staffing = new StaffingStore(dataDir);
 wireNotifier(outages, sms);
+wireAgentSummaries(calls);
 
 const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing });
 await app.listen({ port: env.PORT, host: env.HOST });

@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storm Day Call Review · Horry Electric</title>
+<style>
+  /* Call review dashboard: summary tiles, then why-they-called + by-hour, then sentiment + wrap-up codes,
+     then every call with a drill-in that shows Savannah's leg and the live agent's leg side by side. */
+  :root {
+    --bg: #f3f5f8; --panel: #ffffff; --fg: #1b2633; --dim: #5f6c7b; --line: #d6dce4; --soft: #eef1f5;
+    --navy: #123a5e; --accent: #b8620a;
+    --s-ai: #2a78d6;      /* resolved by Savannah (series 1) */
+    --s-agent: #eb6834;   /* sent to a live agent (series 2) */
+    --s-neutral: #b9b8b0;
+    --ok: #1a7a3c; --bad: #a61b1b;
+    --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12171d; --panel: #1a2129; --fg: #e3e8ee; --dim: #95a3b2; --line: #34404d; --soft: #222b35;
+      --navy: #a9c3df; --accent: #f0a050; --s-ai: #3987e5; --s-agent: #d95926; --s-neutral: #5a5a55;
+      --ok: #6fd394; --bad: #f4a9a8; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12171d; --panel: #1a2129; --fg: #e3e8ee; --dim: #95a3b2; --line: #34404d; --soft: #222b35;
+    --navy: #a9c3df; --accent: #f0a050; --s-ai: #3987e5; --s-agent: #d95926; --s-neutral: #5a5a55;
+    --ok: #6fd394; --bad: #f4a9a8; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
+  header.top { background: var(--navy); color: #fff; padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
+  :root[data-theme="dark"] header.top, :root:not([data-theme="light"]) header.top { color: #fff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) header.top { background: #0d2a45; } }
+  :root[data-theme="dark"] header.top { background: #0d2a45; }
+  header.top h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header.top .sub { font-size: 12px; opacity: .85; }
+  header.top label { font-size: 13px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px 20px 40px; display: grid; gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
+  .tile .k { font-size: 12px; color: var(--dim); }
+  .tile .v { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .tile .n { font-size: 12px; color: var(--dim); }
+  .tile.hero { border-color: var(--s-ai); }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+  .panel h2 { font-size: 15px; margin: 0; color: var(--navy); }
+  .panel .hint { font-size: 12px; color: var(--dim); margin: -6px 0 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--dim); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  /* topic bars */
+  .tbar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; gap: 10px; align-items: center; padding: 3px 4px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+  .tbar:hover { background: var(--soft); }
+  .tbar.sel { border-color: var(--accent); background: var(--soft); }
+  .tbar .lbl { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tbar .track { display: flex; gap: 2px; height: 16px; }
+  .tbar .seg { height: 100%; }
+  .tbar .seg.ai { background: var(--s-ai); border-radius: 4px 0 0 4px; }
+  .tbar .seg.ag { background: var(--s-agent); border-radius: 0 4px 4px 0; }
+  .tbar .seg.solo { border-radius: 4px; }
+  .tbar .cnt { text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); font-size: 12px; }
+  /* hourly */
+  .hours { display: flex; align-items: flex-end; gap: 4px; height: 170px; padding-top: 6px; }
+  .hcol { flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; height: 100%; position: relative; cursor: default; min-width: 0; }
+  .hcol .ai { background: var(--s-ai); border-radius: 0 0 0 0; }
+  .hcol .ag { background: var(--s-agent); border-radius: 4px 4px 0 0; }
+  .hcol .ai.top { border-radius: 4px 4px 0 0; }
+  .haxis { display: flex; gap: 4px; font-size: 11px; color: var(--dim); }
+  .haxis span { flex: 1; text-align: center; min-width: 0; }
+  /* sentiment */
+  .sent { display: flex; gap: 2px; height: 22px; }
+  .sent div { height: 100%; }
+  .sent .pos { background: var(--s-ai); border-radius: 4px 0 0 4px; }
+  .sent .neu { background: var(--s-neutral); }
+  .sent .neg { background: var(--s-agent); border-radius: 0 4px 4px 0; }
+  .sentlbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  /* tables */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr.call { cursor: pointer; }
+  tbody tr.call:hover { background: var(--soft); }
+  .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; margin: 0 4px 2px 0; }
+  .chip.live { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .path { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dot.ai { background: var(--s-ai); } .dot.ag { background: var(--s-agent); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, select { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  button:focus-visible, select:focus-visible, .tbar:focus-visible, tr.call:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .codes .row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 34px; gap: 8px; align-items: center; font-size: 13px; }
+  .codes .bar { height: 10px; background: var(--s-agent); border-radius: 0 4px 4px 0; }
+  /* drill-in */
+  .scrim { position: fixed; inset: 0; background: rgba(10, 18, 28, .45); display: flex; justify-content: flex-end; z-index: 20; }
+  .drawer { background: var(--bg); width: min(980px, 100%); height: 100%; overflow-y: auto; padding: 18px 20px 30px; display: grid; gap: 14px; align-content: start; }
+  .drawer h2 { margin: 0; font-size: 18px; }
+  .drawer .meta { color: var(--dim); font-size: 13px; }
+  .legs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  @media (max-width: 760px) { .legs { grid-template-columns: minmax(0, 1fr); } }
+  .leg { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 10px; align-content: start; border-top: 4px solid var(--s-ai); }
+  .leg.agent { border-top-color: var(--s-agent); }
+  .leg h3 { margin: 0; font-size: 14px; }
+  .leg dl { margin: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px 10px; font-size: 13px; }
+  .leg dt { color: var(--dim); }
+  .leg dd { margin: 0; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+  .steps li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+  .steps .t { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .story { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .transcript { max-height: 280px; overflow-y: auto; font-size: 13px; display: grid; gap: 4px; }
+  .transcript b { color: var(--dim); font-weight: 600; }
+  .empty { color: var(--dim); font-style: italic; }
+  #tip { position: fixed; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 12px; padding: 6px 8px; border-radius: 6px; z-index: 30; max-width: 260px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Storm Day Call Review</h1>
+    <div class="sub">Horry Electric Cooperative · Savannah (AI) and live agents · <span id="updated">loading…</span></div>
+  </div>
+  <label><input type="checkbox" id="sample" checked> Include sample storm day (yesterday)</label>
+</header>
+
+<main>
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>Why members called</h2>
+      <p class="hint">Topics come from the conversation itself (what Savannah did, plus the live agent's AI summary), not a code someone picked. Click a topic to filter the calls below.</p>
+      <div class="legend"><span><i style="background:var(--s-ai)"></i>Resolved by Savannah</span><span><i style="background:var(--s-agent)"></i>Sent to a live agent</span></div>
+      <div id="topics"></div>
+    </div>
+    <div class="panel">
+      <h2>Calls by hour</h2>
+      <div class="legend"><span><i style="background:var(--s-ai)"></i>Resolved by Savannah</span><span><i style="background:var(--s-agent)"></i>Sent to a live agent</span></div>
+      <div class="hours" id="hours"></div>
+      <div class="haxis" id="haxis"></div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>How members felt</h2>
+      <p class="hint">Sentiment from each conversation, after the call.</p>
+      <div class="sent" id="sent"></div>
+      <div class="sentlbl" id="sentlbl"></div>
+    </div>
+    <div class="panel codes">
+      <h2>Wrap-up codes from live agents</h2>
+      <p class="hint">From Cisco AI Assistant's wrap-up summary on each call an agent took.</p>
+      <div id="codes"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="filters">
+      <h2 style="margin-right:auto">Every call</h2>
+      <button type="button" data-path="all" aria-pressed="true">All</button>
+      <button type="button" data-path="ai" aria-pressed="false">Resolved by Savannah</button>
+      <button type="button" data-path="agent" aria-pressed="false">Sent to an agent</button>
+      <button type="button" id="clearTopic" hidden>Clear topic filter</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Time</th><th>Member</th><th>Why they called</th><th>Path</th><th>Wrap-up code</th><th>Sentiment</th><th class="num">Length</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div><button type="button" id="more" hidden>Show more</button></div>
+  </section>
+</main>
+
+<div id="tip" hidden></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const pct = (x) => `${Math.round(x * 100)}%`;
+  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const day = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const hourLbl = (h) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
+
+  let data = null, topic = '', path = 'all', limit = 60;
+
+  async function load() {
+    const res = await fetch(`api/analytics?sample=${$('sample').checked ? 1 : 0}`);
+    data = await res.json();
+    $('updated').textContent = `updated ${clock(data.generatedAt)}`;
+    render();
+  }
+
+  function tile(k, v, n, hero) {
+    return `<div class="tile${hero ? ' hero' : ''}"><span class="k">${k}</span><span class="v">${v}</span><span class="n">${n}</span></div>`;
+  }
+
+  function render() {
+    const k = data.kpis;
+    $('tiles').innerHTML =
+      tile('Calls Savannah answered', k.calls.toLocaleString(), k.live ? `${k.live} live today` : 'sample day') +
+      tile('Containment rate', pct(k.containmentRate), `${k.contained} finished without a person`, true) +
+      tile('Sent to a live agent', k.toAgent.toLocaleString(), 'with Savannah\'s notes on screen') +
+      tile('Restoration sign-ups', k.restorationSignups.toLocaleString(), 'text when power is back') +
+      tile('Payments taken', k.payments.toLocaleString(), 'no card numbers spoken') +
+      tile('Negative sentiment', pct(k.negativePct), 'of all calls');
+
+    const max = Math.max(1, ...data.topics.map((t) => t.contained + t.toAgent));
+    $('topics').innerHTML = data.topics.map((t) => {
+      const tot = t.contained + t.toAgent;
+      const a = (t.contained / max) * 100, g = (t.toAgent / max) * 100;
+      const segA = t.contained ? `<div class="seg ai${t.toAgent ? '' : ' solo'}" style="width:${a}%"></div>` : '';
+      const segG = t.toAgent ? `<div class="seg ag${t.contained ? '' : ' solo'}" style="width:${g}%"></div>` : '';
+      return `<div class="tbar${topic === t.topic ? ' sel' : ''}" tabindex="0" role="button" data-topic="${esc(t.topic)}"
+        data-tip="${esc(t.topic)}: ${tot} calls · ${t.contained} resolved by Savannah (${pct(t.contained / tot)}) · ${t.toAgent} sent to an agent">
+        <span class="lbl">${esc(t.topic)}</span><div class="track">${segA}${segG}</div><span class="cnt">${tot}</span></div>`;
+    }).join('') || '<p class="empty">No calls yet.</p>';
+
+    const hmax = Math.max(1, ...data.byHour.map((h) => h.contained + h.toAgent));
+    $('hours').innerHTML = data.byHour.map((h) => {
+      const tot = h.contained + h.toAgent;
+      return `<div class="hcol" data-tip="${hourLbl(h.hour)}: ${tot} calls · ${h.contained} resolved by Savannah · ${h.toAgent} to an agent">
+        ${h.contained ? `<div class="ai${h.toAgent ? '' : ' top'}" style="height:${(h.contained / hmax) * 100}%"></div>` : ''}
+        ${h.toAgent ? `<div class="ag" style="height:${(h.toAgent / hmax) * 100}%"></div>` : ''}</div>`;
+    }).join('');
+    $('haxis').innerHTML = data.byHour.map((h, i) => `<span>${i % 2 === 0 ? hourLbl(h.hour) : ''}</span>`).join('');
+
+    const s = data.sentiment, st = Math.max(1, s.positive + s.neutral + s.negative);
+    $('sent').innerHTML =
+      `<div class="pos" style="width:${(s.positive / st) * 100}%" data-tip="Positive: ${s.positive} calls"></div>` +
+      `<div class="neu" style="width:${(s.neutral / st) * 100}%" data-tip="Neutral: ${s.neutral} calls"></div>` +
+      `<div class="neg" style="width:${(s.negative / st) * 100}%" data-tip="Negative: ${s.negative} calls"></div>`;
+    $('sentlbl').innerHTML = `<span>Positive ${pct(s.positive / st)}</span><span>Neutral ${pct(s.neutral / st)}</span><span>Negative ${pct(s.negative / st)}</span>`;
+
+    const cmax = Math.max(1, ...data.wrapUps.map((c) => c.count));
+    $('codes').innerHTML = data.wrapUps.map((c) =>
+      `<div class="row"><span>${esc(c.code)}</span><div class="bar" style="width:${(c.count / cmax) * 100}%"></div><span class="num" style="text-align:right">${c.count}</span></div>`
+    ).join('') || '<p class="empty">No live-agent calls yet.</p>';
+
+    renderRows();
+  }
+
+  function renderRows() {
+    const rows = data.calls.filter((c) =>
+      (!topic || c.topics.includes(topic)) && (path === 'all' || (path === 'ai' ? c.contained : !c.contained)));
+    $('clearTopic').hidden = !topic;
+    $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
+    $('rows').innerHTML = rows.slice(0, limit).map((c) => `
+      <tr class="call" tabindex="0" data-id="${esc(c.id)}">
+        <td>${c.sample ? day(c.startedAt) + ' ' : ''}${clock(c.startedAt)}${c.sample ? '' : ' <span class="chip live">Live</span>'}</td>
+        <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
+        <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.channel === 'chat' ? '<span class="chip">web chat</span>' : ''}</td>
+        <td><span class="path"><span class="dot ai"></span>${c.contained ? 'Savannah only' : 'Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
+        <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained ? '' : '<span class="empty">waiting for summary</span>'}</td>
+        <td>${esc(c.sentiment)}</td>
+        <td class="num">${mmss(c.durationSec)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" class="empty">No calls match.</td></tr>';
+    $('more').hidden = rows.length <= limit;
+  }
+
+  async function openCall(id) {
+    const res = await fetch(`api/analytics/calls/${encodeURIComponent(id)}`);
+    if (!res.ok) return;
+    const c = await res.json();
+    const a = c.agentLeg;
+    const src = a ? (a.source === 'cisco' ? 'Cisco AI Assistant' : a.source === 'posted' ? 'Cisco AI Assistant (from the desktop)' : 'Simulated for the demo') : '';
+    const story = c.contained
+      ? `Savannah handled this call from start to finish. ${esc(c.aiSummary)}`
+      : `Savannah started the call${c.escalation ? ` and sent it to ${esc(c.escalation.department.replace('_', ' '))} (${esc(c.escalation.reason.replace(/_/g, ' '))})` : ''}. ${a ? `The agent ${esc(a.summary.actions.charAt(0).toLowerCase() + a.summary.actions.slice(1))} Status: ${esc(a.summary.status || 'n/a')}.` : 'The live agent\'s summary will appear here when Cisco publishes it.'}`;
+    const scrim = document.createElement('div');
+    scrim.className = 'scrim';
+    scrim.innerHTML = `
+      <div class="drawer" role="dialog" aria-modal="true" aria-label="Call detail">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:start">
+          <div>
+            <h2>${esc(c.member)}</h2>
+            <div class="meta">${day(c.startedAt)} ${clock(c.startedAt)} · ${mmss(c.durationSec)} · ${c.channel === 'chat' ? 'web chat' : 'phone'}${c.town ? ' · ' + esc(c.town) : ''}${c.sample ? ' · sample call' : ''}</div>
+            <div style="margin-top:6px">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}<span class="chip">${esc(c.sentiment)}</span></div>
+          </div>
+          <button type="button" id="close">Close</button>
+        </div>
+        <div class="story"><strong>What happened.</strong> ${story}</div>
+        <div class="legs">
+          <section class="leg">
+            <h3><span class="dot ai"></span> Savannah (AI agent)</h3>
+            <p style="margin:0">${esc(c.aiSummary) || '<span class="empty">Summary arrives after the call.</span>'}</p>
+            <ol class="steps">${c.journey.map((j) => `<li><span class="t">${clock(j.at)}</span><span><strong>${esc(j.step.replace(/_/g, ' '))}</strong> · ${esc(j.detail)}</span></li>`).join('')}</ol>
+            ${c.escalation ? `<dl><dt>Handed to</dt><dd>${esc(c.escalation.department.replace('_', ' '))} · ${esc(c.escalation.urgency)}</dd><dt>Her notes</dt><dd>${esc(c.escalation.summary)}</dd></dl>` : ''}
+          </section>
+          <section class="leg agent">
+            <h3><span class="dot ag"></span> Live agent</h3>
+            ${c.contained
+              ? '<p class="empty" style="margin:0">No live agent needed.</p>'
+              : a
+                ? `<dl>
+                    <dt>Agent</dt><dd>${esc(a.agentName)}${a.team ? ' · ' + esc(a.team) : ''}</dd>
+                    <dt>Wrap-up code</dt><dd>${esc(a.wrapUpCode)}</dd>
+                    <dt>Reason</dt><dd>${esc(a.summary.reason)}</dd>
+                    <dt>Actions</dt><dd>${esc(a.summary.actions)}</dd>
+                    <dt>Status</dt><dd>${esc(a.summary.status)}</dd>
+                    <dt>Follow-up</dt><dd>${esc(a.summary.followUp)}</dd>
+                    <dt>Source</dt><dd>${src}</dd></dl>`
+                : '<p class="empty" style="margin:0">Waiting for the wrap-up summary.</p>'}
+          </section>
+        </div>
+        ${c.transcript?.length ? `<section class="panel"><h2>Savannah's conversation</h2><div class="transcript">${c.transcript.map((t) => `<div><b>${t.role === 'agent' ? 'Savannah' : 'Member'}:</b> ${esc(t.text)}</div>`).join('')}</div></section>` : ''}
+      </div>`;
+    const close = () => scrim.remove();
+    scrim.addEventListener('click', (e) => { if (e.target === scrim) close(); });
+    scrim.querySelector('#close').addEventListener('click', close);
+    scrim.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    document.body.appendChild(scrim);
+    scrim.querySelector('#close').focus();
+  }
+
+  // interactions
+  $('sample').addEventListener('change', () => { limit = 60; load(); });
+  $('topics').addEventListener('click', (e) => {
+    const b = e.target.closest('.tbar'); if (!b) return;
+    topic = topic === b.dataset.topic ? '' : b.dataset.topic; limit = 60; render();
+  });
+  $('topics').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.target.click(); } });
+  $('clearTopic').addEventListener('click', () => { topic = ''; render(); });
+  document.querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
+    path = b.dataset.path; limit = 60;
+    document.querySelectorAll('[data-path]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderRows();
+  }));
+  $('more').addEventListener('click', () => { limit += 60; renderRows(); });
+  $('rows').addEventListener('click', (e) => { const r = e.target.closest('tr.call'); if (r) openCall(r.dataset.id); });
+  $('rows').addEventListener('keydown', (e) => { const r = e.target.closest('tr.call'); if (r && e.key === 'Enter') openCall(r.dataset.id); });
+
+  // hover tooltips on every chart mark
+  const tip = $('tip');
+  document.addEventListener('mousemove', (e) => {
+    const t = e.target.closest?.('[data-tip]');
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.dataset.tip; tip.hidden = false;
+    const x = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = `${x}px`; tip.style.top = `${e.clientY + 14}px`;
+  });
+
+  load();
+  setInterval(load, 15000);
+</script>
+</body>
+</html>

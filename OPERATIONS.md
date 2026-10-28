@@ -53,11 +53,12 @@ chosen; webhookSecret = the box's agentTool secret pattern), restart `ivr-contro
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` | SMS number for restoration texts + payment links (point its inbound webhook at `/horry/webhooks/twilio/sms`) |
 | `SMS_OVERRIDE_NUMBER` | optional — every text goes to the presenter |
 | `WEBEX_ORG_ID`, `WXCC_STORM_VARIABLE_ID`, `WEBEX_CLIENT_ID`, `WEBEX_CLIENT_SECRET`, `WEBEX_REFRESH_TOKEN` | Storm Mode global variable writer (dedicated Service App) |
+| `WXCC_SUMMARY_URL` | Cisco AI Assistant summary endpoint template with `{interactionId}` — [CONFIRM] path. Unset = simulated live-agent summaries |
 | `WXCC_OUTAGE_QUEUE_ID` | id of `Q_Horry_Outage` — the supervisor widget adds/removes teams on it (same Service App). Unset = simulated teams |
 | `NEXTGEN_BASE_URL` / `NEXTGEN_USERNAME` / `NEXTGEN_PASSWORD` | leave unset (mock) for the demo |
 
 Widgets: `npm run build` builds `packages/widgets/dist/horry-widgets.js`, served at
-`/horry/widgets/horry-widgets.js`. Preview without the Desktop: `/horry/supervisor.html`. Layout
+`/horry/widgets/horry-widgets.js`. Preview without the Desktop: `/horry/supervisor.html`. Call review dashboard: `/horry/dashboard.html`. Layout
 snippet: `docs/desktop-layout.md` (deploy widgets BEFORE uploading the layout).
 
 ## Smoke

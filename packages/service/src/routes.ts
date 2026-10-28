@@ -17,6 +17,8 @@ import { twilioSignatureOk } from './sms.js';
 import type { Payments } from './payments.js';
 import type { ModeStore } from './mode.js';
 import type { StaffingStore } from './staffing.js';
+import { overview, callDetail } from './analytics.js';
+import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 
 export interface Deps {
@@ -161,6 +163,23 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const storm = b.storm === true || b.storm === 'true';
     return mode.set(storm, b.by ?? 'supervisor', b.broadcast);
   });
+  // Call review dashboard (public/dashboard.html): AI leg + live-agent leg per call.
+  f.get('/api/analytics', async (req) => overview(calls.all(), String((req.query as { sample?: string }).sample ?? '1') !== '0'));
+  f.get('/api/analytics/calls/:id', async (req, reply) => {
+    const v = callDetail(calls.all(), (req.params as { id: string }).id);
+    return v ?? reply.code(404).send({ error: 'No such call' });
+  });
+  f.post('/api/calls/:guid/agent-leg', async (req, reply) => {
+    const row = calls.get((req.params as { guid: string }).guid);
+    if (!row) return reply.code(404).send({ error: 'No such call' });
+    try {
+      calls.patch(row, { agentLeg: legFromBody((req.body ?? {}) as Record<string, unknown>) });
+      return { ok: true };
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+  });
+
   // Storm staffing (supervisor widget): which teams take outage-queue calls.
   f.get('/api/staffing', async () => d.staffing.get());
   f.post('/api/staffing', async (req, reply) => {

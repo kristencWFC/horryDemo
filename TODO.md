@@ -38,8 +38,13 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 5. ⏳ (pending) — Kristen.
 6. ✅ NextGen CIS = Meridian's IVR/RPS API; Horry runs Meridian UPN. Mock mirrors it.
 7. Scope cut (HLD §5) — assumed agreed.
-8. ❓ Keypad card capture (Kristen 2026-10-28): Twilio Pay vs our freeSWITCH collecting digits
-   (ElevenLabs paused) and posting straight to Meridian ivr/sale. Awaiting Kristen.
+8. ✅ Keypad card capture (Kristen 2026-10-28): **demo = our freeSWITCH collects the keypad digits
+   (Savannah paused, digits never reach ElevenLabs) and posts straight to Meridian ivr/sale; production
+   option presented = Twilio Pay** (keeps WFC out of PCI scope). Card number by VOICE is ruled out — the
+   spoken digits would land in ElevenLabs STT/LLM/transcripts and the recordings.
+   Web chat escalation lands in OUR desktop widget, like Infinity (Kristen 2026-10-28).
+   Global_StormMode created in Control Hub (String, default false) — put its id in
+   WXCC_STORM_VARIABLE_ID.
 9. Discovery-call questions: OMS vendor (Futura?); NextGen API enabled on their UPN +
    NISC support post-merger; which card tokens Meridian's gateway accepts; outage line
    843-369-2212 vs main; what "email ticketing" means to them; NISC CallCapture IVR in use?
@@ -58,7 +63,9 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 ## Phase 4 — payments
 
 - [x] Card on file (`saleWithProfile`), secure link (`pay.html` → token sale)
-- [ ] Twilio Pay keypad out-and-back (FS → Twilio `<Pay>` → back with X-Pay-* headers)
+- [ ] **Keypad pay for the demo: freeSWITCH collects digits** (pause Savannah, play_and_get_digits,
+      no logging, POST Meridian ivr/sale, resume Savannah with the result). Mock gateway must accept
+      CardAccountNumber for TEST cards on this path only. Twilio Pay = production slide.
 - [ ] Agent-initiated secure pay + return to the same agent (flow notes "phase 4")
 
 ## Phase 5 — widgets, chat, dashboard (next build session)
@@ -68,7 +75,14 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
       transcript, billing assistant (Claude tool loop over the same tools), supervisor
       **Storm Mode button** (→ `POST api/mode`); layout `KC_Horry.json` (widgets first)
 - [ ] Web chat on a mock horryelectric.com page (home-services `chat.ts` pattern)
-- [ ] Storm-day dashboard (aiops baseline + live overlay; tags, sentiment, drill-in)
+- [x] **Call review dashboard** `/horry/dashboard.html` (2026-10-28, Kristen: item 5) — containment,
+      topics from the conversation (AI leg + Cisco wrap-up summary), by hour, sentiment, wrap-up codes,
+      per-call drill-in with both legs. Sample storm day (yesterday, deterministic) + live overlay.
+      Live-agent leg: `agent-summaries.ts` — WXCC_SUMMARY_URL poll (Cisco: AI summaries retrievable
+      by API for 24 h) [CONFIRM endpoint on developer.webex.com], or POST api/calls/:guid/agent-leg,
+      else simulated 45 s after an escalated call ends.
+- [ ] Agent widget: capture the AI Assistant wrap-up summary from the Desktop SDK and POST it
+      (the live path if the REST endpoint isn't available)
 - [ ] Real voice restoration callbacks (ElevenLabs outbound) — simulated today
 - [ ] Agent data-collection fields (sentiment, call_reason) for post-call analysis
 - [ ] Email inbox beat (optional), storm roster page (optional)

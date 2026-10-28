@@ -52,6 +52,10 @@ const EnvSchema = z.object({
   // Storm staffing: the outage queue whose team list the supervisor widget edits (same
   // Service App). Unset = simulated teams.
   WXCC_OUTAGE_QUEUE_ID: z.string().optional(),
+
+  // Cisco AI Assistant wrap-up summaries for the live-agent leg. URL template with
+  // {interactionId} (and optionally {orgId}). Unset = simulated summaries. [CONFIRM] path.
+  WXCC_SUMMARY_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
