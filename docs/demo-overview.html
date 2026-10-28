@@ -86,7 +86,51 @@
   </header>
 
   <section>
-    <h2>1. What we show them</h2>
+    <h2>1. Their concerns, item by item</h2>
+    <p>These are the items from Horry's discovery summary, with how the demo answers each one. Rows marked
+    <span class="pill hold">gap</span> have nothing in the demo yet and are for the team to decide.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>What they told us</th><th>How we answer it</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Next steps: a demo and a pricing exercise.</td><td>The Nov 4 demo. Pricing is a separate exercise for Dave and Jerry.</td><td><span class="pill open">talk</span></td></tr>
+        <tr><td class="num">2</td><td>109 employees, 163 phones (128 real users), 33 to 35 contact center agents.</td><td>Sizing for licences and pricing. No demo piece needed.</td><td><span class="pill open">talk</span></td></tr>
+        <tr><td class="num">3</td><td>During a storm, quickly bring on up to 50 extra staff from other departments as agents in an outage queue.</td><td>Savannah takes the first wave of calls, so fewer extra staff are needed. <strong>Not shown yet:</strong> how the 50 extra people get onto the outage queue. Suggestion: a storm team already set up in Control Hub, a softphone login from any desk, and a Storm roster widget where the supervisor adds people to the outage queue during the storm.</td><td><span class="pill hold">gap</span></td></tr>
+        <tr><td class="num">4</td><td>Mitel is 26 years old. Contact center integration is clunky, adding ACD users is hard, and reports are hard to use.</td><td>Show how quickly an agent is added in Control Hub and how the Analyzer reports look. Everything else in the demo shows the integration.</td><td><span class="pill open">Cisco built-in</span></td></tr>
+        <tr><td class="num">5</td><td>Reports on handled calls, abandoned calls and hold times. AI that tags calls from the conversation instead of one manual code.</td><td>Analyzer for abandoned and hold-time reports. AI tags and sentiment on every Savannah call (storm dashboard). Cisco's auto wrap-up summary and wrap-up code on live-agent calls.</td><td><span class="pill todo">building</span></td></tr>
+        <tr><td class="num">6</td><td>Email ticketing to replace a shared distribution group. Web chat, and maybe social media.</td><td>Email pick board, and web chat with Savannah first and then a live agent. Social media (Facebook Messenger, WhatsApp) through Webex Connect is a talking point only.</td><td><span class="pill todo">building</span></td></tr>
+        <tr><td class="num">7</td><td>Agents are all in the office today. Open to a mix of desk phones and softphones.</td><td>Agents log in with the browser softphone or a Cisco desk phone. Show both if we have a desk phone on hand.</td><td><span class="pill open">Cisco built-in</span></td></tr>
+        <tr><td class="num">8</td><td>Not opposed to the cloud. The project started because of Mitel's on-premise limits.</td><td>WxCC is cloud. This is a talking point.</td><td><span class="pill open">talk</span></td></tr>
+        <tr><td class="num">9</td><td>Screen pop from NISC (formerly Meridian), their billing system. Mitel couldn't do it.</td><td>The member card widget with key NISC details, a mock billing screen that opens on the member's account, and Savannah reading the same data.</td><td><span class="pill todo">building</span></td></tr>
+        <tr><td class="num">10</td><td>Built-in call recording instead of a third-party product. Agents take card payments over the phone without affecting their PCI SAQ D status.</td><td>WxCC records calls natively. An agent sends the caller to secure pay and gets them back, and card digits never reach the agent or the recording. Card on file and the text link are already built.</td><td><span class="pill todo">building</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><strong>For the team.</strong> The biggest gap is item 3. Their storm plan is to add people, and
+    the demo so far only shows AI. We should show both: the AI handles the first wave, and the extra staff are easy to add.</div>
+  </section>
+
+  <section>
+    <h2>2. Ideas we've discussed adding</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Idea</th><th>Answers</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Storm Mode button for supervisors, and Savannah answering outage calls</td><td>3</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Restoration texts, with "reply OUT" opening a new ticket</td><td>3</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Restoration voice callbacks</td><td>3</td><td><span class="pill hold">simulated</span></td></tr>
+        <tr><td>Storm-day dashboard with AI tags, sentiment and call summaries</td><td>3, 5</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Storm roster: add extra staff to the outage queue during a storm (new suggestion)</td><td>3, 4</td><td><span class="pill todo">to decide</span></td></tr>
+        <tr><td>Member card widget with NISC details, and a mock billing screen pop</td><td>9</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Billing assistant for agents in the desktop</td><td>9</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Payments by card on file and by secure text link</td><td>9, 10</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Keypad payments, and an agent handing the caller to secure pay and back</td><td>10</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Web chat, Savannah first and then a live agent</td><td>6</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Email pick board</td><td>6</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Cisco auto wrap-up summary</td><td>5</td><td><span class="pill todo">to do</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>3. What we show them</h2>
     <p>Each card maps to an item on the discovery worksheet Horry filled in.</p>
     <div class="cards">
       <div><span class="k">Item 3 · storm days</span><h3>Storm Mode AI</h3>
@@ -109,7 +153,7 @@
   </section>
 
   <section>
-    <h2>2. How a call moves</h2>
+    <h2>4. How a call moves</h2>
     <p>Pick a situation, then step through it. Boxes and arrows in orange are the ones in use at that step.</p>
     <div class="controls" id="scenarios" role="group" aria-label="Situations"></div>
     <div class="sheet">
@@ -154,7 +198,7 @@
   </section>
 
   <section>
-    <h2>3. Taking payments with no card numbers</h2>
+    <h2>5. Taking payments with no card numbers</h2>
     <p>Anything a caller says or keys in on the phone reaches the AI as text. So Savannah never
     asks for a card number. She uses one of three ways to pay, and none of them lets a card number
     reach the AI, an agent, a recording or our service.</p>
@@ -167,13 +211,13 @@
         <tr><td>Agent hands off to pay</td><td>A live agent sends the caller to secure pay, and the call comes back to the same agent when it's done.</td><td><span class="pill todo">to do</span></td></tr>
       </tbody>
     </table></div>
-    <div class="note"><strong>The PCI message.</strong> Horry probably uses SAQ D today, since agents hear card numbers. With
-    this design their contact center never handles a card number, so they add no PCI scope. Their auditor decides
-    the final SAQ.</div>
+    <div class="note"><strong>The PCI message.</strong> Horry told us they are SAQ D today and want to stay that way. With
+    this design their new contact center never handles a card number, so it adds nothing to their PCI scope.
+    Their auditor confirms this.</div>
   </section>
 
   <section>
-    <h2>4. Web chat and email</h2>
+    <h2>6. Web chat and email</h2>
     <h3>Web chat: AI first, then a live agent</h3>
     <p>This works like the Infinity demo. A chat bubble sits on a copy of horryelectric.com. Savannah answers in
     text with the same tools she uses on the phone: account lookup, outage status, billing and the
@@ -196,7 +240,7 @@
   </section>
 
   <section>
-    <h2>5. Demo members</h2>
+    <h2>7. Demo members</h2>
     <p>These people are fictional, and the presenter's phone can be set to call in as any of them.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Member</th><th>Town</th><th>Story</th><th class="num">Balance</th></tr></thead>
@@ -212,7 +256,7 @@
   </section>
 
   <section>
-    <h2>6. Where the build stands</h2>
+    <h2>8. Where the build stands</h2>
     <div class="table-wrap"><table>
       <thead><tr><th>Status</th><th>Piece</th><th>Notes</th></tr></thead>
       <tbody>
@@ -223,8 +267,8 @@
         <tr><td><span class="pill todo">to do</span></td><td>WxCC setup</td><td>Global variable, entry point, queues and Service App in Control Hub, plus the flow in Designer.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Desktop widgets</td><td>Member card with the key NISC account details (balance, due date, cut-off, payment history, usage, outage status). Also what the AI did, the billing assistant, and the supervisor's Storm Mode button.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Billing screen pop</td><td>A mock billing-system account page. The call opens it on the member's account, the way Horry's own system would open.</td></tr>
-        <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 4).</td></tr>
-        <tr><td><span class="pill todo">to do</span></td><td>Web chat</td><td>AI first, then a live agent (section 4).</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 6).</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Web chat</td><td>AI first, then a live agent (section 6).</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Storm-day dashboard</td><td>AI stats, sentiment and call summaries.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Cisco auto wrap-up summary</td><td>Turn on AI Assistant summaries for the Horry queues and show one after an escalated call.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Keypad pay, agent hand-off to pay</td><td>Waiting on the PCI-mode Twilio account.</td></tr>
@@ -234,7 +278,7 @@
   </section>
 
   <section>
-    <h2>7. Questions for the discovery call</h2>
+    <h2>9. Questions for the discovery call</h2>
     <ul>
       <li>Is the NextGen CIS API turned on for Horry's system, and will NISC keep supporting it after the Meridian merger?</li>
       <li>Which card tokens does Meridian's payment gateway accept? This decides how keypad payments connect.</li>

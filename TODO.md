@@ -71,6 +71,8 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 - [ ] Real voice restoration callbacks (ElevenLabs outbound) — simulated today
 - [ ] Agent data-collection fields (sentiment, call_reason) for post-call analysis
 - [ ] Email inbox beat (optional), storm roster page (optional)
+- [ ] **Storm roster** (gap vs discovery item 3 — they plan to add up to 50 staff to an outage
+      queue): pre-built storm team, softphone login, supervisor adds people to Q_Horry_Outage. To decide.
 - [ ] **Billing screen pop** (Kristen 2026-10-28): widget shows key NISC data (balance, due,
       cut-off, payment history, usage, outage) + a FAKE billing-system account page the call opens
       (generic look — not NISC branding)
