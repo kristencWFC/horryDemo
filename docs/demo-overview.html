@@ -292,7 +292,7 @@
         <tr><td><span class="pill done">done</span></td><td>Call review dashboard</td><td>Sample storm day plus live calls. Live-agent summaries are simulated until we confirm Cisco's summary API.</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Deploy to kcdev2</td><td>Horry service is live, and the WFC AI Controller sends Horry calls to Savannah on 1151.</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Service App</td><td>Connected. Storm Mode and outage queue staffing now change the real WxCC settings. The staffing panel only offers Horry's own teams (names starting KC_Horry).</td></tr>
-        <tr><td><span class="pill open">in progress</span></td><td>WxCC setup</td><td>Done: Global_StormMode, team KC_HorryElectric, queue Q_Horry_Outage, demo line (972) 430-9658. Still to do: entry point mapping check, Q_Horry_Billing, the KC_Horry department teams, then the flow in Designer.</td></tr>
+        <tr><td><span class="pill open">in progress</span></td><td>WxCC setup</td><td>Done: Global_StormMode, team KC_HorryElectric, queue Q_Horry_Outage, demo line (972) 430-9658. Still to do: Q_Horry_Billing (staffed by KC_Horry_Billing), the KC_Horry department teams, layout KC_Horry on both teams, then the flow in Designer. Test scripts are in section 9.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Agent widgets</td><td>Member card with the key NISC account details (balance, due date, cut-off, payment history, usage, outage status), what the AI did, and the billing assistant.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Billing screen pop</td><td>A mock billing-system account page. The call opens it on the member's account, the way Horry's own system would open.</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 6).</td></tr>
@@ -305,7 +305,75 @@
   </section>
 
   <section>
-    <h2>9. Questions for the discovery call</h2>
+    <h2>9. Running the demo: logins and test scripts</h2>
+    <p>The demo uses two people on two separate Desktop logins. Use two browsers, or one normal window and one private
+    window, so the logins don't share a session.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Who</th><th>Desktop login</th><th>What they see and do</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Primary supervisor</strong> (presenter)</td><td>Supervisor, team <code>KC_HorryElectric</code></td><td>The two Horry pages in the left menu: <strong>Storm Operations</strong> (Storm Mode button, caller announcement, outage queue staffing) and <strong>Call Review</strong> (the call review dashboard). Takes no calls.</td></tr>
+        <tr><td><strong>Billing agent</strong></td><td>Agent, team <code>KC_Horry_Billing</code></td><td>Answers normal billing calls from <code>Q_Horry_Billing</code>. During the storm, the supervisor adds this team to the outage queue and it answers the escalated outage call too.</td></tr>
+        <tr><td><strong>Caller</strong></td><td>Presenter's mobile</td><td>Calls the demo line <strong>(972) 430-9658</strong>. The Storm Console sets which demo member the phone plays.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 style="margin-top:20px">Before the first test</h3>
+    <ul>
+      <li>Desktop layout <code>KC_Horry</code> is assigned to teams <code>KC_HorryElectric</code> and <code>KC_Horry_Billing</code>.</li>
+      <li><code>Q_Horry_Billing</code> is staffed by <code>KC_Horry_Billing</code>. <code>Q_Horry_Outage</code> is staffed by <code>KC_HorryElectric</code> (its normal team).</li>
+      <li>The supervisor's user profile manages team <code>KC_HorryElectric</code>, and the agent's user is on team <code>KC_Horry_Billing</code>.</li>
+      <li>The flow <code>KC_Horry_Electric</code> is published, and entry point <code>EP_KC_Horry</code> points at it.</li>
+      <li>Storm Console (<a href="https://kcdev2.workflowconcepts.com/horry/">kcdev2.workflowconcepts.com/horry</a>), section 02: enter the presenter's mobile number. Press <strong>Reset demo data</strong> before each run.</li>
+    </ul>
+
+    <h3 style="margin-top:20px">Test A: a normal day (Storm Mode off)</h3>
+    <ol class="steps">
+      <li><span>Storm Console: set the presenter's phone to play <strong>David Nguyen</strong> (billing questions).</span></li>
+      <li><span>Supervisor: open Storm Operations and check Storm Mode shows <strong>off</strong>.</span></li>
+      <li><span>Billing agent: set the Desktop to <strong>Available</strong>.</span></li>
+      <li><span>Call (972) 430-9658 from the presenter's mobile.</span></li>
+      <li><span><strong>Expect:</strong> no AI. The call rings the billing agent from <code>Q_Horry_Billing</code>, and the
+        call details show David's name and account number. Answer, talk, end the call and pick a wrap-up code.</span></li>
+    </ol>
+    <div class="note"><strong>If the AI answers in Test A,</strong> Storm Mode is still on. Turn it off in Storm Operations and call again.</div>
+
+    <h3 style="margin-top:20px">Test B: storm day, the AI finishes the call</h3>
+    <ol class="steps">
+      <li><span>Storm Console: set the phone to play <strong>Linda Hardee</strong> (in the Socastee outage).</span></li>
+      <li><span>Supervisor: Storm Operations → turn <strong>Storm Mode on</strong> and confirm. Optionally save an
+        announcement, for example "Crews from neighbouring co-ops are helping us tonight."</span></li>
+      <li><span>Call the demo line. <strong>Expect:</strong> Savannah answers, greets Linda by name, says her area's outage is
+        already reported, and gives the estimate (about 2½ hours).</span></li>
+      <li><span>Say yes when she offers a text when power is back, then let her end the call.</span></li>
+      <li><span><strong>Expect:</strong> no agent's phone rings. The Storm Console shows the conversation (section 06), and Linda in
+        restoration notifications (section 04). Call Review shows the call as resolved by the AI.</span></li>
+      <li><span>Storm Console section 03: <strong>Mark restored</strong> on the Socastee outage. <strong>Expect:</strong> the "power is back"
+        text appears in section 05 (and on the phone once texting is set up).</span></li>
+    </ol>
+
+    <h3 style="margin-top:20px">Test C: storm day, wire down goes to a person</h3>
+    <ol class="steps">
+      <li><span>Leave Storm Mode on. Storm Console: set the phone to play <strong>Marcus Jordan</strong> (on life support, same outage).</span></li>
+      <li><span>Supervisor: Storm Operations → outage queue staffing → tick <code>KC_Horry_Billing</code> → <strong>Apply</strong>.
+        This is the moment that answers Horry's concern 3: other departments join the outage queue with one click.</span></li>
+      <li><span>Billing agent: Available.</span></li>
+      <li><span>Call and say "There's a power line down across my driveway." <strong>Expect:</strong> Savannah tells him to stay at least
+        35 feet away, says one line about connecting him, and hands the call back.</span></li>
+      <li><span><strong>Expect:</strong> the billing agent's Desktop rings from <code>Q_Horry_Outage</code> at top priority. The call details
+        show urgency <em>emergency</em>, the reason, and Savannah's summary, so Marcus doesn't repeat himself.</span></li>
+      <li><span>Supervisor: open Call Review and click the call to show both parts: what Savannah did and the agent's part.</span></li>
+    </ol>
+
+    <h3 style="margin-top:20px">After each run</h3>
+    <ul>
+      <li>Supervisor: outage queue staffing → <strong>Return to normal</strong> (takes <code>KC_Horry_Billing</code> back off the outage queue).</li>
+      <li>Supervisor: turn <strong>Storm Mode off</strong>. Storm Operations warns if extra teams are still on the outage queue.</li>
+      <li>Storm Console: <strong>Reset demo data</strong> (re-creates the outages and clears calls and texts).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>10. Questions for the discovery call</h2>
     <ul>
       <li>Is the NextGen CIS API turned on for Horry's system, and will NISC keep supporting it after the Meridian merger?</li>
       <li>Which card tokens does Meridian's payment gateway accept? This decides how keypad payments connect.</li>

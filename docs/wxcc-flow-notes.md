@@ -11,7 +11,8 @@ Every HTTP node: **timeout 10 s** (the 2 s default fails silently). Responses ar
 | Global Variable | `Global_StormMode` (String, default `false`, not agent-editable, reportable) | **Storm Mode.** The middleware PUTs its `defaultValue` (`api/mode` → `cad-variable/{id}`). Put its id in `WXCC_STORM_VARIABLE_ID` |
 | Entry point + DID | `EP_KC_Horry` | demo line **(972) 430-9658** (2026-10-28) |
 | Team | `KC_HorryElectric` ✅ created 2026-10-28 | the normal (home) team on `Q_Horry_Outage`; desktop layout `KC_Horry.json` |
-| Queues | `Q_Horry_Outage` ✅ created 2026-10-28 (no skill required), `Q_Horry_Billing` | team-based; extra department teams are added/removed by the supervisor widget |
+| Queues | `Q_Horry_Outage` ✅ created 2026-10-28 (no skill required), `Q_Horry_Billing` | team-based; extra department teams are added/removed by the supervisor widget. `Q_Horry_Billing` is staffed by `KC_Horry_Billing` (the demo's billing agent) |
+| Demo logins | supervisor on `KC_HorryElectric` (Storm Operations + Call Review pages, takes no calls); agent on `KC_Horry_Billing` | layout `KC_Horry` assigned to both teams. Test scripts A/B/C: demo overview page §9 |
 | Flow | `KC_Horry_Electric` | below |
 | Desktop layout | `KC_Horry.json` | later — widgets first (lockstep rule) |
 
