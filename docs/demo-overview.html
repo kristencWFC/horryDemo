@@ -84,9 +84,9 @@
       <tbody>
         <tr><td class="num">3</td><td>Bring up to 50 staff from other departments onto an outage queue in a storm</td><td>Storm Mode: Savannah takes the first wave. The supervisor ticks extra teams onto the outage queue with one click, and "Return to normal" undoes it.</td><td><span class="pill done">built</span></td></tr>
         <tr><td class="num">5</td><td>Better reports, and AI tagging instead of one manual code</td><td>Call review dashboard: AI containment, why members called, sentiment, and each call's story (Savannah plus Cisco's wrap-up summary). Analyzer for abandons and hold times.</td><td><span class="pill done">built</span></td></tr>
-        <tr><td class="num">9</td><td>Screen pop from NISC, their billing system</td><td>Member card with balance, due date, cut-off and usage, plus a mock billing screen that opens on the account.</td><td><span class="pill todo">building</span></td></tr>
-        <tr><td class="num">10</td><td>Native recording, and taking card payments without affecting their SAQ D status</td><td>Card on file and secure text link (built). No card number reaches the AI, an agent or a recording. Keypad pay and agent hand-off to pay are still to come.</td><td><span class="pill todo">building</span></td></tr>
-        <tr><td class="num">6</td><td>Email ticketing, web chat, maybe social</td><td>Web chat with Savannah first, then a live agent in our desktop widget. Email pick board. Social is a talking point.</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td class="num">9</td><td>Screen pop from NISC, their billing system</td><td>Member tab on the agent's desktop: balance, due date, cut-off, usage, outage, what Savannah already did, and a billing assistant (pay link, card on file, extension, note). "Open billing screen" shows a mock billing-system account page.</td><td><span class="pill done">built</span></td></tr>
+        <tr><td class="num">10</td><td>Native recording, and taking card payments without affecting their SAQ D status</td><td>Card on file and secure text link, by Savannah or by the agent. No card number reaches the AI, an agent or a recording. Keypad pay is a talking point (a PCI-certified payment service in production).</td><td><span class="pill done">built</span></td></tr>
+        <tr><td class="num">6</td><td>Email ticketing, web chat, maybe social</td><td>Web chat on a demo co-op site: Savannah first, then a live agent on the Web Chats page. Email board: pick, assign, AI-drafted reply, one reply to everyone in an outage. Social is a talking point.</td><td><span class="pill done">built</span></td></tr>
         <tr><td class="num">4, 7, 8</td><td>Mitel is old and hard to manage; mixed desk and softphones; open to cloud</td><td>Cisco built-in: show adding an agent in Control Hub, the browser softphone, and Analyzer.</td><td><span class="pill open">talk</span></td></tr>
         <tr><td class="num">1, 2</td><td>Next steps and sizing (33 to 35 agents)</td><td>Pricing exercise for Dave and Jerry after the demo.</td><td><span class="pill open">talk</span></td></tr>
       </tbody>
@@ -143,7 +143,7 @@
       <thead><tr><th>Who</th><th>Login</th><th>Role</th></tr></thead>
       <tbody>
         <tr><td>Supervisor (presenter)</td><td>Supervisor, team <code>KC_HorryElectric</code></td><td>Storm Operations page (Storm Mode, outage queue staffing, demo caller) and Call Review. Takes no calls.</td></tr>
-        <tr><td>Billing agent</td><td>Agent, team <code>KC_Horry_Billing</code></td><td>Answers billing calls, and outage calls once the supervisor adds the team to the outage queue.</td></tr>
+        <tr><td>Billing agent</td><td>Agent, team <code>KC_Horry_Billing</code></td><td>Answers billing calls (and outage calls once the supervisor adds the team to the outage queue) with the <strong>Member</strong> tab, web chats on <strong>Web Chats</strong>, emails on <strong>Email</strong>.</td></tr>
         <tr><td>Caller</td><td>Presenter's mobile</td><td>Calls (972) 430-9658. Storm Operations → <strong>Demo caller</strong> sets which member the phone plays.</td></tr>
       </tbody>
     </table></div>
@@ -157,6 +157,8 @@
         <tr><td><strong>B</strong> Outage</td><td>Storm Mode on. Caller = Linda.</td><td>"My power's out."</td><td>Savannah greets Linda, confirms the known outage and estimate (about 2½ hours), offers a text. No agent rings. Then <strong>Mark restored</strong> in the Storm Console sends the "power is back" text.</td></tr>
         <tr><td><strong>C</strong> Wire down</td><td>Storm Mode on. Add <code>KC_Horry_Billing</code> to the outage queue. Caller = Marcus.</td><td>"There's a line down across my driveway."</td><td>Savannah gives the 35-foot safety warning and hands over. The billing agent rings at top priority with her summary.</td></tr>
         <tr><td><strong>D</strong> Payment</td><td>Storm Mode on. Caller = Linda (card on file) or Dorothy (link).</td><td>"I'd like to pay my bill."</td><td>Linda: say yes to the Visa ending 4242. Dorothy: open the link, pay with a test card, and Savannah reads back the confirmation.</td></tr>
+        <tr><td><strong>E</strong> Web chat</td><td>Open the <a href="https://kcdev2.workflowconcepts.com/horry/site.html">demo co-op site</a>. Start a chat as Linda (phone 843-555-0101).</td><td>"Is my power outage known?" then "Can I talk to a person?"</td><td>Savannah answers with the outage and estimate, then hands off. The agent's chat badge lights up; on Web Chats they accept, see Savannah's part and the account, and reply.</td></tr>
+        <tr><td><strong>F</strong> Email</td><td>Agent opens the Email page. Storm Mode on for the outage-group view.</td><td>—</td><td>Pick an email, the AI draft fills in from the account, edit and send. With Storm Mode on, one reply goes to everyone in the Socastee outage. The supervisor can assign an email to an agent.</td></tr>
       </tbody>
     </table></div>
 
@@ -188,13 +190,11 @@
   <section>
     <h2>5. Still to build</h2>
     <ul>
-      <li>Agent widgets: member card with NISC details, mock billing screen pop, billing assistant.</li>
-      <li>Keypad payment (demo path) and agent hand-off to secure pay.</li>
-      <li>Web chat (AI first, then live agent) and the email pick board.</li>
-      <li>Cisco AI Assistant wrap-up summaries in the dashboard (confirm the summary API).</li>
-      <li>Texting live on a real number.</li>
+      <li>Keypad payment and the agent hand-off to secure pay: talking points for Nov 4. They change the WFC AI Controller that every AI demo runs through, so they wait until after the demo.</li>
+      <li>Cisco AI Assistant wrap-up summaries in the dashboard (confirm the summary API). Simulated until then.</li>
+      <li>Texting live on a real number. Until then texts show in the Storm Console.</li>
     </ul>
-    <p style="margin-top:8px">Done: Savannah, the Horry service on kcdev2, the WFC AI Controller on 1151, Storm Mode and staffing writing to WxCC, the call review dashboard, the flow and demo line.</p>
+    <p style="margin-top:8px">Done: Savannah, the Horry service on kcdev2, the WFC AI Controller on 1151, Storm Mode and staffing writing to WxCC, the call review dashboard, the flow and demo line, the Member tab and billing screen, web chat, and the email board.</p>
   </section>
 
   <section>

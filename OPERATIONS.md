@@ -59,10 +59,24 @@ chosen; webhookSecret = the box's agentTool secret pattern), restart `ivr-contro
 | `WXCC_OUTAGE_QUEUE_ID` | id of `Q_Horry_Outage` — the supervisor widget adds/removes teams on it (same Service App). Unset = simulated teams |
 | `WXCC_STAFFING_TEAM_PREFIX` | default `KC_Horry` — the picker offers only teams named with this prefix (plus any already on the queue); the server rejects others. The demo org is shared |
 | `NEXTGEN_BASE_URL` / `NEXTGEN_USERNAME` / `NEXTGEN_PASSWORD` | leave unset (mock) for the demo |
+| `EMAIL_AGENTS` | optional, comma-separated agent names for the email board's assign list (default: fictional names + any agent who opened the board in the last 10 min) |
+| `ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID` | also switch web chat to a live text conversation with Savannah (Node ≥ 22); unset = scripted chat over the same tools |
 
 Widgets: `npm run build` builds `packages/widgets/dist/horry-widgets.js`, served at
-`/horry/widgets/horry-widgets.js`. Preview without the Desktop: `/horry/supervisor.html`. Call review dashboard: `/horry/dashboard.html`. Layout
-snippet: `docs/desktop-layout.md` (deploy widgets BEFORE uploading the layout).
+`/horry/widgets/horry-widgets.js` (`horry-supervisor`, `horry-member`, `horry-chat`,
+`horry-chat-badge`, `horry-email`). Layout: `node scripts/make-layout.mjs` →
+`deploy/desktop-layout/KC_Horry.json` (deploy widgets BEFORE uploading the layout).
+
+| Page | URL (under `https://kcdev2.workflowconcepts.com/horry/`) |
+| --- | --- |
+| Storm Console (demo caller, outages, texts, reset) | `/` |
+| Call review dashboard | `dashboard.html` |
+| Demo co-op website + web chat bubble | `site.html` |
+| Mock billing-system screen | `billing.html?sep=<account>` |
+| Widget previews (no Desktop needed) | `supervisor.html`, `agent.html?ani=&id=&sep=`, `email.html?agent=` |
+
+Chat sessions live in memory (a restart drops open chats); emails, calls, notes, settings
+persist in `data/`. "Reset demo data" re-seeds outages, calls, balances and the inbox.
 
 ## Smoke
 

@@ -5,8 +5,22 @@ Nick confirming).
 
 ## STATE (handoff)
 
-2026-10-28 — **service + agent built, SIP 1151 assigned, not deployed.** Demo explainer
-page published (claude.ai artifact; source `docs/demo-overview.html`).
+2026-10-28 night — **live on kc-dev-2 and taking calls; overnight build added the agent
+member card + billing screen pop, web chat and the email pick board (commit d6b6a78, not
+deployed yet).**
+
+- Live: service `/horry/` (systemd `horry-demo`), FS `horryelectric` → Savannah on 1151,
+  Service App (Storm Mode + staffing write WxCC), demo line (972) 430-9658 → `EP_KC_Horry` →
+  flow `KC_Horry_Electric` (Kristen built it; after the bridge it reads `GET api/intake/{GUID}`).
+  Storm Mode → Savannah confirmed working on a live call.
+- Demo logins: supervisor on `KC_HorryElectric`; billing agent on `KC_Horry_Billing`
+  (staffs `Q_Horry_Billing`). Run-of-show + tests A–D: team page §3 (`docs/demo-overview.html`).
+- Savannah: escalate → she finishes, calls end_call, controller hands back (FS grace 12 s,
+  freeSWITCH c2e320e). Keypad pay not offered (not built).
+- New pages: `site.html` (demo co-op site + chat bubble), `billing.html?sep=` (mock CIS
+  screen), previews `agent.html`, `email.html`, `supervisor.html`.
+- Layout `KC_Horry.json` regenerated: Member panel tab (agent personas), chat badge,
+  Web Chats + Email nav pages, Storm Operations (dashboard icon), Call Review.
 
 2026-10-27 evening — service + agent built.
 
@@ -56,18 +70,23 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 - [x] SIP number 1151
 - [x] Deploy on kc-dev-2 (`/opt/horryDemo`, systemd `horry-demo`, ce402a9) + nginx `/horry/` — public `/horry/health` OK 2026-10-28
 - [x] FS box: pulled db02a1b, `horryelectric` block (cloned from `homeservices`, sipNumber 1151) in server `config.json`, ivr-controller restarted active — 2026-10-28
-- [ ] Server `.env`: Service App creds + `WXCC_STORM_VARIABLE_ID` + `WXCC_OUTAGE_QUEUE_ID` → `/health` shows `wxcc:true`, `staffing:true`
+- [x] Server `.env`: Service App creds + `WXCC_STORM_VARIABLE_ID` + `WXCC_OUTAGE_QUEUE_ID` → `/health` shows `wxcc:true`, `staffing:true` — 2026-10-28
 - [x] Control Hub: `Global_StormMode` (String, false), team `KC_HorryElectric`, queue `Q_Horry_Outage` — 2026-10-28
 - [x] Firewall: tcp:8165 nginx box → kc-dev-2 — 2026-10-28
-- [ ] Control Hub: EP + DID, `Q_Horry_Billing`, extra department teams, Service App (config write)
-- [ ] Upload `deploy/desktop-layout/KC_Horry.json` AFTER the widgets are deployed; assign to KC_HorryElectric
-- [ ] Designer: `KC_Horry_Electric` per `docs/wxcc-flow-notes.md`
+- [x] Control Hub: EP + DID (972) 430-9658, Service App — 2026-10-28
+- [ ] Control Hub: `Q_Horry_Billing` staffed by `KC_Horry_Billing`; extra `KC_Horry_*` teams; layout `KC_Horry` on both teams
+- [x] Designer: `KC_Horry_Electric` per `docs/wxcc-flow-notes.md` — 2026-10-28
+- [ ] Push horryDemo + freeSWITCH; kc-dev-2: pull both, build, restart `horry-demo` + `ivr-controller`
+- [ ] THEN upload the regenerated `KC_Horry.json` (widgets first — lockstep rule)
+- [ ] Optional: `EMAIL_AGENTS=` real agent names in server `.env` for the email assign list
 - [ ] Twilio: SMS number inbound webhook → `/horry/webhooks/twilio/sms`; PCI-Mode account for Pay
 
 ## Phase 4 — payments
 
 - [x] Card on file (`saleWithProfile`), secure link (`pay.html` → token sale)
-- [ ] **Keypad pay for the demo: freeSWITCH collects digits** (pause Savannah, play_and_get_digits,
+- [ ] (deferred 2026-10-28: changes the shared FS controller every AI demo runs through and can't
+      be tested without live calls — talk track for Nov 4; Savannah no longer offers keypad)
+      **Keypad pay for the demo: freeSWITCH collects digits** (pause Savannah, play_and_get_digits,
       no logging, POST Meridian ivr/sale, resume Savannah with the result). Mock gateway must accept
       CardAccountNumber for TEST cards on this path only. Twilio Pay = production slide.
 - [ ] Agent-initiated secure pay + return to the same agent (flow notes "phase 4")
@@ -75,10 +94,12 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 ## Phase 5 — widgets, chat, dashboard (next build session)
 
 - [x] Supervisor widget (Storm Mode button + outage queue staffing) — 2026-10-28
-- [ ] Desktop widgets: member card (NextGen screen pop), "what the AI did" journey +
-      transcript, billing assistant (Claude tool loop over the same tools), supervisor
-      **Storm Mode button** (→ `POST api/mode`); layout `KC_Horry.json` (widgets first)
-- [ ] Web chat on a mock horryelectric.com page (home-services `chat.ts` pattern)
+- [x] Desktop widgets — 2026-10-28 night: `<horry-member>` (NISC account, what Savannah did,
+      rule-based talking points, billing assistant: pay link / card on file / extension / note),
+      `agent-desk.ts`; mock CIS screen `billing.html?sep=`
+- [x] Web chat — 2026-10-28 night: `site.html` + `chat-bubble.js`, `chat.ts` (live text
+      conversation with Savannah when ELEVENLABS env set, scripted fallback over our own tools),
+      `<horry-chat>` page + `<horry-chat-badge>`. Chat sessions are in memory (lost on restart).
 - [x] **Call review dashboard** `/horry/dashboard.html` (2026-10-28, Kristen: item 5) — containment,
       topics from the conversation (AI leg + Cisco wrap-up summary), by hour, sentiment, wrap-up codes,
       per-call drill-in with both legs. Sample storm day (yesterday, deterministic) + live overlay.
@@ -94,11 +115,11 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
       TEAMS to the outage queue) — in `<horry-supervisor>` with the Storm Mode button; `staffing.ts`
       edits Q_Horry_Outage's distribution group via Config API (sim teams when unset). VERIFY the
       queue PUT on the first live test. Preview `/supervisor.html`; layout snippet docs/desktop-layout.md
-- [ ] **Billing screen pop** (Kristen 2026-10-28): widget shows key NISC data (balance, due,
-      cut-off, payment history, usage, outage) + a FAKE billing-system account page the call opens
-      (generic look — not NISC branding)
-- [ ] **Email pick board** (Kristen 2026-10-28 idea for "email ticketing"): reuse the Crete pick
-      widget — emails as cards with account + topic + age, pick/assign, AI-drafted reply, storm grouping
+- [x] **Billing screen pop** — 2026-10-28 night (see Desktop widgets)
+- [x] **Email pick board** — 2026-10-28 night: `email.ts` + `emails.seed.json` (12 emails),
+      `<horry-email>` page: pick/assign/release, template drafts from the member's data, send
+      (simulated, account note logged), Storm Mode outage-group bulk reply. Drafts for tree
+      trimming / transfer / medical promise actions nothing performs — read before sending.
 - [ ] **Show Cisco's auto wrap-up summary** (Kristen 2026-10-28) — WxCC AI Assistant
       generates the call summary + wrap-up code when a live agent ends the call. Enable AI
       Assistant auto-summary on the Horry team/queues and show it after the escalated call

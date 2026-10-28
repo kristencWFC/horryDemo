@@ -301,7 +301,7 @@
               ? '<p class="empty" style="margin:0">No live agent needed.</p>'
               : a
                 ? `<dl>
-                    <dt>Agent</dt><dd>${esc(a.agentName)}${a.team ? ' · ' + esc(a.team) : ''}</dd>
+                    <dt>Agent</dt><dd>${esc(a.agentName || "No agent joined")}${a.team ? ' · ' + esc(a.team) : ''}</dd>
                     <dt>Wrap-up code</dt><dd>${esc(a.wrapUpCode)}</dd>
                     <dt>Reason</dt><dd>${esc(a.summary.reason)}</dd>
                     <dt>Actions</dt><dd>${esc(a.summary.actions)}</dd>

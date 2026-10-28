@@ -88,6 +88,7 @@ class ElevenLabsChatTransport implements ChatTransport {
     this.onDeadFor.set(session.id, onDead);
     const r = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(this.agentId)}`, {
       headers: { 'xi-api-key': this.apiKey },
+      signal: AbortSignal.timeout(5000), // a hang falls back to the scripted assistant
     });
     if (!r.ok) throw new Error(`signed-url HTTP ${r.status}`);
     const { signed_url } = (await r.json()) as { signed_url: string };
@@ -191,7 +192,7 @@ class ScriptedTransport implements ChatTransport {
           onReply(reply);
           const esc = session.pendingEscalation;
           session.pendingEscalation = undefined;
-          if (esc) void this.callTool('escalate', session.id, esc);
+          if (esc) this.callTool('escalate', session.id, esc).catch((err) => console.warn(`HORRY CHAT ${session.id}: escalate failed — ${String(err)}`));
         }, 700 + Math.random() * 700).unref()
       );
   }
@@ -244,13 +245,19 @@ class ScriptedTransport implements ChatTransport {
       return `Done — we'll text ${fmtPhone(String(r.phone).replace(/\s/g, ''))} when your power is restored, and if the estimate changes. Is there anything else I can help with?`;
     }
     if (offer === 'payment' && yes) return this.paymentLink(s);
-    if (offer && no) return 'No problem. Is there anything else I can help you with?';
+    // "No, my bill" (a quick-reply chip) is a no AND a new request — only a bare no ends here.
+    if (offer && no && !/\b(bill|pay|owe|balance|extension|more time|outage|power)\b/.test(t)) return 'No problem. Is there anything else I can help you with?';
 
     if (/\b(extension|extend|more time|pay later|can't pay|cannot pay)\b/.test(t)) {
-      const payBy = new Date(Date.now() + 14 * 86400_000).toISOString().slice(0, 10);
+      // Same co-op rule as the agent's billing assistant: a week past the cut-off (or due) date,
+      // never in the past, in the billing system's MM/DD/YY format.
+      const bill = await this.callTool('get-billing', s.id);
+      const base = parseMdY(String(bill.cutoff_date ?? '')) ?? parseMdY(String(bill.due_date ?? '')) ?? new Date();
+      const pay = new Date(Math.max(base.getTime(), Date.now()) + 7 * 86400_000);
+      const payBy = `${String(pay.getMonth() + 1).padStart(2, '0')}/${String(pay.getDate()).padStart(2, '0')}/${String(pay.getFullYear()).slice(-2)}`;
       const r = await this.callTool('request-payment-extension', s.id, { pay_by_date: payBy });
       if (!r.approved) return 'An extension isn’t available on this account right now. I can send you a secure payment link, or connect you with a member services representative — which would you prefer?';
-      return `You're all set — I've extended your due date to ${new Date(payBy + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. Confirmation number ${String(r.confirmation).replace(/\s/g, '')}. Your service won't be disconnected while the extension is in place.`;
+      return `You're all set — I've extended your due date to ${pay.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. Confirmation number ${String(r.confirmation).replace(/\s/g, '')}. Your service won't be disconnected while the extension is in place.`;
     }
     if (/\b(pay|payment|pay my bill)\b/.test(t)) return this.paymentLink(s);
     if (/\b(bill|balance|owe|due|amount|high)\b/.test(t)) {
@@ -293,7 +300,15 @@ const fmtPhone = (p: string) => (/^\d{10}$/.test(p) ? `(${p.slice(0, 3)}) ${p.sl
 const WANTS_HUMAN =
   /\b(agent|human|person|representative|rep|someone real|real person|live (chat|person|agent)|speak (to|with) (a|an|someone)|talk (to|with) (a|an|someone))\b/i;
 
-const DEPT_LABEL: Record<string, string> = { outage: 'outage', billing: 'billing', member_services: 'member services' };
+/** Billing-system dates are MM/DD/YY. */
+function parseMdY(s: string): Date | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(s.trim());
+  if (!m) return null;
+  const y = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+  return new Date(y, Number(m[1]) - 1, Number(m[2]), 12);
+}
+
+const DEPT_LABEL: Record<string, string> ={ outage: 'outage', billing: 'billing', member_services: 'member services' };
 
 // ---------------------------------------------------------------------------------------
 
@@ -412,12 +427,19 @@ class ChatManager extends EventEmitter {
     return s;
   }
 
-  agentMessage(id: string, text: string, agentName: string, agentId = ''): boolean {
+  agentMessage(id: string, text: string, agentName: string, agentId = ''): 'ok' | 'closed' | 'not_yours' {
     const s = this.accept(id, agentName, agentId);
-    if (!s) return false;
+    if (!s) return 'closed';
+    if (s.agentName && s.agentName !== agentName) return 'not_yours'; // another agent owns it
     this.push(s, 'agent', text, s.agentName);
     s.agentSeenSeq = s.messages.length;
-    return true;
+    return 'ok';
+  }
+
+  /** "Reset demo data": drop every chat (in memory only) so no rehearsal chat waits on the badge. */
+  reset(): void {
+    for (const s of this.sessions.values()) this.transportFor(s).stop(s.id);
+    this.sessions.clear();
   }
 
   markSeen(id: string): void {
@@ -618,6 +640,17 @@ class ChatManager extends EventEmitter {
         },
         source: 'posted',
       };
+    } else if (s.escalation) {
+      // Handed off but nobody picked it up: record that, or the summaries ticker would invent a
+      // live-agent leg (or poll Cisco for 24 h with a chat id).
+      patch.agentLeg = {
+        agentName: '',
+        team: '',
+        endedAt: end,
+        wrapUpCode: 'Web chat - Abandoned',
+        summary: { reason: s.escalation.reason.replace(/_/g, ' '), actions: 'No agent joined.', status: 'Member left before an agent joined', followUp: 'Follow up with the member.' },
+        source: 'posted',
+      };
     }
     // agentLeg BEFORE endedAt: the summaries ticker only simulates legs for ended rows without one.
     calls.patch(row, patch);
@@ -762,10 +795,15 @@ export function registerChat(f: FastifyInstance, d: Deps): void {
     const b = (req.body ?? {}) as { text?: string; agentName?: string; agentId?: string };
     const text = String(b.text ?? '').trim();
     if (!text) return reply.code(400).send({ error: 'text required' });
-    if (!chat.agentMessage((req.params as { id: string }).id, text.slice(0, 2000), String(b.agentName ?? '').trim() || 'Member Services', String(b.agentId ?? ''))) {
-      return reply.code(410).send({ error: 'this chat has ended' });
-    }
+    const r = chat.agentMessage((req.params as { id: string }).id, text.slice(0, 2000), String(b.agentName ?? '').trim() || 'Member Services', String(b.agentId ?? ''));
+    if (r === 'closed') return reply.code(410).send({ error: 'this chat has ended' });
+    if (r === 'not_yours') return reply.code(409).send({ error: 'another agent has this chat' });
     return { ok: true };
+  });
+
+  // The console's "Reset demo data" (POST api/reset in routes.ts) clears web chats too.
+  f.addHook('onResponse', async (req, res) => {
+    if (req.method === 'POST' && req.routeOptions.url === '/api/reset' && res.statusCode < 300) chat.reset();
   });
   f.post('/api/chats/:id/close', async (req) => ({ ok: chat.close((req.params as { id: string }).id, 'agent') }));
 
