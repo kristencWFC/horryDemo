@@ -61,6 +61,16 @@
           }
         },
         {
+          "comp": "horry-chat-badge",
+          "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+          "attributes": {
+            "darkmode": "$STORE.app.darkMode"
+          },
+          "properties": {
+            "server": "https://kcdev2.workflowconcepts.com/horry"
+          }
+        },
+        {
           "comp": "agentx-outdial"
         },
         {
@@ -76,6 +86,46 @@
           "class": "widget-tabs"
         },
         "children": [
+          {
+            "comp": "md-tab",
+            "attributes": {
+              "slot": "tab",
+              "class": "widget-pane-tab"
+            },
+            "children": [
+              {
+                "comp": "span",
+                "textContent": "Member"
+              }
+            ]
+          },
+          {
+            "comp": "md-tab-panel",
+            "attributes": {
+              "slot": "panel",
+              "class": "widget-pane"
+            },
+            "children": [
+              {
+                "comp": "horry-member",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "ani": "$STORE.agentContact.taskSelected.ani",
+                  "interactionid": "$STORE.agentContact.taskSelected.interactionId",
+                  "interactionData": "$STORE.agentContact.taskSelected",
+                  "agentname": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Member",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            ]
+          },
           {
             "comp": "md-tab",
             "attributes": {
@@ -212,6 +262,96 @@
         ]
       },
       "navigation": [
+        {
+          "nav": {
+            "label": "Web Chats",
+            "icon": "chat",
+            "iconType": "momentum",
+            "navigateTo": "horry-chats",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-chats",
+            "widgets": {
+              "main": {
+                "comp": "horry-chat",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "agentname": "$STORE.agent.agentName",
+                  "agentid": "$STORE.agent.agentEmailId"
+                },
+                "wrapper": {
+                  "title": "Web Chats",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        {
+          "nav": {
+            "label": "Email",
+            "icon": "interaction",
+            "iconType": "momentum",
+            "navigateTo": "horry-email",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-email",
+            "widgets": {
+              "main": {
+                "comp": "horry-email",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode",
+                  "assign": "false"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "agentname": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Email",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
+              }
+            }
+          }
+        },
         {
           "nav": {
             "label": "Call Review",
@@ -806,6 +946,50 @@
         },
         {
           "nav": {
+            "label": "Email",
+            "icon": "interaction",
+            "iconType": "momentum",
+            "navigateTo": "horry-email",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-email",
+            "widgets": {
+              "main": {
+                "comp": "horry-email",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "agentname": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Email",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        {
+          "nav": {
             "label": "Call Review",
             "icon": "analysis",
             "iconType": "momentum",
@@ -883,6 +1067,16 @@
           }
         },
         {
+          "comp": "horry-chat-badge",
+          "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+          "attributes": {
+            "darkmode": "$STORE.app.darkMode"
+          },
+          "properties": {
+            "server": "https://kcdev2.workflowconcepts.com/horry"
+          }
+        },
+        {
           "comp": "agentx-outdial"
         },
         {
@@ -898,6 +1092,46 @@
           "class": "widget-tabs"
         },
         "children": [
+          {
+            "comp": "md-tab",
+            "attributes": {
+              "slot": "tab",
+              "class": "widget-pane-tab"
+            },
+            "children": [
+              {
+                "comp": "span",
+                "textContent": "Member"
+              }
+            ]
+          },
+          {
+            "comp": "md-tab-panel",
+            "attributes": {
+              "slot": "panel",
+              "class": "widget-pane"
+            },
+            "children": [
+              {
+                "comp": "horry-member",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "ani": "$STORE.agentContact.taskSelected.ani",
+                  "interactionid": "$STORE.agentContact.taskSelected.interactionId",
+                  "interactionData": "$STORE.agentContact.taskSelected",
+                  "agentname": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Member",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            ]
+          },
           {
             "comp": "md-tab",
             "attributes": {
@@ -1381,6 +1615,95 @@
                   "isDarkMode": "$STORE.app.darkMode",
                   "isLoggedIntoStation": "$STORE.app.isStationLoginSuccess"
                 }
+              }
+            }
+          }
+        },
+        {
+          "nav": {
+            "label": "Web Chats",
+            "icon": "chat",
+            "iconType": "momentum",
+            "navigateTo": "horry-chats",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-chats",
+            "widgets": {
+              "main": {
+                "comp": "horry-chat",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "agentname": "$STORE.agent.agentName",
+                  "agentid": "$STORE.agent.agentEmailId"
+                },
+                "wrapper": {
+                  "title": "Web Chats",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        {
+          "nav": {
+            "label": "Email",
+            "icon": "interaction",
+            "iconType": "momentum",
+            "navigateTo": "horry-email",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-email",
+            "widgets": {
+              "main": {
+                "comp": "horry-email",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "agentname": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Email",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
               }
             }
           }

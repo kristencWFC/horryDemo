@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Member Account · Billing System (demo)</title>
+<style>
+  :root {
+    --bg: #e4e8ee; --panel: #ffffff; --line: #c3ccd7; --ink: #1d2733; --dim: #5d6b7a;
+    --bar: #24486e; --bar2: #33597f; --tab: #d5dde7; --sel: #fff8d6; --bad: #b01e1e; --ok: #1d7a3c; --warn: #8a5a00;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 12px/1.4 'Segoe UI', Tahoma, system-ui, sans-serif; }
+  header.app { background: var(--bar); color: #fff; display: flex; align-items: center; gap: 16px; padding: 6px 14px; }
+  header.app .prod { font-weight: 600; font-size: 13px; letter-spacing: .02em; }
+  header.app .co { opacity: .85; }
+  header.app .sp { flex: 1; }
+  header.app form { display: flex; gap: 4px; }
+  header.app input { font: inherit; padding: 3px 6px; border: 1px solid #0d2a46; border-radius: 2px; width: 150px; }
+  header.app button { font: inherit; padding: 3px 10px; border: 1px solid #0d2a46; background: #e9eef4; border-radius: 2px; cursor: pointer; }
+  .menu { background: var(--bar2); color: #dce6f0; padding: 3px 14px; display: flex; gap: 18px; font-size: 12px; flex-wrap: wrap; }
+  .menu span { opacity: .9; }
+  main { padding: 10px 14px 30px; max-width: 1280px; margin: 0 auto; }
+  .acct { background: var(--panel); border: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0; }
+  .acct > div { padding: 6px 10px; border-right: 1px solid #e6ebf1; border-bottom: 1px solid #e6ebf1; min-width: 0; }
+  .lbl { color: var(--dim); font-size: 11px; display: block; }
+  .val { font-weight: 600; overflow-wrap: anywhere; }
+  .val.big { font-size: 16px; }
+  .bad { color: var(--bad); } .ok { color: var(--ok); } .warn { color: var(--warn); }
+  .flags { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .flag { border: 1px solid var(--line); background: #fff; padding: 1px 8px; font-size: 11px; border-radius: 2px; }
+  .flag.bad { border-color: var(--bad); background: #fdecec; }
+  .flag.ok { border-color: var(--ok); background: #e9f6ee; }
+  .flag.warn { border-color: var(--warn); background: #fdf3dd; }
+  nav.tabs { display: flex; gap: 2px; margin-top: 10px; flex-wrap: wrap; }
+  nav.tabs button { font: inherit; border: 1px solid var(--line); border-bottom: none; background: var(--tab); padding: 5px 14px; cursor: pointer; border-radius: 3px 3px 0 0; color: var(--ink); }
+  nav.tabs button[aria-selected="true"] { background: var(--panel); font-weight: 600; position: relative; top: 1px; }
+  section.tab { background: var(--panel); border: 1px solid var(--line); padding: 10px; overflow-x: auto; }
+  section.tab[hidden] { display: none; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th, td { border: 1px solid #dde3ea; padding: 4px 8px; text-align: left; vertical-align: top; }
+  th { background: #eef2f6; font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: #fafbfd; }
+  tbody tr:hover td { background: var(--sel); }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  fieldset { border: 1px solid var(--line); margin: 0; padding: 6px 10px 10px; }
+  legend { color: var(--dim); font-size: 11px; padding: 0 4px; }
+  dl { display: grid; grid-template-columns: 140px 1fr; gap: 3px 8px; margin: 0; }
+  dt { color: var(--dim); } dd { margin: 0; font-weight: 600; }
+  .msg { padding: 30px; text-align: center; color: var(--dim); }
+  footer { color: var(--dim); font-size: 11px; text-align: center; margin-top: 14px; }
+  .status { color: #cfe0f1; font-size: 11px; }
+</style>
+</head>
+<body>
+<header class="app">
+  <span class="prod">Member Account · Billing System</span>
+  <span class="co">Horry Electric Cooperative</span>
+  <span class="sp"></span>
+  <form id="find"><input id="q" placeholder="Account number" aria-label="Account number"><button>Open</button></form>
+  <span class="status" id="status"></span>
+</header>
+<div class="menu"><span>Customer</span><span>Billing</span><span>Payments</span><span>Service Orders</span><span>Outage</span><span>Reports</span></div>
+<main id="main"><div class="msg">Loading…</div></main>
+<footer>Demo system — fictional member data.</footer>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const money = (n) => '$' + Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const phone = (p) => { const d = String(p ?? '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}` : esc(p); };
+  const when = (iso) => iso ? new Date(iso).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: 'numeric', minute: '2-digit' }) : '';
+  const params = new URLSearchParams(location.search);
+  let sep = params.get('sep') || '';
+  let tab = params.get('tab') || 'summary';
+  $('q').value = sep;
+  $('find').onsubmit = (e) => { e.preventDefault(); const v = $('q').value.replace(/\D/g, ''); if (v) { sep = v; history.replaceState(null, '', `?sep=${v}`); load(); } };
+
+  const TABS = [['summary', 'Account Summary'], ['bills', 'Billing History'], ['payments', 'Payments'], ['service', 'Service / Meter'], ['outage', 'Outages & Tickets'], ['notes', 'Notes'], ['contacts', 'Contact History']];
+
+  function field(lbl, val, cls = '') { return `<div><span class="lbl">${lbl}</span><span class="val ${cls}">${val}</span></div>`; }
+
+  function render(d) {
+    const m = d.member, b = d.billing || {}, u = d.usage, o = d.outage;
+    document.title = `${m.name} · Member Account · Billing System (demo)`;
+    const flags = [
+      m.lifeSupport && ['Medical / life support', 'bad'],
+      b.onCutOffList && ['Pending disconnect — non-pay', 'bad'],
+      o && [`Active outage ${o.id}`, 'warn'],
+      b.bankDraft && ['Bank draft', 'ok'],
+      b.cardOnFile && [`Card on file ${b.cardOnFile.brand} ••${b.cardOnFile.last4}`, 'ok'],
+      b.budgetAmount && [`Budget billing ${money(b.budgetAmount)}`, 'ok'],
+      b.paperless && ['Paperless', ''],
+      d.extensions.length && [`Extension to ${d.extensions[d.extensions.length - 1].payBy}`, 'warn'],
+    ].filter(Boolean);
+    const head = `<div class="acct">
+      ${field('Account / Sep', esc(m.memberSep), 'big')}
+      ${field('Member name', esc(m.name), 'big')}
+      ${field('Status', esc(m.status), m.status === 'Active' ? 'ok' : 'bad')}
+      ${field('Service address', esc(m.address) + ' ' + esc(m.zip))}
+      ${field('Primary phone', phone(m.cellPhone || m.homePhone))}
+      ${field('Email', esc(m.email || '—'))}
+      ${field('Current balance', money(b.currentBalance), 'big')}
+      ${field('Amount due', `${money(b.amountDue)} by ${esc(b.dueDate)}`)}
+      ${field('Past due', money(b.pastDue), b.pastDue > 0 ? 'bad' : '')}
+      ${field('Cut-off date', esc(b.cutOffDate || 'None'), b.cutOffDate ? 'bad' : '')}
+      ${field('Last payment', `${money(b.lastPayment)} on ${esc(b.lastPaymentDate)}`)}
+      ${field('Bill date', esc(b.billDate))}
+    </div>
+    <div class="flags">${flags.map(([t, c]) => `<span class="flag ${c}">${esc(t)}</span>`).join('')}</div>`;
+
+    const bills = d.history.map((h) => `<tr><td>${esc(h.billDate)}</td><td class="n">${h.kwh.toLocaleString()}</td><td class="n">${money(h.amount)}</td><td class="n">${h.paid ? money(h.paid) : ''}</td><td>${esc(h.paidOn || '')}</td><td class="${/Past/.test(h.status) ? 'bad' : /Due/.test(h.status) ? 'warn' : ''}">${esc(h.status)}</td></tr>`).join('');
+    const live = d.payments.map((p) => `<tr><td>${when(p.createdAt)}</td><td>${p.method === 'link' ? 'Secure text link' : p.method === 'card_on_file' ? 'Card on file' : 'Keypad'}</td><td>${p.initiatedBy === 'ai' ? 'Virtual assistant' : 'Member services'}</td><td class="n">${money(p.amount)}</td><td class="${p.status === 'approved' ? 'ok' : p.status === 'declined' ? 'bad' : 'warn'}">${esc(p.status)}</td><td>${esc(p.cardType ? `${p.cardType} ••${p.last4}` : '')}</td><td>${esc(p.confirmation || '')}</td></tr>`).join('');
+    const histPays = d.history.filter((h) => h.paidOn).map((h) => `<tr><td>${esc(h.paidOn)}</td><td>${b.bankDraft ? 'Bank draft' : b.cardOnFile ? 'Card' : 'Check / walk-in'}</td><td>—</td><td class="n">${money(h.paid)}</td><td class="ok">posted</td><td></td><td></td></tr>`).join('');
+    const tickets = d.tickets.map((t) => `<tr><td>${esc(t.id)}</td><td class="${t.status === 'active' ? 'warn' : 'ok'}">${esc(t.status)}</td><td>${esc(t.area)}</td><td>${esc(t.cause)}</td><td>${esc(t.status === 'active' ? t.crew : '')}</td><td>${when(t.startedAt)}</td><td>${t.status === 'active' ? esc(t.etrText) : 'Restored ' + when(t.restoredAt)}</td><td class="n">${t.customers.toLocaleString()}</td></tr>`).join('');
+    const notes = d.notes.map((n) => `<tr><td>${when(n.at)}</td><td>${esc(n.type)}</td><td>${esc(n.text)}</td></tr>`).join('');
+    const contacts = d.contacts.map((c) => `<tr><td>${when(c.at)}</td><td>${esc(c.channel === 'chat' ? 'Web chat' : 'Phone')}</td><td>${esc(c.handledBy)}</td><td>${esc(c.outcome)}</td><td>${esc(c.outageId || '')}</td></tr>`).join('');
+    const none = (cols, t) => `<tr><td colspan="${cols}" style="color:var(--dim)">${t}</td></tr>`;
+
+    const body = {
+      summary: `<div class="grid2">
+        <fieldset><legend>Billing</legend><dl>
+          <dt>Rate schedule</dt><dd>${esc(m.rate)}</dd>
+          <dt>Amount due</dt><dd>${money(b.amountDue)}</dd><dt>Due date</dt><dd>${esc(b.dueDate)}</dd>
+          <dt>Past due</dt><dd class="${b.pastDue > 0 ? 'bad' : ''}">${money(b.pastDue)}</dd>
+          <dt>Cut-off date</dt><dd class="${b.cutOffDate ? 'bad' : ''}">${esc(b.cutOffDate || 'None')}</dd>
+          <dt>Pay method</dt><dd>${b.bankDraft ? 'Bank draft' : b.cardOnFile ? `${esc(b.cardOnFile.brand)} ••${esc(b.cardOnFile.last4)}` : 'None'}</dd>
+          <dt>Budget billing</dt><dd>${b.budgetAmount ? money(b.budgetAmount) + '/mo' : 'No'}</dd>
+          <dt>Extension</dt><dd>${d.actions.extension.allowed ? 'Eligible to ' + esc(d.actions.extension.payBy) : esc(d.actions.extension.reason)}</dd>
+        </dl></fieldset>
+        <fieldset><legend>Usage (kWh)</legend><dl>
+          <dt>Last 30 days</dt><dd>${u.last30Kwh.toLocaleString()}</dd>
+          <dt>Prior month</dt><dd>${u.priorMonthKwh.toLocaleString()} (${u.vsPriorMonthPct >= 0 ? '+' : ''}${u.vsPriorMonthPct}%)</dd>
+          <dt>Same month last yr</dt><dd>${u.sameMonthLastYearKwh.toLocaleString()} (${u.vsLastYearPct >= 0 ? '+' : ''}${u.vsLastYearPct}%)</dd>
+        </dl></fieldset>
+        <fieldset><legend>Outage status</legend>${o ? `<dl><dt>Outage</dt><dd class="warn">${esc(o.id)}</dd><dt>Area</dt><dd>${esc(o.area)}</dd><dt>Cause</dt><dd>${esc(o.cause)}</dd><dt>Crew</dt><dd>${esc(o.crew)}</dd><dt>Estimate</dt><dd>${esc(o.etrText)}</dd></dl>` : '<div class="ok">No active outage at this location.</div>'}</fieldset>
+      </div>`,
+      bills: `<table><thead><tr><th>Bill date</th><th class="n">kWh</th><th class="n">Billed</th><th class="n">Paid</th><th>Paid on</th><th>Status</th></tr></thead><tbody>${bills}</tbody></table>`,
+      payments: `<table><thead><tr><th>Date</th><th>Method</th><th>Taken by</th><th class="n">Amount</th><th>Status</th><th>Card</th><th>Confirmation</th></tr></thead><tbody>${live}${histPays}</tbody></table>`,
+      service: `<div class="grid2"><fieldset><legend>Service location</legend><dl>
+          <dt>Address</dt><dd>${esc(m.address)} ${esc(m.zip)}</dd><dt>Location no.</dt><dd>${esc(m.location)}</dd>
+          <dt>Substation</dt><dd>${esc(m.substation)}</dd><dt>Circuit / feeder</dt><dd>${esc(m.circuit)}</dd>
+          <dt>Priority service</dt><dd class="${m.lifeSupport ? 'bad' : ''}">${m.lifeSupport ? 'Yes — medical / life support' : 'No'}</dd>
+        </dl></fieldset><fieldset><legend>Meter</legend><dl>
+          <dt>Meter no.</dt><dd>${esc(m.meter)}</dd><dt>Type</dt><dd>AMI — single phase</dd><dt>Rate</dt><dd>${esc(m.rate)}</dd>
+          <dt>Last read</dt><dd>${esc(b.billDate)}</dd><dt>Read type</dt><dd>Actual</dd>
+        </dl></fieldset></div>`,
+      outage: `<table><thead><tr><th>Ticket</th><th>Status</th><th>Area</th><th>Cause</th><th>Crew</th><th>Started</th><th>Estimate / restored</th><th class="n">Members</th></tr></thead><tbody>${tickets || none(8, 'No outage tickets for this location.')}</tbody></table>`,
+      notes: `<table><thead><tr><th>Date</th><th>Type</th><th>Note</th></tr></thead><tbody>${notes || none(3, 'No notes.')}</tbody></table>`,
+      contacts: `<table><thead><tr><th>Date</th><th>Channel</th><th>Handled by</th><th>Outcome</th><th>Outage</th></tr></thead><tbody>${contacts || none(5, 'No recent contacts.')}</tbody></table>`,
+    };
+    $('main').innerHTML = head +
+      `<nav class="tabs" role="tablist">${TABS.map(([k, t]) => `<button role="tab" data-tab="${k}" aria-selected="${k === tab}">${t}</button>`).join('')}</nav>` +
+      TABS.map(([k]) => `<section class="tab" role="tabpanel" ${k === tab ? '' : 'hidden'}>${body[k]}</section>`).join('');
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tab]');
+    if (!t) return;
+    tab = t.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+    document.querySelectorAll('section.tab').forEach((s, i) => (s.hidden = TABS[i][0] !== tab));
+  });
+
+  async function load() {
+    if (!sep) { $('main').innerHTML = '<div class="msg">Enter an account number.</div>'; return; }
+    try {
+      const r = await fetch(`api/agent-desk/account?sep=${encodeURIComponent(sep)}`);
+      if (r.status === 404) { $('main').innerHTML = `<div class="msg">Account ${esc(sep)} not found.</div>`; return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      render(await r.json());
+      $('status').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    } catch (err) {
+      $('status').textContent = 'Connection problem — retrying';
+    }
+  }
+  load();
+  setInterval(load, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horry Electric Cooperative — demo site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Demo stand-in for the member website: our own simple styling, no real logo or images. */
+  :root { --navy:#123a5e; --navy2:#0d2c48; --ink:#1d1b18; --muted:#6b655c; --line:#e2dccf; --paper:#f7f4ee; --card:#fffdf9; --accent:#c2521b; --ok:#2f7d4f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
+  a { color: var(--navy); }
+  .demo { background:#1d1b18; color:#f1ece3; font:12px "IBM Plex Mono", monospace; text-align:center; padding:6px 16px; letter-spacing:.02em; }
+  header { background:#fff; border-bottom:1px solid var(--line); }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 20px; }
+  .top { display:flex; align-items:center; gap:18px; padding:14px 0; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--navy); }
+  .mark { width:38px; height:38px; border-radius:8px; background:var(--navy); color:#fff; display:grid; place-items:center; font-weight:700; font-size:15px; letter-spacing:.02em; }
+  .logo b { display:block; font-size:17px; line-height:1.1; }
+  .logo small { display:block; font-size:11.5px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+  nav { margin-left:auto; display:flex; gap:18px; flex-wrap:wrap; font-size:14px; }
+  nav a { text-decoration:none; color:var(--ink); font-weight:500; }
+  nav a:hover { color:var(--accent); }
+  .alert { background:#fbeee4; border-bottom:1px solid #f0d3bd; color:#8e3a12; font-size:14px; }
+  .alert .wrap { padding:9px 20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .alert b { font-weight:600; }
+  .hero { background:linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%); color:#fff; }
+  .hero .wrap { padding:54px 20px 60px; display:grid; grid-template-columns: 1.3fr 1fr; gap:36px; align-items:center; }
+  .hero h1 { margin:0 0 12px; font-size:clamp(28px, 4vw, 40px); line-height:1.15; font-weight:600; }
+  .hero p { margin:0 0 22px; color:#d6e1ec; max-width:52ch; }
+  .btns { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn { display:inline-block; text-decoration:none; font-weight:600; padding:12px 20px; border-radius:8px; border:1.5px solid transparent; cursor:pointer; font:inherit; font-weight:600; }
+  .btn.primary { background:var(--accent); color:#fff; }
+  .btn.ghost { border-color:rgba(255,255,255,.55); color:#fff; background:transparent; }
+  .quick { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:12px; padding:18px; }
+  .quick h2 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#a9c3df; font-weight:600; }
+  .quick a { display:flex; justify-content:space-between; align-items:center; color:#fff; text-decoration:none; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.14); font-weight:500; }
+  .quick a:last-child { border-bottom:0; }
+  .quick a span { color:#a9c3df; font-size:13px; }
+  main .wrap { padding:36px 20px 54px; display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
+  .card h3 { margin:0 0 6px; font-size:17px; color:var(--navy); font-weight:600; }
+  .card p { margin:0 0 12px; color:var(--muted); font-size:14px; }
+  .map { grid-column: 1 / -1; display:grid; grid-template-columns: 1fr 280px; gap:18px; align-items:stretch; }
+  .mapbox { border:1px dashed #b9b09f; border-radius:10px; min-height:220px; display:grid; place-items:center; color:var(--muted);
+    background: repeating-linear-gradient(45deg, #f2eee6 0 12px, #efe9df 12px 24px); font:13px "IBM Plex Mono", monospace; text-align:center; padding:16px; }
+  .stats { display:grid; gap:10px; align-content:start; }
+  .stat { border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#fff; }
+  .stat b { display:block; font-size:22px; color:var(--navy); }
+  .stat span { font-size:12.5px; color:var(--muted); }
+  footer { border-top:1px solid var(--line); background:#fff; color:var(--muted); font-size:13px; }
+  footer .wrap { padding:20px; display:flex; gap:20px; flex-wrap:wrap; justify-content:space-between; }
+  @media (max-width: 760px) {
+    .hero .wrap { grid-template-columns: 1fr; padding:36px 16px 40px; }
+    .map { grid-template-columns: 1fr; }
+    nav { margin-left:0; }
+    .wrap { padding-left:16px; padding-right:16px; }
+  }
+</style>
+</head>
+<body>
+  <div class="demo">DEMO SITE — built by Workflow Concepts for a Webex Contact Center demonstration. Not the cooperative's real website; members and data are fictional.</div>
+  <header>
+    <div class="wrap top">
+      <a class="logo" href="#"><span class="mark">HE</span><span><b>Horry Electric</b><small>Cooperative · Conway, SC</small></span></a>
+      <nav aria-label="Main">
+        <a href="#outages">Outages</a>
+        <a href="#billing">Pay My Bill</a>
+        <a href="#start">Start / Stop Service</a>
+        <a href="#programs">Energy Programs</a>
+        <a href="#" onclick="horryChat.open();return false;">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <div class="alert" id="alert"><div class="wrap"><b>Outage update:</b> <span id="alertText">Crews are working outages in our service area. Check the outage map or chat with us for your address.</span></div></div>
+
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <h1>Your member-owned electric cooperative, serving Horry County.</h1>
+        <p>Report an outage, check restoration status, pay your bill or set up a payment arrangement — online, by phone, or by chatting with us right here.</p>
+        <div class="btns">
+          <button class="btn primary" type="button" onclick="horryChat.open()">Chat with us</button>
+          <a class="btn ghost" href="#outages">Report an outage</a>
+        </div>
+      </div>
+      <div class="quick">
+        <h2>Quick links</h2>
+        <a href="#billing">Pay my bill <span>→</span></a>
+        <a href="#outages">Report an outage <span>843-369-2212</span></a>
+        <a href="#outages">Outage map <span>→</span></a>
+        <a href="#start">Start, stop or move service <span>→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <div class="wrap">
+      <div class="card map" id="outages">
+        <div>
+          <h3>Outage map</h3>
+          <p>Live outage areas by substation and circuit.</p>
+          <div class="mapbox">Outage map placeholder<br>(the real site embeds the co-op's outage map here)</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="sOut">—</b><span>members without power</span></div>
+          <div class="stat"><b id="sAreas">—</b><span>active outage areas</span></div>
+          <div class="stat"><b>105,000+</b><span>members served</span></div>
+        </div>
+      </div>
+      <div class="card" id="billing">
+        <h3>Pay my bill</h3>
+        <p>Pay online, set up bank draft or Rest Easy levelized billing, or ask for a payment extension.</p>
+        <a href="#" onclick="horryChat.open();return false;">Ask about my bill →</a>
+      </div>
+      <div class="card">
+        <h3>Report an outage</h3>
+        <p>Call 843-369-2212, text OUT, or chat with us — we'll tell you if it's already known and text you when it's restored.</p>
+        <a href="#" onclick="horryChat.open();return false;">Check my address →</a>
+      </div>
+      <div class="card" id="start">
+        <h3>Start, stop or move service</h3>
+        <p>New to the area or moving within it? Member services can set it up.</p>
+        <a href="#">Service requests →</a>
+      </div>
+      <div class="card" id="programs">
+        <h3>Energy programs</h3>
+        <p>Rebates, energy audits and tips to keep your bill steady through the seasons.</p>
+        <a href="#">Learn more →</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span><strong>Horry Electric Cooperative</strong> · demo site · Conway, South Carolina</span>
+      <span>Workflow Concepts demo — fictional members and data.</span>
+    </div>
+  </footer>
+
+<script>
+  // Live outage counts from the demo's own outage store (relative path — works behind /horry/).
+  (async function () {
+    try {
+      const r = await fetch('api/outages');
+      const { outages } = await r.json();
+      const act = outages.filter((o) => o.status === 'active');
+      document.getElementById('sOut').textContent = act.reduce((n, o) => n + (o.customers || 0), 0).toLocaleString();
+      document.getElementById('sAreas').textContent = String(act.length);
+      if (act.length) document.getElementById('alertText').textContent = act.length + ' active outage' + (act.length === 1 ? '' : 's') + ', including ' + act[0].area + '. Chat with us to check your address.';
+      else document.getElementById('alert').style.display = 'none';
+    } catch { /* static copy stands */ }
+  })();
+</script>
+<script src="chat-bubble.js"></script>
+<script>horryChat.init();</script>
+</body>
+</html>

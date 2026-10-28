@@ -59,6 +59,47 @@ const stormOps = page('horry-storm-ops', 'Storm Operations', 'dashboard', {
   attributes: { darkmode: '$STORE.app.darkMode' },
   properties: { server: SERVER, supervisor: '$STORE.agent.agentName' },
 });
+const webChats = () => page('horry-chats', 'Web Chats', 'chat', {
+  comp: 'horry-chat',
+  script: BUNDLE,
+  attributes: { darkmode: '$STORE.app.darkMode' },
+  properties: { server: SERVER, agentname: '$STORE.agent.agentName', agentid: '$STORE.agent.agentEmailId' },
+});
+const emailBoard = (assign) => page('horry-email', 'Email', 'interaction', {
+  comp: 'horry-email',
+  script: BUNDLE,
+  attributes: { darkmode: '$STORE.app.darkMode', ...(assign ? {} : { assign: 'false' }) },
+  properties: { server: SERVER, agentname: '$STORE.agent.agentName' },
+});
+const CHAT_BADGE = {
+  comp: 'horry-chat-badge',
+  script: BUNDLE,
+  attributes: { darkmode: '$STORE.app.darkMode' },
+  properties: { server: SERVER },
+};
+// Member card (NISC data, what Savannah did, billing assistant) — first panel tab so it is the
+// one showing when a call arrives. The account number comes from the task's CAD.
+const MEMBER_TAB = [
+  { comp: 'md-tab', attributes: { slot: 'tab', class: 'widget-pane-tab' }, children: [{ comp: 'span', textContent: 'Member' }] },
+  {
+    comp: 'md-tab-panel',
+    attributes: { slot: 'panel', class: 'widget-pane' },
+    children: [{
+      comp: 'horry-member',
+      script: BUNDLE,
+      attributes: { darkmode: '$STORE.app.darkMode' },
+      properties: {
+        server: SERVER,
+        ani: '$STORE.agentContact.taskSelected.ani',
+        interactionid: '$STORE.agentContact.taskSelected.interactionId',
+        interactionData: '$STORE.agentContact.taskSelected',
+        agentname: '$STORE.agent.agentName',
+      },
+      wrapper: { title: 'Member', maximizeAreaName: 'app-maximize-area' },
+    }],
+  },
+];
+
 const callReview = page('horry-call-review', 'Call Review', 'analysis', {
   comp: 'agentx-wc-iframe',
   attributes: { src: `${SERVER}/dashboard.html` },
@@ -82,13 +123,13 @@ for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
       }
       out.push(ch[i]);
     }
-    a.panel.children = out;
+    a.panel.children = persona === 'supervisor' ? out : [...structuredClone(MEMBER_TAB), ...out];
   }
 
   // Header: AI Assistant after agentx-webex for the personas that handle calls.
   if (persona !== 'supervisor' && Array.isArray(a.advancedHeader) && !a.advancedHeader.some((w) => w.comp === 'ai-assistant')) {
     const at = a.advancedHeader.findIndex((w) => w.comp === 'agentx-webex');
-    a.advancedHeader.splice(at + 1, 0, structuredClone(AI_ASSISTANT));
+    a.advancedHeader.splice(at + 1, 0, structuredClone(AI_ASSISTANT), structuredClone(CHAT_BADGE));
   }
 
   a.navigation = (a.navigation ?? []).filter((n) => {
@@ -99,6 +140,9 @@ for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
     return true;
   });
   if (persona !== 'agent') a.navigation.unshift(structuredClone(stormOps));
+  // Agents work email and chats; the supervisor assigns emails (assign control only off the agent persona).
+  if (persona !== 'supervisor') a.navigation.push(structuredClone(webChats()));
+  a.navigation.push(structuredClone(emailBoard(persona !== 'agent')));
   a.navigation.push(structuredClone(callReview));
 }
 

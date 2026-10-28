@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent widget preview · Horry Electric</title>
+<style>
+  body { margin: 0; background: #e9edf2; font: 13px 'Segoe UI', system-ui, sans-serif; color: #1b2633; }
+  .bar { max-width: 900px; margin: 16px auto 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 0 16px; }
+  .bar label { display: grid; gap: 2px; font-size: 11px; color: #5f6c7b; }
+  .bar input { font: inherit; padding: 4px 6px; width: 170px; }
+  .frame { margin: 16px auto; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.15); height: calc(100vh - 140px); }
+  p { max-width: 900px; margin: 16px auto 0; color: #5f6c7b; padding: 0 16px; }
+</style>
+</head>
+<body>
+<p>Preview of the agent's member widget as it appears in the WxCC Desktop interaction panel. The WxCC Desktop fills in the caller number and interaction id from the selected call; here you type them. Actions are real (texts appear in the Storm Console).</p>
+<form class="bar" id="f">
+  <label>Caller number (ani)<input id="ani" value="8435550101"></label>
+  <label>Interaction id (call GUID)<input id="iid" value=""></label>
+  <label>Account (CAD accountNumber)<input id="acct" value=""></label>
+  <label>Width<input id="w" value="400" style="width:70px"></label>
+  <label><span>Dark</span><input id="dark" type="checkbox" style="width:auto"></label>
+  <button>Select call</button>
+  <button type="button" id="clear">Clear selection</button>
+</form>
+<div class="frame" id="frame" style="max-width:400px"><horry-member id="w1" agentname="Preview agent"></horry-member></div>
+<script>
+  const el = document.getElementById('w1');
+  const $ = (id) => document.getElementById(id);
+  el.setAttribute('server', new URL('.', location.href).href);
+  const q = new URLSearchParams(location.search);
+  if (q.get('ani') !== null) $('ani').value = q.get('ani');
+  if (q.get('id')) $('iid').value = q.get('id');
+  if (q.get('sep')) $('acct').value = q.get('sep');
+  if (q.get('w')) $('w').value = q.get('w');
+  if (q.get('dark') === '1') $('dark').checked = true;
+  function apply() {
+    $('frame').style.maxWidth = (Number($('w').value) || 400) + 'px';
+    el.setAttribute('darkmode', $('dark').checked ? 'true' : 'false');
+    document.body.style.background = $('dark').checked ? '#0e1318' : '#e9edf2';
+    el.ani = $('ani').value; el.interactionid = $('iid').value; el.accountnumber = $('acct').value;
+  }
+  $('f').onsubmit = (e) => { e.preventDefault(); apply(); };
+  $('clear').onclick = () => { el.ani = ''; el.interactionid = ''; el.accountnumber = ''; };
+</script>
+<script src="widgets/horry-widgets.js"></script>
+<script>apply();</script>
+</body>
+</html>

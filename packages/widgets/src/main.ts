@@ -3,3 +3,6 @@
 import './horry-supervisor.js';
 
 export { HorrySupervisor } from './horry-supervisor.js';
+export { HorryChat, HorryChatBadge } from './horry-chat.js';
+export { HorryEmail } from './horry-email.js';
+export { HorryMember } from './horry-member.js';

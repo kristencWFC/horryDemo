@@ -1,0 +1,118 @@
+{
+  "_comment": "Seed inbox for the email board (email.ts). minutesAgo is relative to service start / reset so ages look live. Members match by From address, else by an 11-digit account number in the body; outageHint puts non-members in the outage at that substation/circuit. Personas are fictional.",
+  "emails": [
+    {
+      "id": "EM-1001",
+      "from": "linda.hardee@example.com",
+      "fromName": "Linda Hardee",
+      "subject": "Power out on Dick Pond Rd",
+      "topic": "outage",
+      "minutesAgo": 14,
+      "body": "Hi,\n\nOur power went out about an hour ago at 4810 Dick Pond Rd. A couple of the neighbors are out too. Do you know what happened and when it will be back on? I have a freezer full of food.\n\nThanks,\nLinda Hardee"
+    },
+    {
+      "id": "EM-1002",
+      "from": "mjordan@example.com",
+      "fromName": "Marcus Jordan",
+      "subject": "URGENT - outage, my father is on oxygen",
+      "topic": "outage",
+      "minutesAgo": 9,
+      "body": "My father lives with us at 2215 Peachtree Rd and he is on an oxygen concentrator. The power has been off for over an hour and his backup tank won't last all night. Please tell me when power will be restored.\n\nMarcus Jordan"
+    },
+    {
+      "id": "EM-1003",
+      "from": "tellison.sc@example.net",
+      "fromName": "Tom Ellison",
+      "subject": "Outage Peachtree Road",
+      "topic": "outage",
+      "minutesAgo": 22,
+      "outageHint": { "substation": 7, "circuit": 2 },
+      "body": "Lights out on Peachtree Rd near the Socastee library since around 3. Heard a loud pop before it went. Is a crew coming?\n\nTom"
+    },
+    {
+      "id": "EM-1004",
+      "from": "carla.ruiz@example.org",
+      "fromName": "Carla Ruiz",
+      "subject": "no power socastee",
+      "topic": "outage",
+      "minutesAgo": 31,
+      "outageHint": { "substation": 7, "circuit": 2 },
+      "body": "Hello, we have no power off Dick Pond Road by the shopping center. My kids have school tomorrow. Any update would be appreciated.\n\nCarla"
+    },
+    {
+      "id": "EM-1005",
+      "from": "wbrown.aynor@example.net",
+      "fromName": "Wayne Brown",
+      "subject": "Power off north of 501 in Aynor",
+      "topic": "outage",
+      "minutesAgo": 18,
+      "outageHint": { "substation": 5, "circuit": 1 },
+      "body": "Power has been off at our farm north of 501 for about half an hour. Is this a big outage or just us?\n\nWayne Brown"
+    },
+    {
+      "id": "EM-1006",
+      "from": "rcausey.longs@example.net",
+      "fromName": "Robert Causey",
+      "subject": "Why is my bill so high?",
+      "topic": "billing",
+      "minutesAgo": 52,
+      "body": "My bill this month is almost $300. That is way more than last year and nothing has changed at our house. Account 00176230001, 2601 Hwy 90 Longs. Is my meter broken?\n\nRobert Causey"
+    },
+    {
+      "id": "EM-1007",
+      "from": "skipper.family@example.net",
+      "fromName": "Dorothy Skipper",
+      "subject": "Need more time to pay",
+      "topic": "arrangement",
+      "minutesAgo": 96,
+      "body": "Good morning. My granddaughter is helping me write this. I got a notice that my power could be cut off. I get my Social Security check on the 3rd and can pay then. Can you please give me until then? My account number is 00230115001 at 1420 Cultra Rd, Conway.\n\nDorothy Skipper"
+    },
+    {
+      "id": "EM-1008",
+      "from": "gbellamy@example.com",
+      "fromName": "Grace Bellamy",
+      "subject": "Did my payment go through?",
+      "topic": "payment",
+      "minutesAgo": 27,
+      "body": "Hi, I paid my bill online last week but my bank app shows it still pending. Can you confirm you received it? I don't want a late fee.\n\nGrace Bellamy"
+    },
+    {
+      "id": "EM-1009",
+      "from": "gbellamy@example.com",
+      "fromName": "Grace Bellamy",
+      "subject": "Tree limbs touching the line",
+      "topic": "trees",
+      "minutesAgo": 205,
+      "body": "There is a big oak by my driveway at 4120 Hwy 501 and the limbs are resting on the power line to the house. It sways a lot in the wind. Can someone trim it before the next storm?\n\nGrace"
+    },
+    {
+      "id": "EM-1010",
+      "from": "dnguyen@example.com",
+      "fromName": "David Nguyen",
+      "subject": "Moving - transfer service",
+      "topic": "start_stop",
+      "minutesAgo": 168,
+      "facts": { "moveDate": "11/15/26", "newAddress": "56 Myrtle Ridge Dr, Conway" },
+      "body": "We are moving out of 731 Hwy 9 Bus in Loris on November 15 and into 56 Myrtle Ridge Dr in Conway. Can you stop service at the old house and start it at the new one the same day?\n\nThanks,\nDavid Nguyen"
+    },
+    {
+      "id": "EM-1011",
+      "from": "linda.hardee@example.com",
+      "fromName": "Linda Hardee",
+      "subject": "Budget billing?",
+      "topic": "budget",
+      "minutesAgo": 134,
+      "body": "My neighbor says she pays the same amount every month. How do I sign up for that? Our summer bills are hard to plan for.\n\nLinda"
+    },
+    {
+      "id": "EM-1012",
+      "from": "jasmine.carter@example.com",
+      "fromName": "Jasmine Carter",
+      "subject": "Start service at new home",
+      "topic": "start_stop",
+      "minutesAgo": 41,
+      "facts": { "moveDate": "11/10/26", "newAddress": "118 Waccamaw Pines Dr, Conway" },
+      "body": "Hello! We just closed on a house at 118 Waccamaw Pines Dr in Conway and need power turned on by November 10. We're new to the area. What do you need from me?\n\nJasmine Carter"
+    }
+  ]
+}

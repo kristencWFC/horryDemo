@@ -252,7 +252,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       summary: p.data.analysis?.transcript_summary ?? row.summary,
       sentiment: sentimentOf(p.data, transcript),
       transcript,
-      endedAt: row.endedAt ?? new Date().toISOString(),
+      // A chat's AI conversation ends at hand-off while the agent is still chatting; chat.ts sets
+      // endedAt when the chat closes.
+      endedAt: row.endedAt ?? (row.channel === 'chat' ? undefined : new Date().toISOString()),
     });
     console.log(`HORRY VOICE ${row.guid}: post-call ${p.data.conversation_id} ${transcript.length} turns, sentiment ${row.sentiment}`);
     return { ok: true };
@@ -451,6 +453,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       service_address: m ? displayAddress(m) : '',
       outage_id: row.outageId ?? '',
     };
+    // Web chat: chat.ts sees row.escalation and queues the chat for an agent. There is no phone
+    // leg to relay, and end_call would end the chat itself.
+    if (row.channel === 'chat') return { ok: true, next_step: 'A member of our team is joining this chat. Say nothing further and do not call end_call.' };
     const ok = await relayResultToFreeswitch(row.guid, data);
     // end_call lets her finish the sentence still playing, then drops the AI leg so the
     // controller hands the call back at once (no dead air until its grace cap).
@@ -461,7 +466,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const tags = String(b.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean);
     calls.patch(row, { outcome: String(b.outcome ?? ''), tags: [...new Set([...row.tags, ...tags])] });
     calls.step(row, 'wrapped', String(b.outcome ?? ''));
-    await relayResultToFreeswitch(row.guid, { escalate: 'false', outcome: String(b.outcome ?? '').slice(0, 240) });
+    if (row.channel !== 'chat') await relayResultToFreeswitch(row.guid, { escalate: 'false', outcome: String(b.outcome ?? '').slice(0, 240) });
     return { ok: true, next_step: 'Say a one-sentence goodbye, then call end_call.' };
   });
 

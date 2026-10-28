@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email board preview · Horry Electric</title>
+<style>
+  body { margin: 0; background: #e9edf2; font: 13px 'Segoe UI', system-ui, sans-serif; }
+  .frame { max-width: 1400px; height: calc(100vh - 80px); margin: 12px auto; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  p { max-width: 1400px; margin: 16px auto 0; color: #5f6c7b; }
+</style>
+</head>
+<body>
+<p>Preview of the email board as it appears on the WxCC Desktop. Changes here are real: picks, replies and assignments show on every agent's board. Add <code>?agent=Name</code> to act as a different agent.</p>
+<div class="frame"><horry-email id="em"></horry-email></div>
+<script>
+  // Same origin as the service; set before the bundle upgrades the element.
+  const el = document.getElementById('em');
+  el.setAttribute('server', new URL('.', location.href).href);
+  el.setAttribute('agentname', new URLSearchParams(location.search).get('agent') || 'Preview Agent');
+  if (new URLSearchParams(location.search).get('dark') === '1') el.setAttribute('darkmode', 'true');
+</script>
+<script src="widgets/horry-widgets.js"></script>
+</body>
+</html>
