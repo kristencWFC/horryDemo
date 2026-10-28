@@ -452,7 +452,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       outage_id: row.outageId ?? '',
     };
     const ok = await relayResultToFreeswitch(row.guid, data);
-    return { ok, next_step: 'Say nothing further. The caller is being connected.' };
+    // end_call lets her finish the sentence still playing, then drops the AI leg so the
+    // controller hands the call back at once (no dead air until its grace cap).
+    return { ok, next_step: 'Say nothing further. Call end_call now — the caller is being connected.' };
   });
 
   tool('wrap-up', async (row, b) => {
