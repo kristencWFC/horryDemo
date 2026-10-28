@@ -4,6 +4,8 @@
 //   2. Outage queue staffing (Kristen 2026-10-28, discovery item 3): tick the teams that
 //      should take outage calls → POST api/staffing adds/removes those teams on the outage
 //      queue's distribution group. Agents stay logged in to their own team.
+//   3. Demo caller (Kristen 2026-10-28): which demo member the presenter's phone plays —
+//      same api/settings the Storm Console uses, so the presenter never leaves the Desktop.
 // Polls every 8 s (the service has no push channel); a pending selection is never
 // overwritten by a poll.
 import { LitElement, css, html, nothing } from 'lit';
@@ -36,7 +38,22 @@ interface StaffingDto {
   history: { at: string; by: string; added: string[]; removed: string[] }[];
 }
 
-const WXCC_LABEL = { synced: 'WxCC synced', failed: 'WxCC update failed', not_configured: 'demo mode' } as const;
+interface SettingsDto {
+  demoAni: string;
+  demoMemberSep: string;
+}
+
+interface MemberOption {
+  memberSep: string;
+  name: string;
+  address: string;
+  inOutage: boolean;
+  pastDue: number;
+}
+
+const fmtPhone = (p: string) => (/^\d{10}$/.test(p) ? `(${p.slice(0, 3)}) ${p.slice(3, 6)}-${p.slice(6)}` : p);
+
+const WXCC_LABEL ={ synced: 'WxCC synced', failed: 'WxCC update failed', not_configured: 'demo mode' } as const;
 const WXCC_CLASS = { synced: 'ok', failed: 'bad', not_configured: '' } as const;
 
 export class HorrySupervisor extends LitElement {
@@ -51,6 +68,10 @@ export class HorrySupervisor extends LitElement {
     broadcastDraft: { state: true },
     busy: { state: true },
     error: { state: true },
+    settings: { state: true },
+    members: { state: true },
+    callerDraft: { state: true },
+    callerSaved: { state: true },
   };
 
   server = DEFAULT_SERVER;
@@ -64,6 +85,11 @@ export class HorrySupervisor extends LitElement {
   broadcastDraft: string | null = null;
   busy = '';
   error = '';
+  settings: SettingsDto | null = null;
+  members: MemberOption[] = [];
+  /** Unsaved phone / member edits (null = show what the service has). */
+  callerDraft: { ani: string; sep: string } | null = null;
+  callerSaved = false;
   private timer: number | undefined;
 
   static styles = [
@@ -76,7 +102,7 @@ export class HorrySupervisor extends LitElement {
       .state { font-size: 18px; font-weight: 600; }
       .state.on { color: var(--h-accent); }
       .bigbtn { padding: 10px 16px; font-size: 14px; }
-      input[type='text'] {
+      input[type='text'], select {
         font: inherit; width: 100%; padding: 6px 8px; border-radius: 6px;
         border: 1px solid var(--h-border); background: var(--h-bg); color: var(--h-text);
       }
@@ -108,12 +134,16 @@ export class HorrySupervisor extends LitElement {
 
   private async refresh(): Promise<void> {
     try {
-      const [mode, staffing] = await Promise.all([
+      const [mode, staffing, settings, members] = await Promise.all([
         api<ModeDto>(this.server, 'api/mode'),
         api<StaffingDto>(this.server, 'api/staffing'),
+        api<SettingsDto>(this.server, 'api/settings'),
+        api<{ members: MemberOption[] }>(this.server, 'api/members'),
       ]);
       this.mode = mode;
       this.staffing = staffing;
+      this.settings = settings;
+      this.members = members.members;
     } catch (err) {
       this.error = `Can't reach the storm service: ${(err as Error).message}`;
     }
@@ -150,6 +180,29 @@ export class HorrySupervisor extends LitElement {
       await api(this.server, 'api/mode/broadcast', { method: 'POST', body: { text } });
       this.broadcastDraft = null;
       await this.refresh();
+    });
+  }
+
+  // ---- demo caller -------------------------------------------------------------------
+
+  private editCaller(patch: Partial<{ ani: string; sep: string }>): void {
+    const base = this.callerDraft ?? { ani: this.settings?.demoAni ?? '', sep: this.settings?.demoMemberSep ?? '' };
+    this.callerDraft = { ...base, ...patch };
+    this.callerSaved = false;
+  }
+
+  private saveCaller(): Promise<void> {
+    const d = this.callerDraft;
+    if (!d) return Promise.resolve();
+    const ani = d.ani.replace(/\D/g, '').slice(-10);
+    if (ani.length !== 10) {
+      this.error = 'Enter the 10-digit number you will call from.';
+      return Promise.resolve();
+    }
+    return this.run('caller', async () => {
+      this.settings = await api<SettingsDto>(this.server, 'api/settings', { method: 'PATCH', body: { demoAni: ani, demoMemberSep: d.sep } });
+      this.callerDraft = null;
+      this.callerSaved = true;
     });
   }
 
@@ -205,7 +258,53 @@ export class HorrySupervisor extends LitElement {
           </div>`
         : nothing}
       ${this.renderStaffing()}
+      ${this.renderCaller()}
     </div>`;
+  }
+
+  private renderCaller() {
+    const s = this.settings;
+    if (!s) return nothing;
+    const ani = this.callerDraft?.ani ?? s.demoAni;
+    const sep = this.callerDraft?.sep ?? s.demoMemberSep;
+    const current = this.members.find((m) => m.memberSep === s.demoMemberSep);
+    return html`<section class="card" aria-label="Demo caller">
+      <h2>Demo caller</h2>
+      <div class="dim">
+        Calls from this number are treated as the member you pick: Savannah greets them by name and the agent's screen
+        shows their account.
+      </div>
+      <div class="row">
+        <input
+          id="demo-ani"
+          type="text"
+          inputmode="tel"
+          style="max-width:180px"
+          placeholder="10-digit number"
+          .value=${ani}
+          @input=${(e: Event) => this.editCaller({ ani: (e.target as HTMLInputElement).value })}
+        />
+        <select
+          id="demo-member"
+          style="flex:1;min-width:220px"
+          @change=${(e: Event) => this.editCaller({ sep: (e.target as HTMLSelectElement).value })}
+        >
+          ${this.members.map(
+            (m) => html`<option value=${m.memberSep} ?selected=${m.memberSep === sep}>
+              ${m.name} · ${m.address}${m.inOutage ? ' · in an outage' : ''}${m.pastDue > 0 ? ' · past due' : ''}
+            </option>`,
+          )}
+        </select>
+        <button class="primary" ?disabled=${!this.callerDraft || !!this.busy} @click=${() => void this.saveCaller()}>
+          ${this.busy === 'caller' ? 'Saving…' : 'Save'}
+        </button>
+        ${this.callerDraft ? html`<button @click=${() => (this.callerDraft = null)}>Cancel</button>` : nothing}
+      </div>
+      <div class="dim">
+        ${this.callerSaved ? 'Saved. ' : ''}Now: ${fmtPhone(s.demoAni) || 'no number'} calls as
+        <strong>${current?.name ?? 'nobody'}</strong>.
+      </div>
+    </section>`;
   }
 
   private renderStorm(storm: boolean) {
