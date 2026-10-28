@@ -43,10 +43,13 @@ webex-service-app-auth).
      menu choice "pay my bill" → step 5.*
 5. **BridgeTransfer** → **DN 1122** (freeSWITCH front door) with custom headers
    `X-Call-GUID={{GUID}}`, `X-Solution-Name=horryelectric`.
-6. **On return**, read the BYE headers: `X-IVR-Escalate`, `X-IVR-Department`,
-   `X-IVR-Urgency`, `X-IVR-Reason`, `X-IVR-Summary`, `X-IVR-Caller-Name`,
-   `X-IVR-Account-Number`, `X-IVR-Service-Address`, `X-IVR-Outage-Id`.
-7. **Case** `X-IVR-Escalate`:
+6. **On return**, one **HTTP Request** (no Parse node, no BYE headers — Crete's shipped
+   pattern): `GET {{mw}}/api/intake/{{GUID}}`, timeout 10 s. Output mapping (all strings):
+   `$.escalate` → `aiEscalate`, `$.department` → `aiDepartment`, `$.urgency` → `aiUrgency`,
+   `$.reason` → `aiReason`, `$.summary` → `aiSummary`, `$.member_name` → `memberName`,
+   `$.account_number` → `accountNumber`, `$.service_address` → `serviceAddress`,
+   `$.outage_id` → `outageId`. Unknown GUID returns `escalate=false` with empty fields.
+7. **Case** `aiEscalate`:
    - not `true` → (optional "Thanks for calling Horry Electric") → **Disconnect**.
    - `true` → Set CAD (`aiDepartment`, `aiUrgency`, `aiReason`, `aiSummary`, `memberName`,
      `accountNumber`, `serviceAddress`, `outageId`, `refCode=GUID`) →

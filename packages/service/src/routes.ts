@@ -571,6 +571,25 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
   f.get('/api/calls', async () => ({ calls: calls.all().slice(0, 100) }));
   f.get('/api/calls/:guid', async (req, reply) => calls.get((req.params as { guid: string }).guid) ?? reply.code(404).send({ error: 'not found' }));
 
+  // WxCC flow, after the bridge: the AI's outcome as flat strings for one HTTP node (Crete's
+  // /api/intake pattern) — no parsing of BYE headers in Designer. Unknown guid = not escalated.
+  f.get('/api/intake/:guid', async (req) => {
+    const row = calls.get((req.params as { guid: string }).guid);
+    const m = row ? rowMember(row) : undefined;
+    const esc = row?.escalation;
+    return {
+      escalate: esc ? 'true' : 'false',
+      department: esc?.department ?? '',
+      urgency: esc?.urgency ?? '',
+      reason: esc?.reason ?? '',
+      summary: (esc?.summary ?? row?.summary ?? '').slice(0, 240),
+      member_name: row?.memberName ?? '',
+      account_number: row?.memberSep ?? '',
+      service_address: m ? displayAddress(m) : '',
+      outage_id: row?.outageId ?? '',
+    };
+  });
+
   f.post('/api/reset', async () => {
     outages.reset();
     calls.reset();
