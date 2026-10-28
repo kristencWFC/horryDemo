@@ -706,7 +706,7 @@
         {
           "nav": {
             "label": "Storm Operations",
-            "icon": "lightning",
+            "icon": "dashboard",
             "iconType": "momentum",
             "navigateTo": "horry-storm-ops",
             "align": "top"
@@ -1287,7 +1287,7 @@
         {
           "nav": {
             "label": "Storm Operations",
-            "icon": "lightning",
+            "icon": "dashboard",
             "iconType": "momentum",
             "navigateTo": "horry-storm-ops",
             "align": "top"
