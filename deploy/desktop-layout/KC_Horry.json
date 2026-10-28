@@ -111,51 +111,6 @@
           {
             "comp": "md-tab",
             "attributes": {
-              "slot": "tab",
-              "class": "widget-pane-tab"
-            },
-            "children": [
-              {
-                "comp": "span",
-                "textContent": "Customer Journey"
-              }
-            ]
-          },
-          {
-            "comp": "md-tab-panel",
-            "attributes": {
-              "slot": "panel",
-              "class": "widget-pane"
-            },
-            "children": [
-              {
-                "comp": "customer-journey-widget",
-                "script": "https://journey-widget.webex.com",
-                "attributes": {
-                  "template-id": "journey-default-template2",
-                  "read-only-aliases": "true",
-                  "show-alias-icon": "true",
-                  "condensed-view": "true",
-                  "enable-user-search": "true",
-                  "disable-event-stream": "false",
-                  "live-stream": "false"
-                },
-                "properties": {
-                  "interactionData": "$STORE.agentContact.taskSelected",
-                  "bearerToken": "$STORE.auth.accessToken",
-                  "organizationId": "$STORE.agent.orgId",
-                  "dataCenter": "$STORE.app.datacenter"
-                },
-                "wrapper": {
-                  "title": "Customer Journey Widget",
-                  "maximizeAreaName": "app-maximize-area"
-                }
-              }
-            ]
-          },
-          {
-            "comp": "md-tab",
-            "attributes": {
               "slot": "tab"
             },
             "children": [
@@ -191,41 +146,6 @@
               }
             ],
             "visibility": "WXM_JOURNEY"
-          },
-          {
-            "comp": "md-tab",
-            "attributes": {
-              "slot": "tab",
-              "class": "widget-pane-tab"
-            },
-            "children": [
-              {
-                "comp": "span",
-                "textContent": "Wallboard"
-              }
-            ]
-          },
-          {
-            "comp": "md-tab-panel",
-            "attributes": {
-              "slot": "panel",
-              "class": "widget-pane"
-            },
-            "children": [
-              {
-                "comp": "agentx-wc-iframe",
-                "attributes": {
-                  "src": "https://analyzer-v5.wxcc-us1.cisco.com/analyzer/view/dashboard?tId=f4f39e91-027c-4ed0-a5e8-d00eb4c5cb90&rId=187053"
-                },
-                "properties": {
-                  "agentId": "$STORE.agent.agentId"
-                },
-                "wrapper": {
-                  "title": "Wallboard",
-                  "maximizeAreaName": "app-maximize-area"
-                }
-              }
-            ]
           },
           {
             "comp": "md-tab",
@@ -294,110 +214,6 @@
       "navigation": [
         {
           "nav": {
-            "label": "Customer Experience Analytics",
-            "icon": "/app/images/wxm.bcd45cc3.svg",
-            "iconType": "other",
-            "navigateTo": "wxm-metrics",
-            "align": "top"
-          },
-          "page": {
-            "id": "wxm-metrics",
-            "widgets": {
-              "comp1": {
-                "comp": "agentx-wc-cloudcherry-widget",
-                "attributes": {
-                  "metrics": true
-                },
-                "properties": {
-                  "userModel": "$STORE.app.userModel",
-                  "spaceId": "",
-                  "metricsId": "",
-                  "isDarkMode": "$STORE.app.darkMode",
-                  "agentId": "$STORE.agent.agentId"
-                }
-              }
-            },
-            "layout": {
-              "areas": [
-                [
-                  "comp1"
-                ]
-              ],
-              "size": {
-                "cols": [
-                  1
-                ],
-                "rows": [
-                  1
-                ]
-              }
-            }
-          },
-          "visibility": "WXM_METRICS"
-        },
-        {
-          "nav": {
-            "label": "JDS Widget",
-            "icon": "waveform",
-            "iconType": "momentum",
-            "navigateTo": "dev-widget2",
-            "align": "top"
-          },
-          "page": {
-            "id": "dev-widget2",
-            "widgets": {
-              "main": {
-                "comp": "div",
-                "style": {
-                  "height": "800px",
-                  "overflow": "scroll"
-                },
-                "children": [
-                  {
-                    "comp": "customer-journey-widget",
-                    "script": "https://journey-widget.webex.com",
-                    "attributes": {
-                      "template-id": "journey-default-template2",
-                      "read-only-aliases": "true",
-                      "show-alias-icon": "true",
-                      "condensed-view": "true",
-                      "enable-user-search": "true",
-                      "disable-event-stream": "false",
-                      "live-stream": "false"
-                    },
-                    "properties": {
-                      "interactionData": "$STORE.agentContact.taskSelected",
-                      "bearerToken": "$STORE.auth.accessToken",
-                      "organizationId": "$STORE.agent.orgId",
-                      "dataCenter": "$STORE.app.datacenter"
-                    },
-                    "wrapper": {
-                      "title": "Customer Journey Widget",
-                      "maximizeAreaName": "app-maximize-area"
-                    }
-                  }
-                ]
-              }
-            },
-            "layout": {
-              "areas": [
-                [
-                  "main"
-                ]
-              ],
-              "size": {
-                "cols": [
-                  1
-                ],
-                "rows": [
-                  1
-                ]
-              }
-            }
-          }
-        },
-        {
-          "nav": {
             "label": "Call Review",
             "icon": "analysis",
             "iconType": "momentum",
@@ -439,7 +255,8 @@
           }
         }
       ]
-    }
+    },
+    "stopNavigateOnAcceptTask": true
   },
   "supervisor": {
     "version": "0.1.0",
@@ -932,49 +749,6 @@
         },
         {
           "nav": {
-            "label": "Customer Experience Analytics",
-            "icon": "/app/images/wxm.bcd45cc3.svg",
-            "iconType": "other",
-            "navigateTo": "wxm-metrics",
-            "align": "top"
-          },
-          "page": {
-            "id": "wxm-metrics",
-            "widgets": {
-              "comp1": {
-                "comp": "agentx-wc-cloudcherry-widget",
-                "attributes": {
-                  "metrics": true
-                },
-                "properties": {
-                  "userModel": "$STORE.app.userModel",
-                  "spaceId": "",
-                  "metricsId": "",
-                  "isDarkMode": "$STORE.app.darkMode",
-                  "agentId": "$STORE.agent.agentId"
-                }
-              }
-            },
-            "layout": {
-              "areas": [
-                [
-                  "comp1"
-                ]
-              ],
-              "size": {
-                "cols": [
-                  1
-                ],
-                "rows": [
-                  1
-                ]
-              }
-            }
-          },
-          "visibility": "WXM_METRICS"
-        },
-        {
-          "nav": {
             "label": "$I18N.tpw.widgetTitle",
             "icon": "team",
             "iconType": "momentum",
@@ -1073,7 +847,8 @@
           }
         }
       ]
-    }
+    },
+    "stopNavigateOnAcceptTask": true
   },
   "supervisorAgent": {
     "version": "0.1.0",
@@ -1091,10 +866,21 @@
     "area": {
       "advancedHeader": [
         {
-          "comp": "ai-assistant"
+          "comp": "agentx-webex"
         },
         {
-          "comp": "agentx-webex"
+          "comp": "ai-assistant",
+          "script": "https://ai-assistant.ciscoccservice.com/ai-assistant-widget.js",
+          "textContent": "AI Assistant",
+          "attributes": {
+            "orgId": "$STORE.agent.orgId",
+            "accessToken": "$STORE.auth.accessToken",
+            "agentId": "$STORE.agent.agentId",
+            "agentName": "$STORE.agent.agentName",
+            "darkTheme": "$STORE.app.darkMode",
+            "aniId": "$STORE.agentContact.taskSelected.ani",
+            "activeCallId": "$STORE.agentContact.taskSelected"
+          }
         },
         {
           "comp": "agentx-outdial"
@@ -1120,8 +906,81 @@
             },
             "children": [
               {
-                "comp": "span",
-                "textContent": "Customer Journey"
+                "comp": "slot",
+                "attributes": {
+                  "name": "IVR_TRANSCRIPT_TAB"
+                }
+              }
+            ],
+            "visibility": "IVR_TRANSCRIPT"
+          },
+          {
+            "comp": "md-tab-panel",
+            "attributes": {
+              "slot": "panel",
+              "class": "widget-pane"
+            },
+            "children": [
+              {
+                "comp": "slot",
+                "attributes": {
+                  "name": "IVR_TRANSCRIPT"
+                }
+              }
+            ],
+            "visibility": "IVR_TRANSCRIPT"
+          },
+          {
+            "comp": "md-tab",
+            "attributes": {
+              "slot": "tab"
+            },
+            "children": [
+              {
+                "comp": "slot",
+                "attributes": {
+                  "name": "WXM_JOURNEY_TAB"
+                }
+              }
+            ],
+            "visibility": "WXM_JOURNEY"
+          },
+          {
+            "comp": "md-tab-panel",
+            "attributes": {
+              "slot": "panel",
+              "class": "widget-pane"
+            },
+            "children": [
+              {
+                "comp": "agentx-wc-cloudcherry-widget",
+                "properties": {
+                  "userModel": "$STORE.app.userModel",
+                  "spaceId": "",
+                  "metricsId": "",
+                  "ani": "$STORE.agentContact.taskSelected.ani",
+                  "isDarkMode": "$STORE.app.darkMode"
+                },
+                "wrapper": {
+                  "title": "Customer Experience Journey",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            ],
+            "visibility": "WXM_JOURNEY"
+          },
+          {
+            "comp": "md-tab",
+            "attributes": {
+              "slot": "tab",
+              "class": "widget-pane-tab"
+            },
+            "children": [
+              {
+                "comp": "slot",
+                "attributes": {
+                  "name": "CONTACT_HISTORY_TAB"
+                }
               }
             ]
           },
@@ -1133,29 +992,44 @@
             },
             "children": [
               {
-                "comp": "customer-journey-widget",
-                "script": "https://journey-widget.webex.com",
+                "comp": "slot",
                 "attributes": {
-                  "template-id": "journey-default-template2",
-                  "read-only-aliases": "true",
-                  "show-alias-icon": "true",
-                  "condensed-view": "true",
-                  "enable-user-search": "true",
-                  "disable-event-stream": "false",
-                  "live-stream": "false"
-                },
-                "properties": {
-                  "interactionData": "$STORE.agentContact.taskSelected",
-                  "bearerToken": "$STORE.auth.accessToken",
-                  "organizationId": "$STORE.agent.orgId",
-                  "dataCenter": "$STORE.app.datacenter"
-                },
-                "wrapper": {
-                  "title": "Customer Journey Widget",
-                  "maximizeAreaName": "app-maximize-area"
+                  "name": "CONTACT_HISTORY"
                 }
               }
             ]
+          },
+          {
+            "comp": "md-tab",
+            "attributes": {
+              "slot": "tab",
+              "class": "widget-pane-tab"
+            },
+            "children": [
+              {
+                "comp": "slot",
+                "attributes": {
+                  "name": "SCREEN_POP_TAB"
+                }
+              }
+            ],
+            "visibility": "SCREEN_POP"
+          },
+          {
+            "comp": "md-tab-panel",
+            "attributes": {
+              "slot": "panel",
+              "class": "widget-pane"
+            },
+            "children": [
+              {
+                "comp": "slot",
+                "attributes": {
+                  "name": "SCREEN_POP"
+                }
+              }
+            ],
+            "visibility": "SCREEN_POP"
           }
         ]
       },
@@ -1456,49 +1330,6 @@
         },
         {
           "nav": {
-            "label": "Customer Experience Analytics",
-            "icon": "/app/images/wxm.bcd45cc3.svg",
-            "iconType": "other",
-            "navigateTo": "wxm-metrics",
-            "align": "top"
-          },
-          "page": {
-            "id": "wxm-metrics",
-            "widgets": {
-              "comp1": {
-                "comp": "agentx-wc-cloudcherry-widget",
-                "attributes": {
-                  "metrics": true
-                },
-                "properties": {
-                  "userModel": "$STORE.app.userModel",
-                  "spaceId": "",
-                  "metricsId": "",
-                  "isDarkMode": "$STORE.app.darkMode",
-                  "agentId": "$STORE.agent.agentId"
-                }
-              }
-            },
-            "layout": {
-              "areas": [
-                [
-                  "comp1"
-                ]
-              ],
-              "size": {
-                "cols": [
-                  1
-                ],
-                "rows": [
-                  1
-                ]
-              }
-            }
-          },
-          "visibility": "WXM_METRICS"
-        },
-        {
-          "nav": {
             "label": "$I18N.tpw.widgetTitle",
             "icon": "team",
             "iconType": "momentum",
@@ -1597,6 +1428,7 @@
           }
         }
       ]
-    }
+    },
+    "stopNavigateOnAcceptTask": true
   }
 }

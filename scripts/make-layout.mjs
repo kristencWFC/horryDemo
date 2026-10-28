@@ -1,10 +1,14 @@
-// Builds deploy/desktop-layout/KC_Horry.json from the Infinity layout
-// (../Desktop Layouts/KC_HomeServices.json, Kristen 2026-10-28: "take Crete or Infinity as the
-// base, make a copy, add the widget"). Keeps Cisco's built-ins (AI Assistant, state selector,
-// outdial, Analyzer/wallboard, journey, team performance, recordings) and strips every other
-// demo's widgets — anything loaded from kcdev2 or the Looker report — then adds Horry's pages.
+// Builds deploy/desktop-layout/KC_Horry.json from the ICON layout
+// (../Desktop Layouts/KC_ICON.json) — a clean single-demo layout with Cisco's standard pieces in
+// every persona: interaction-panel slots (IVR transcript, journey, contact history, screen pop),
+// supervisor homepage with Analyzer widgets, team performance, recordings, and the reset-widget.
+// (2026-10-28: the first cut used KC_HomeServices.json, which carries every demo and whose
+// supervisorAgent persona had no standard tabs — Kristen asked for a clean base.)
 //
-//   node scripts/make-layout.mjs            → writes the repo copy + a copy in Desktop Layouts
+// Swaps ICON's dialer tab + pages for Horry's, and adds Cisco's AI Assistant to the header of the
+// personas that take calls (needed for the auto wrap-up summary).
+//
+//   node scripts/make-layout.mjs   → writes the repo copy + a copy in GitHub KC/Desktop Layouts
 //
 // Upload rule (kc-wiki wxcc-layout-widget-lockstep): deploy the widget bundle FIRST, then upload.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -17,37 +21,26 @@ const layoutsDir = join(repo, '..', 'Desktop Layouts');
 const SERVER = 'https://kcdev2.workflowconcepts.com/horry';
 const BUNDLE = `${SERVER}/widgets/horry-widgets.js`;
 
-const base = JSON.parse(readFileSync(join(layoutsDir, 'KC_HomeServices.json'), 'utf8'));
+const base = JSON.parse(readFileSync(join(layoutsDir, 'KC_ICON.json'), 'utf8'));
 const removed = [];
 
-/** Another demo's piece = it loads from our dev box (or the old Looker report). */
-const foreign = (node) => /kcdev2\.workflowconcepts\.com|lookerstudio\.google\.com/.test(JSON.stringify(node));
+/** ICON's own pieces load from its service on our dev box. */
+const icon = (node) => /kcdev2\.workflowconcepts\.com\/icon/.test(JSON.stringify(node));
 
-function label(tab) {
-  return tab?.children?.[0]?.textContent ?? tab?.attributes?.label ?? '(unlabelled)';
-}
-
-/** md-tabs children come in (md-tab, md-tab-panel) pairs; drop a pair when its panel is foreign. */
-function cleanTabs(tabs) {
-  const out = [];
-  for (let i = 0; i < tabs.children.length; i += 2) {
-    const [tab, panel] = [tabs.children[i], tabs.children[i + 1]];
-    if (foreign(panel)) removed.push(`panel tab: ${label(tab)}`);
-    else out.push(tab, panel);
-  }
-  tabs.children = out;
-}
-
-/** advancedHeader is a flat array of header widgets. */
-function cleanHeader(header) {
-  return (header ?? []).filter((c) => {
-    if (foreign(c)) {
-      removed.push(`header: ${c.comp}`);
-      return false;
-    }
-    return true;
-  });
-}
+const AI_ASSISTANT = {
+  comp: 'ai-assistant',
+  script: 'https://ai-assistant.ciscoccservice.com/ai-assistant-widget.js',
+  textContent: 'AI Assistant',
+  attributes: {
+    orgId: '$STORE.agent.orgId',
+    accessToken: '$STORE.auth.accessToken',
+    agentId: '$STORE.agent.agentId',
+    agentName: '$STORE.agent.agentName',
+    darkTheme: '$STORE.app.darkMode',
+    aniId: '$STORE.agentContact.taskSelected.ani',
+    activeCallId: '$STORE.agentContact.taskSelected',
+  },
+};
 
 const page = (id, label, icon, widget) => ({
   nav: { label, icon, iconType: 'momentum', navigateTo: id, align: 'top' },
@@ -74,41 +67,43 @@ for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
   const p = base[persona];
   p.appTitle = 'Horry Electric Cooperative';
   const a = p.area;
-  if (a.advancedHeader) a.advancedHeader = cleanHeader(a.advancedHeader);
-  if (a.headless && foreign(a.headless)) {
-    removed.push(`${persona} headless`);
-    delete a.headless;
+
+  // Interaction panel: drop ICON's (md-tab, md-tab-panel) pair, keep Cisco's slot tabs.
+  if (a.panel?.comp === 'md-tabs') {
+    const ch = a.panel.children;
+    const out = [];
+    for (let i = 0; i < ch.length; i++) {
+      if (ch[i].comp === 'md-tab' && ch[i + 1]?.comp === 'md-tab-panel' && icon(ch[i + 1])) {
+        removed.push(`${persona} panel tab: ${ch[i].children?.[0]?.textContent ?? '?'}`);
+        i++; // skip its panel too
+        continue;
+      }
+      out.push(ch[i]);
+    }
+    a.panel.children = out;
   }
-  if (a.panel?.comp === 'md-tabs') cleanTabs(a.panel);
+
+  // Header: AI Assistant after agentx-webex for the personas that handle calls.
+  if (persona !== 'supervisor' && Array.isArray(a.advancedHeader) && !a.advancedHeader.some((w) => w.comp === 'ai-assistant')) {
+    const at = a.advancedHeader.findIndex((w) => w.comp === 'agentx-webex');
+    a.advancedHeader.splice(at + 1, 0, structuredClone(AI_ASSISTANT));
+  }
+
   a.navigation = (a.navigation ?? []).filter((n) => {
-    if (foreign(n.page)) {
+    if (icon(n.page)) {
       removed.push(`${persona} nav: ${n.nav.label}`);
       return false;
     }
     return true;
   });
-  // Supervisors get the storm controls; everyone gets the call review.
   if (persona !== 'agent') a.navigation.unshift(structuredClone(stormOps));
   a.navigation.push(structuredClone(callReview));
 }
 
-// A persona whose only panel tab was another demo's (supervisorAgent had just "IHS Caller") would
-// be left with an empty tab strip — give it the agent persona's Customer Journey tab.
-const journeyPair = (() => {
-  const ch = base.agent.area.panel?.children ?? [];
-  const i = ch.findIndex((t, k) => k % 2 === 0 && label(t) === 'Customer Journey');
-  return i >= 0 ? ch.slice(i, i + 2) : [];
-})();
-for (const persona of ['supervisor', 'supervisorAgent']) {
-  const panel = base[persona].area.panel;
-  if (panel?.comp === 'md-tabs' && panel.children.length === 0) panel.children = structuredClone(journeyPair);
-}
-
 const text = JSON.stringify(base, null, 2) + '\n';
-const leftovers = text.match(/kcdev2\.workflowconcepts\.com\/(?!horry)[a-z]*/g) ?? [];
-if (leftovers.length) throw new Error(`foreign references left: ${[...new Set(leftovers)].join(', ')}`);
+if (/icon-dialer|kcdev2\.workflowconcepts\.com\/icon|ICON International/.test(text)) throw new Error('ICON references left over');
 
 mkdirSync(join(repo, 'deploy', 'desktop-layout'), { recursive: true });
 writeFileSync(join(repo, 'deploy', 'desktop-layout', 'KC_Horry.json'), text);
 writeFileSync(join(layoutsDir, 'KC_Horry.json'), text);
-console.log(`KC_Horry.json written (${text.length} bytes). Removed:\n  ${[...new Set(removed)].join('\n  ')}`);
+console.log(`KC_Horry.json written (${text.length} bytes). Removed:\n  ${removed.join('\n  ')}`);
