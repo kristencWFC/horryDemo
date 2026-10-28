@@ -210,7 +210,7 @@
         <tr><td>Card on file</td><td>Savannah reads back the card ending and the amount. On a yes, Meridian's payment gateway charges the saved card.</td><td><span class="pill done">built</span></td></tr>
         <tr><td>Secure text link</td><td>The member gets a link and pays on their phone. Only a token comes back to us, and Savannah confirms the payment went through.</td><td><span class="pill done">built</span></td></tr>
         <tr><td>Phone keypad (demo)</td><td>Savannah pauses. The WFC AI Controller collects the keypad digits and sends them straight to Meridian's payment gateway, then Savannah comes back with the result. The digits never reach the AI.</td><td><span class="pill todo">to do</span></td></tr>
-        <tr><td>Phone keypad (production)</td><td>Twilio Pay, a PCI-certified service, collects the digits instead, so neither WFC nor Horry handles card data. This needs its own PCI-mode Twilio account.</td><td><span class="pill open">talk</span></td></tr>
+        <tr><td>Phone keypad (production)</td><td>A PCI-certified payment service collects the digits instead, so neither WFC nor Horry handles card data.</td><td><span class="pill open">talk</span></td></tr>
         <tr><td>Agent hands off to pay</td><td>A live agent sends the caller to secure pay, and the call comes back to the same agent when it's done.</td><td><span class="pill todo">to do</span></td></tr>
       </tbody>
     </table></div>
@@ -218,25 +218,24 @@
     this design their new contact center never handles a card number, so it adds nothing to their PCI scope.
     Their auditor confirms this.</div>
 
-    <h3 style="margin-top:20px">How Twilio Pay works (the production option)</h3>
-    <p>Twilio Pay is a service from Twilio that takes card numbers over the phone keypad on Twilio's own
-    PCI-certified systems (PCI DSS Level 1, the highest level). The card number goes from the caller's keypad to Twilio and on to
-    the payment processor. Horry, WFC, Savannah and the agent only ever get the result.</p>
+    <h3 style="margin-top:20px">How a PCI-certified payment service works (the production option)</h3>
+    <p>In production, the keypad step moves to a PCI-certified payment service (PCI DSS Level 1, the highest level).
+    The card number goes from the caller's keypad to that service and on to the payment processor. Horry, WFC,
+    Savannah and the agent only ever get the result.</p>
     <ol class="steps">
-      <li><span>The member chooses to pay by keypad. Savannah, or the live agent, hands the call to Twilio Pay.</span></li>
-      <li><span>Twilio plays the prompts and collects the card number, expiry date, security code and ZIP code from the keypad.
-        Twilio's systems are in PCI mode, so the digits are never written to its logs.</span></li>
-      <li><span>Twilio sends the card straight to the payment processor through a "Pay Connector". The processor charges the card
-        or returns a token that stands in for it.</span></li>
+      <li><span>The member chooses to pay by keypad. Savannah, or the live agent, hands the call to the payment service.</span></li>
+      <li><span>The service plays the prompts and collects the card number, expiry date, security code and ZIP code from the keypad.
+        If a live agent stays on the call, they hear flat tones instead of the digits.</span></li>
+      <li><span>The service sends the card straight to the payment processor, which charges the card or returns a token that
+        stands in for it.</span></li>
       <li><span>Only the result comes back: approved or declined, the confirmation number and the last four digits. The call returns
         to Savannah or the same agent, who confirms the payment and notes the account.</span></li>
     </ol>
     <div class="table-wrap"><table>
       <thead><tr><th>What it needs</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr><td>Its own Twilio account in PCI mode</td><td>PCI mode can't be turned off and covers the whole account, so it gets a dedicated account.</td></tr>
-        <tr><td>A Pay Connector Meridian's gateway accepts</td><td>Which processor or token types Meridian takes decides which connector we use. This is a question for the discovery call.</td></tr>
-        <tr><td>Keypad tones carried cleanly end to end</td><td>The tones have to pass through as signals (RFC 2833), not as sound, all the way to Twilio.</td></tr>
+        <tr><td>A service that works with Meridian's gateway</td><td>Which processor or token types Meridian takes decides which service fits. Horry may also already have a payment line through their billing vendor. Both are questions for the discovery call.</td></tr>
+        <tr><td>Keypad tones carried cleanly end to end</td><td>The tones have to pass through as signals (RFC 2833), not as sound, all the way to the payment service.</td></tr>
         <tr><td>Recording paused during payment</td><td><strong>[CONFIRM]</strong> The call still passes through Webex Contact Center, so the WxCC recording must pause while the member keys in the card. This applies to the demo path too.</td></tr>
       </tbody>
     </table></div>
@@ -296,7 +295,7 @@
         <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 6).</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Web chat</td><td>AI first, then a live agent (section 6).</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Cisco auto wrap-up summary</td><td>Turn on AI Assistant summaries (recording must be on) for the Horry queues. Confirm the summary API so the dashboard pulls real summaries.</td></tr>
-        <tr><td><span class="pill todo">to do</span></td><td>Keypad pay, agent hand-off to pay</td><td>Demo: the WFC AI Controller collects the digits and posts them to Meridian. Twilio Pay is the production option.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Keypad pay, agent hand-off to pay</td><td>Demo: the WFC AI Controller collects the digits and posts them to Meridian. A PCI-certified payment service is the production option.</td></tr>
         <tr><td><span class="pill hold">waiting</span></td><td>Restoration voice callbacks</td><td>Simulated for now. Texts are real.</td></tr>
       </tbody>
     </table></div>
@@ -307,6 +306,7 @@
     <ul>
       <li>Is the NextGen CIS API turned on for Horry's system, and will NISC keep supporting it after the Meridian merger?</li>
       <li>Which card tokens does Meridian's payment gateway accept? This decides how keypad payments connect.</li>
+      <li>Do they already use a phone payment service, for example through their billing vendor?</li>
       <li>Which outage management system do they use (Futura?), and could we read it live later?</li>
       <li>Is the outage line 843-369-2212 separate from the main number?</li>
       <li>What do they mean by "email ticketing"?</li>
