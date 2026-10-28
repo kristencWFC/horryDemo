@@ -326,6 +326,33 @@
       <li>Storm Console (<a href="https://kcdev2.workflowconcepts.com/horry/">kcdev2.workflowconcepts.com/horry</a>), section 02: enter the presenter's mobile number. Press <strong>Reset demo data</strong> before each run.</li>
     </ul>
 
+    <h3 style="margin-top:20px">Demo members and test cards</h3>
+    <p>Savannah knows the caller from caller ID: the Storm Console maps the presenter's phone to a member, she greets them
+    by name and asks only to confirm the address. If she asks who is calling (phone not mapped, or to show a lookup),
+    give the account number, phone or address below.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Member</th><th>Account</th><th>Phone on file</th><th>Service address</th><th>Card on file</th></tr></thead>
+      <tbody>
+        <tr><td>Linda Hardee</td><td><code>00212040001</code></td><td>843-555-0101</td><td>4810 Dick Pond Rd, Myrtle Beach</td><td>Visa ending 4242</td></tr>
+        <tr><td>Marcus Jordan</td><td><code>00187520002</code></td><td>843-555-0142</td><td>2215 Peachtree Rd, Myrtle Beach</td><td>none (bank draft)</td></tr>
+        <tr><td>Dorothy Skipper</td><td><code>00230115001</code></td><td>843-555-0118</td><td>1420 Cultra Rd, Conway</td><td>none ($194 past due)</td></tr>
+        <tr><td>David Nguyen</td><td><code>00198844001</code></td><td>843-555-0165</td><td>731 Hwy 9 Bus, Loris</td><td>Mastercard ending 1881</td></tr>
+        <tr><td>Grace Bellamy</td><td><code>00244501003</code></td><td>843-555-0177</td><td>4120 Hwy 501, Aynor</td><td>none (bank draft)</td></tr>
+        <tr><td>Robert Causey</td><td><code>00176230001</code></td><td>843-555-0190</td><td>2601 Hwy 90, Longs</td><td>none</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>How they pay</th><th>What to do</th></tr></thead>
+      <tbody>
+        <tr><td>Card on file (Linda, David)</td><td>Say "I'd like to pay my bill." Savannah offers the card on file ("Visa ending 4 2 4 2"). Say yes. No card number is given, and the balance drops on the account.</td></tr>
+        <tr><td>Secure text link (everyone else)</td><td>Ask to pay. Savannah sends the link. On the payment page use <code>4242 4242 4242 4242</code>, any future expiry, any CVC and ZIP: <strong>approved</strong>. Use <code>4000 0000 0000 0002</code> to show a <strong>decline</strong>.</td></tr>
+        <tr><td>Phone keypad</td><td>Not built yet.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><strong>Texts aren't live yet.</strong> Until texting is switched on, the payment link and restoration texts don't
+    reach a phone. Open the Storm Console, section 05 "Texts", and open the link from there while still on the call.
+    Savannah checks the payment and reads back the confirmation number.</div>
+
     <h3 style="margin-top:20px">Test A: a normal day (Storm Mode off)</h3>
     <ol class="steps">
       <li><span>Storm Console: set the presenter's phone to play <strong>David Nguyen</strong> (billing questions).</span></li>
