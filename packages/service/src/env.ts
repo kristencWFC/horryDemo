@@ -52,6 +52,9 @@ const EnvSchema = z.object({
   // Storm staffing: the outage queue whose team list the supervisor widget edits (same
   // Service App). Unset = simulated teams.
   WXCC_OUTAGE_QUEUE_ID: z.string().optional(),
+  // The demo org is shared: the picker offers only teams whose name starts with this (plus
+  // any team already on the queue), so nobody can staff Horry's queue with a colleague's team.
+  WXCC_STAFFING_TEAM_PREFIX: z.string().default('KC_Horry'),
 
   // Cisco AI Assistant wrap-up summaries for the live-agent leg. URL template with
   // {interactionId} (and optionally {orgId}). Unset = simulated summaries. [CONFIRM] path.

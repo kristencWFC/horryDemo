@@ -88,10 +88,11 @@ export class StaffingStore extends EventEmitter {
   async get(): Promise<StaffingState> {
     if (!staffingConfigured()) return this.simState();
     try {
-      const [queue, teams] = await Promise.all([this.getQueue(), this.listTeams()]);
+      const [queue, all] = await Promise.all([this.getQueue(), this.listTeams()]);
       const groups = (queue.callDistributionGroups ?? []) as DistGroup[];
       const on = teamIdsOf(groups);
       const home = teamIdsOf(this.s.normalGroups ?? groups);
+      const teams = this.pickable(all, new Set([...on, ...home]));
       this.wxcc = 'synced';
       this.error = undefined;
       return this.state({ id: String(queue.id), name: String(queue.name ?? 'Outage queue') }, teams.map((t) => ({ ...t, onQueue: on.has(t.id), home: home.has(t.id) })));
@@ -114,8 +115,11 @@ export class StaffingStore extends EventEmitter {
     }
     const queue = await this.getQueue();
     const groups = structuredClone((queue.callDistributionGroups ?? []) as DistGroup[]);
-    this.s.normalGroups ??= structuredClone(groups); // first change: remember normal staffing
     const before = teamIdsOf(groups);
+    const allowed = new Set(this.pickable(await this.listTeams(), new Set([...before, ...teamIdsOf(this.s.normalGroups ?? [])])).map((t) => t.id));
+    const foreign = [...want].filter((id) => !allowed.has(id));
+    if (foreign.length) throw new Error(`Not a Horry team: ${foreign.join(', ')}`);
+    this.s.normalGroups ??= structuredClone(groups); // first change: remember normal staffing
     for (const g of groups) g.agentGroups = (g.agentGroups ?? []).filter((a) => want.has(a.teamId));
     const kept = teamIdsOf(groups);
     const first = groups.find((g) => g.agentGroups.length) ?? groups[0];
@@ -198,6 +202,12 @@ export class StaffingStore extends EventEmitter {
       this.error = `PUT contact-service-queue HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
       throw new Error(this.error);
     }
+  }
+
+  /** Teams the picker may offer: name starts with WXCC_STAFFING_TEAM_PREFIX, or already on the queue. */
+  private pickable(teams: { id: string; name: string }[], keep: Set<string>): { id: string; name: string }[] {
+    const prefix = env.WXCC_STAFFING_TEAM_PREFIX.toLowerCase();
+    return teams.filter((t) => keep.has(t.id) || t.name.toLowerCase().startsWith(prefix));
   }
 
   /** v2/team, every page; cached a minute (teams rarely change mid-storm). */

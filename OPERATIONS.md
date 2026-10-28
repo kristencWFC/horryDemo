@@ -57,6 +57,7 @@ chosen; webhookSecret = the box's agentTool secret pattern), restart `ivr-contro
 | `WEBEX_ORG_ID`, `WXCC_STORM_VARIABLE_ID`, `WEBEX_CLIENT_ID`, `WEBEX_CLIENT_SECRET`, `WEBEX_REFRESH_TOKEN` | Storm Mode global variable writer (dedicated Service App) |
 | `WXCC_SUMMARY_URL` | Cisco AI Assistant summary endpoint template with `{interactionId}` — [CONFIRM] path. Unset = simulated live-agent summaries |
 | `WXCC_OUTAGE_QUEUE_ID` | id of `Q_Horry_Outage` — the supervisor widget adds/removes teams on it (same Service App). Unset = simulated teams |
+| `WXCC_STAFFING_TEAM_PREFIX` | default `KC_Horry` — the picker offers only teams named with this prefix (plus any already on the queue); the server rejects others. The demo org is shared |
 | `NEXTGEN_BASE_URL` / `NEXTGEN_USERNAME` / `NEXTGEN_PASSWORD` | leave unset (mock) for the demo |
 
 Widgets: `npm run build` builds `packages/widgets/dist/horry-widgets.js`, served at

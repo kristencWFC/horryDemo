@@ -19,7 +19,9 @@ Outage queue staffing: the supervisor widget edits **`Q_Horry_Outage`'s distribu
 (adds/removes teams; normal staffing is snapshotted and restored by "Return to normal"). Put the
 queue id in `WXCC_OUTAGE_QUEUE_ID`. Set the queue to **team-based** routing and give it one
 distribution group with the normal team(s). Create the extra department teams the demo picks from
-(e.g. Billing & Collections, Engineering, Operations Dispatch) — they need no other config.
+(e.g. `KC_Horry_Billing`, `KC_Horry_Engineering`, `KC_Horry_Dispatch`) — they need no other config,
+but **the name must start with `KC_Horry`**: the org is shared, so the picker shows only those
+(`WXCC_STAFFING_TEAM_PREFIX`) plus teams already on the queue.
 
 Service App for the variable write and the queue edit: scope `cjp:config_write` (+ `cjp:config_read`); org
 admin authorizes once → `WEBEX_CLIENT_ID/SECRET/REFRESH_TOKEN` in the server `.env`.
