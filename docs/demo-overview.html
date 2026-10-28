@@ -160,16 +160,15 @@
     <p>Pick a situation, then step through it. Boxes and arrows in orange are the ones in use at that step.</p>
     <div class="controls" id="scenarios" role="group" aria-label="Situations"></div>
     <div class="sheet">
-      <svg viewBox="0 0 1000 410" role="img" aria-label="Call path from the member through Webex Contact Center, freeSWITCH and the ElevenLabs AI agent, with the Horry service, NextGen CIS, text messages and the live agent desktop">
+      <svg viewBox="0 0 1000 410" role="img" aria-label="Call path from the member through Webex Contact Center, the WFC AI Controller and the ElevenLabs AI agent, with the Horry service, NextGen CIS, text messages and the live agent desktop">
         <defs>
           <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
         </defs>
         <path class="edge" id="e-sup-wxcc" d="M255 92 L255 168" marker-end="url(#ah)"/>
         <text class="elabel" x="263" y="135">Storm Mode on</text>
         <path class="edge" id="e-caller-wxcc" d="M142 200 L178 200" marker-end="url(#ah)"/>
-        <path class="edge" id="e-wxcc-fs" d="M332 200 L388 200" marker-end="url(#ah)"/>
-        <text class="elabel" x="334" y="190">bridge</text>
-        <path class="edge" id="e-fs-el" d="M522 200 L568 200" marker-end="url(#ah)"/>
+        <path class="edge" id="e-wxcc-fs" d="M332 200 L348 200" marker-end="url(#ah)"/>
+        <path class="edge" id="e-fs-el" d="M532 200 L568 200" marker-end="url(#ah)"/>
         <path class="edge" id="e-el-svc" d="M645 168 L645 92" marker-end="url(#ah)"/>
         <text class="elabel" x="653" y="135">tools</text>
         <path class="edge" id="e-svc-cis" d="M722 60 L788 60" marker-end="url(#ah)"/>
@@ -184,7 +183,7 @@
         <g class="node" id="n-sup"><rect x="180" y="30" width="150" height="62" rx="6"/><text class="t" x="196" y="56">Supervisor</text><text class="s" x="196" y="76">Storm Mode button</text></g>
         <g class="node" id="n-caller"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Member</text><text class="s" x="36" y="216">calls in</text></g>
         <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">checks Storm Mode</text></g>
-        <g class="node" id="n-fs"><rect x="390" y="170" width="130" height="62" rx="6"/><text class="t" x="406" y="196">freeSWITCH</text><text class="s" x="406" y="216">our bridge</text></g>
+        <g class="node" id="n-fs"><rect x="350" y="170" width="180" height="62" rx="6"/><text class="t" x="364" y="196">WFC AI Controller</text><text class="s" x="364" y="216">bridge to the AI</text></g>
         <g class="node" id="n-el"><rect x="570" y="170" width="150" height="62" rx="6"/><text class="t" x="586" y="196">Savannah (AI)</text><text class="s" x="586" y="216">ElevenLabs voice</text></g>
         <g class="node" id="n-svc"><rect x="570" y="30" width="150" height="62" rx="6"/><text class="t" x="586" y="56">Horry service</text><text class="s" x="586" y="76">outages · payments</text></g>
         <g class="node" id="n-cis"><rect x="790" y="30" width="170" height="62" rx="6"/><text class="t" x="806" y="56">NextGen CIS</text><text class="s" x="806" y="76">accounts · billing</text></g>
@@ -210,7 +209,7 @@
       <tbody>
         <tr><td>Card on file</td><td>Savannah reads back the card ending and the amount. On a yes, Meridian's payment gateway charges the saved card.</td><td><span class="pill done">built</span></td></tr>
         <tr><td>Secure text link</td><td>The member gets a link and pays on their phone. Only a token comes back to us, and Savannah confirms the payment went through.</td><td><span class="pill done">built</span></td></tr>
-        <tr><td>Phone keypad (demo)</td><td>Savannah pauses. Our phone server collects the keypad digits and sends them straight to Meridian's payment gateway, then Savannah comes back with the result. The digits never reach the AI.</td><td><span class="pill todo">to do</span></td></tr>
+        <tr><td>Phone keypad (demo)</td><td>Savannah pauses. The WFC AI Controller collects the keypad digits and sends them straight to Meridian's payment gateway, then Savannah comes back with the result. The digits never reach the AI.</td><td><span class="pill todo">to do</span></td></tr>
         <tr><td>Phone keypad (production)</td><td>Twilio Pay, a PCI-certified service, collects the digits instead, so neither WFC nor Horry handles card data. This needs its own PCI-mode Twilio account.</td><td><span class="pill open">talk</span></td></tr>
         <tr><td>Agent hands off to pay</td><td>A live agent sends the caller to secure pay, and the call comes back to the same agent when it's done.</td><td><span class="pill todo">to do</span></td></tr>
       </tbody>
@@ -218,6 +217,29 @@
     <div class="note"><strong>The PCI message.</strong> Horry told us they are SAQ D today and want to stay that way. With
     this design their new contact center never handles a card number, so it adds nothing to their PCI scope.
     Their auditor confirms this.</div>
+
+    <h3 style="margin-top:20px">How Twilio Pay works (the production option)</h3>
+    <p>Twilio Pay is a service from Twilio that takes card numbers over the phone keypad on Twilio's own
+    PCI-certified systems (PCI DSS Level 1, the highest level). The card number goes from the caller's keypad to Twilio and on to
+    the payment processor. Horry, WFC, Savannah and the agent only ever get the result.</p>
+    <ol class="steps">
+      <li><span>The member chooses to pay by keypad. Savannah, or the live agent, hands the call to Twilio Pay.</span></li>
+      <li><span>Twilio plays the prompts and collects the card number, expiry date, security code and ZIP code from the keypad.
+        Twilio's systems are in PCI mode, so the digits are never written to its logs.</span></li>
+      <li><span>Twilio sends the card straight to the payment processor through a "Pay Connector". The processor charges the card
+        or returns a token that stands in for it.</span></li>
+      <li><span>Only the result comes back: approved or declined, the confirmation number and the last four digits. The call returns
+        to Savannah or the same agent, who confirms the payment and notes the account.</span></li>
+    </ol>
+    <div class="table-wrap"><table>
+      <thead><tr><th>What it needs</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Its own Twilio account in PCI mode</td><td>PCI mode can't be turned off and covers the whole account, so it gets a dedicated account.</td></tr>
+        <tr><td>A Pay Connector Meridian's gateway accepts</td><td>Which processor or token types Meridian takes decides which connector we use. This is a question for the discovery call.</td></tr>
+        <tr><td>Keypad tones carried cleanly end to end</td><td>The tones have to pass through as signals (RFC 2833), not as sound, all the way to Twilio.</td></tr>
+        <tr><td>Recording paused during payment</td><td><strong>[CONFIRM]</strong> The call still passes through Webex Contact Center, so the WxCC recording must pause while the member keys in the card. This applies to the demo path too.</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <section>
@@ -264,7 +286,7 @@
       <tbody>
         <tr><td><span class="pill done">done</span></td><td>Savannah, the AI agent</td><td>Same voice as the Crete and Infinity demos. Has 12 tools for outages, billing and payments. SIP number 1151.</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Horry service</td><td>Mock of NextGen CIS, outages, restoration texts, payments, and the Storm Console page. Tested end to end on a laptop.</td></tr>
-        <tr><td><span class="pill done">done</span></td><td>freeSWITCH bridge</td><td>Horry's entry added to our freeSWITCH server's settings.</td></tr>
+        <tr><td><span class="pill done">done</span></td><td>WFC AI Controller</td><td>Horry added to the WFC AI Controller, which connects the call to Savannah. SIP number 1151 is live.</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Supervisor widget</td><td>Storm Mode button, the message Savannah reads to callers, and outage queue staffing (pick the teams).</td></tr>
         <tr><td><span class="pill done">done</span></td><td>Call review dashboard</td><td>Sample storm day plus live calls. Live-agent summaries are simulated until we confirm Cisco's summary API.</td></tr>
         <tr><td><span class="pill open">in progress</span></td><td>Deploy to kcdev2</td><td>Kristen is doing this now.</td></tr>
@@ -274,7 +296,7 @@
         <tr><td><span class="pill todo">to do</span></td><td>Email pick board</td><td>Built from the pick system (section 6).</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Web chat</td><td>AI first, then a live agent (section 6).</td></tr>
         <tr><td><span class="pill todo">to do</span></td><td>Cisco auto wrap-up summary</td><td>Turn on AI Assistant summaries (recording must be on) for the Horry queues. Confirm the summary API so the dashboard pulls real summaries.</td></tr>
-        <tr><td><span class="pill todo">to do</span></td><td>Keypad pay, agent hand-off to pay</td><td>Demo: our phone server collects the digits and posts them to Meridian. Twilio Pay is the production option.</td></tr>
+        <tr><td><span class="pill todo">to do</span></td><td>Keypad pay, agent hand-off to pay</td><td>Demo: the WFC AI Controller collects the digits and posts them to Meridian. Twilio Pay is the production option.</td></tr>
         <tr><td><span class="pill hold">waiting</span></td><td>Restoration voice callbacks</td><td>Simulated for now. Texts are real.</td></tr>
       </tbody>
     </table></div>
@@ -299,7 +321,7 @@
     { name: 'Storm Mode, outage known', steps: [
       { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'The supervisor clicks Storm Mode on their desktop. The flow now sends members to Savannah.' },
       { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Linda calls. The flow sees Storm Mode is on and looks up who is calling.' },
-      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The call bridges through our freeSWITCH to Savannah. She greets Linda by name and already knows her area is out.' },
+      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The WFC AI Controller connects the call to Savannah. She greets Linda by name and already knows her area is out.' },
       { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'Savannah confirms the service address. The outage is already reported: Socastee, 1,240 members, a tree on the line, about 2½ hours.' },
       { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Linda asks for a text. She gets one if the estimate changes and another when power is back. If she replies OUT, a new ticket opens.' },
       { nodes: ['el'], edges: [], text: 'Savannah wraps up and hangs up. No agent was needed, and the call shows on the storm dashboard with a summary and sentiment.' }

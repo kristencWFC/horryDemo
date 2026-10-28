@@ -56,7 +56,10 @@ page published (claude.ai artifact; source `docs/demo-overview.html`).
 - [x] SIP number 1151
 - [ ] Deploy per `OPERATIONS.md` (server `.env` table) + nginx snippet on the front box
 - [ ] FS box: pull, add `horryelectric` block to server `config.json`, restart ivr-controller
-- [ ] Control Hub: `Global_StormMode` variable, EP + DID, queues; Service App (config write)
+- [x] Control Hub: `Global_StormMode` (String, false), team `KC_HorryElectric`, queue `Q_Horry_Outage` — 2026-10-28
+- [x] Firewall: tcp:8165 nginx box → kc-dev-2 — 2026-10-28
+- [ ] Control Hub: EP + DID, `Q_Horry_Billing`, extra department teams, Service App (config write)
+- [ ] Upload `deploy/desktop-layout/KC_Horry.json` AFTER the widgets are deployed; assign to KC_HorryElectric
 - [ ] Designer: `KC_Horry_Electric` per `docs/wxcc-flow-notes.md`
 - [ ] Twilio: SMS number inbound webhook → `/horry/webhooks/twilio/sms`; PCI-Mode account for Pay
 
