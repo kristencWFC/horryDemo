@@ -37,6 +37,8 @@ export interface CallView {
   topics: Topic[];
   /** Savannah took part (false = Storm Mode / AI for all calls was off: straight to an agent). */
   ai: boolean;
+  /** Still happening right now (not just 'a real call' — Kristen read the old Live chip that way, 2026-10-29). */
+  inProgress: boolean;
   contained: boolean; // Savannah finished it, no person needed
   sentiment: 'positive' | 'neutral' | 'negative';
   durationSec: number;
@@ -84,6 +86,7 @@ function fromRow(r: CallRow): CallView {
     primaryTopic: topics[0] ?? 'Other',
     topics,
     ai,
+    inProgress: !r.endedAt && !stale,
     contained: ai && !r.escalation,
     sentiment: r.sentiment ?? 'neutral',
     durationSec: r.durationSec ?? Math.max(0, Math.round((end - Date.parse(r.startedAt)) / 1000)),
@@ -200,6 +203,7 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
         id,
         sample: true,
         ai: true,
+        inProgress: false,
         startedAt: start.toISOString(),
         member: name,
         town,

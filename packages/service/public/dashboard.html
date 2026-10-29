@@ -97,7 +97,8 @@
   tbody tr.call { cursor: pointer; }
   tbody tr.call:hover { background: var(--soft); }
   .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; margin: 0 4px 2px 0; }
-  .chip.live { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .chip.live { border-color: #1f8a4c; color: #1f8a4c; font-weight: 600; }
+  .chip.sample { border-style: dashed; }
   .path { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .dot.ai { background: var(--s-ai); } .dot.ag { background: var(--s-agent); }
@@ -337,7 +338,7 @@
     $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
       <tr class="call" tabindex="0" data-id="${esc(c.id)}">
-        <td>${day(c.startedAt)} ${clock(c.startedAt)}${c.sample ? '' : ' <span class="chip live">Live</span>'}</td>
+        <td>${day(c.startedAt)} ${clock(c.startedAt)}${c.sample ? ' <span class="chip sample" title="Made-up sample storm day">Sample</span>' : c.inProgress ? ' <span class="chip live">In progress</span>' : ''}</td>
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
         <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.channel === 'chat' ? '<span class="chip">web chat</span>' : ''}</td>
         <td><span class="path">${!c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
