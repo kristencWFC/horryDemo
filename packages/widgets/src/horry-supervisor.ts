@@ -110,18 +110,33 @@ export class HorrySupervisor extends LitElement {
       .between { justify-content: space-between; }
       .storm { display: grid; gap: 8px; }
       .group { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--h-muted, inherit); opacity: .8; margin: 6px 2px -4px; }
-      .state { font-size: 18px; font-weight: 600; }
-      .state.on { color: var(--h-ok); }
-      .bigbtn { padding: 10px 16px; font-size: 14px; }
-      /* At a glance (Kristen 2026-10-29): green = turn on, red = turn off, ON/OFF badge by each title. */
-      button.go { background: var(--h-ok); border-color: var(--h-ok); color: #fff; font-weight: 600; }
-      button.stop { background: var(--h-danger); border-color: var(--h-danger); color: #fff; font-weight: 600; }
-      :host([darkmode='true']) button.go, :host([darkmode='true']) button.stop { color: #10161c; }
-      button.go:disabled, button.stop:disabled { opacity: .5; }
-      .status { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; padding: 2px 10px; border-radius: 999px; border: 1.5px solid var(--h-border); color: var(--h-dim); }
-      .status.on { background: var(--h-ok); border-color: var(--h-ok); color: #fff; }
-      .status.partial { background: var(--h-ok-soft); border-color: var(--h-ok); color: var(--h-ok); }
+      /* At a glance (Kristen 2026-10-29): colour only means "on". One summary line on top, a switch
+         per mode (green when on), a green edge on the active card; every other button stays plain. */
+      .summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px;
+        background: var(--h-soft); border: 1px solid var(--h-border); }
+      .summary.on { background: var(--h-ok-soft); border-color: var(--h-ok); }
+      .summary .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--h-dim); flex: none; }
+      .summary.on .dot { background: var(--h-ok); }
+      .summary b { display: block; font-size: 15px; }
+      .summary span { font-size: 12.5px; color: var(--h-dim); }
+      .mode { border-left: 4px solid var(--h-border); }
+      .mode.on { border-left-color: var(--h-ok); }
+      .mode .state { font-size: 13px; color: var(--h-dim); }
+      .mode.on .state { color: var(--h-ok); font-weight: 600; }
       .titlerow { display: flex; align-items: center; gap: 10px; }
+      .switch { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; padding: 4px 0; cursor: pointer;
+        font: inherit; font-size: 13px; font-weight: 600; color: var(--h-dim); }
+      .switch .track { width: 46px; height: 26px; border-radius: 999px; background: var(--h-border); position: relative; transition: background .15s; flex: none; }
+      .switch .knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: left .15s; }
+      .switch[aria-checked='true'] { color: var(--h-ok); }
+      .switch[aria-checked='true'] .track { background: var(--h-ok); }
+      .switch[aria-checked='true'] .knob { left: 23px; }
+      .switch.partial .track { background: var(--h-ok-soft); box-shadow: inset 0 0 0 1.5px var(--h-ok); }
+      .switch:disabled { cursor: default; opacity: .6; }
+      .switch:focus-visible { outline: 2px solid var(--h-accent); outline-offset: 3px; border-radius: 6px; }
+      button.apply { background: var(--h-navy); border-color: var(--h-navy); color: var(--h-bg); font-weight: 600; }
+      button.apply:disabled { opacity: .45; }
       input[type='text'], select {
         font: inherit; width: 100%; padding: 6px 8px; border-radius: 6px;
         border: 1px solid var(--h-border); background: var(--h-bg); color: var(--h-text);
@@ -276,6 +291,7 @@ export class HorrySupervisor extends LitElement {
     const extras = (this.staffing?.teams ?? []).filter((t) => t.onQueue && !t.home);
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
+      ${this.renderSummary(storm)}
       ${this.renderAi(storm)}
       <div class="group">Storm</div>
       ${this.renderStorm(storm)}
@@ -327,7 +343,7 @@ export class HorrySupervisor extends LitElement {
             </option>`,
           )}
         </select>
-        <button class="primary" ?disabled=${!this.callerDraft || !!this.busy} @click=${() => void this.saveCaller()}>
+        <button class="apply" ?disabled=${!this.callerDraft || !!this.busy} @click=${() => void this.saveCaller()}>
           ${this.busy === 'caller' ? 'Saving…' : 'Save'}
         </button>
         ${this.callerDraft ? html`<button @click=${() => (this.callerDraft = null)}>Cancel</button>` : nothing}
@@ -356,60 +372,74 @@ export class HorrySupervisor extends LitElement {
     </section>`;
   }
 
-  /** Confirm-then-act toggle shared by the AI agent and Storm Mode cards. */
-  private renderSwitch(which: 'ai' | 'storm', on: boolean, labels: { on: string; off: string; askOn: string; askOff: string }) {
-    if (this.confirm === which) {
-      return html`<div class="note">
-        ${on ? labels.askOff : labels.askOn}
-        <div class="row" style="margin-top:6px">
-          <button class=${on ? 'stop' : 'go'} ?disabled=${!!this.busy} @click=${() => void this.setMode(which, !on)}>
-            ${this.busy === which ? 'Updating…' : on ? 'Yes, turn it off' : 'Yes, turn it on'}
-          </button>
-          <button @click=${() => (this.confirm = '')}>Cancel</button>
-        </div>
-      </div>`;
-    }
-    return html`<div class="row">
-      <button class="bigbtn ${on ? 'stop' : 'go'}" ?disabled=${!this.mode || !!this.busy} @click=${() => (this.confirm = which)}>
-        ${on ? labels.off : labels.on}
-      </button>
+  /** What callers get right now, in one line. */
+  private renderSummary(storm: boolean) {
+    const m = this.mode;
+    if (!m) return nothing;
+    const aiAll = m.aiAll === 'true';
+    const [head, sub] = storm
+      ? ['Savannah is answering every call: Storm Mode', 'She leads with the outage, confirms the estimate and offers a restoration text.']
+      : aiAll
+        ? ['Savannah is answering every call', 'Everyday greeting: she asks what they need and connects them with an agent when asked.']
+        : ['Calls go straight to agents', 'Savannah is off. Turn on a switch below to have her answer first.'];
+    return html`<div class="summary ${storm || aiAll ? 'on' : ''}" role="status">
+      <span class="dot"></span>
+      <div><b>${head}</b><span>${sub} Last change ${fmtClock(m.updatedAt)} by ${m.updatedBy}.</span></div>
+    </div>`;
+  }
+
+  /** Switch in the card header; flipping it asks to confirm first. */
+  private renderToggle(which: 'ai' | 'storm', on: boolean, label: string, partial = false) {
+    return html`<button
+      class="switch ${partial ? 'partial' : ''}"
+      role="switch"
+      aria-checked=${on ? 'true' : 'false'}
+      aria-label=${label}
+      ?disabled=${!this.mode || !!this.busy}
+      @click=${() => (this.confirm = this.confirm === which ? '' : which)}
+    >
+      <span class="track"><span class="knob"></span></span>${on ? 'On' : partial ? 'Via Storm' : 'Off'}
+    </button>`;
+  }
+
+  private renderConfirm(which: 'ai' | 'storm', on: boolean, ask: { on: string; off: string }) {
+    if (this.confirm !== which) return nothing;
+    return html`<div class="note">
+      ${on ? ask.off : ask.on}
+      <div class="row" style="margin-top:6px">
+        <button class="apply" ?disabled=${!!this.busy} @click=${() => void this.setMode(which, !on)}>
+          ${this.busy === which ? 'Updating…' : on ? 'Yes, turn it off' : 'Yes, turn it on'}
+        </button>
+        <button @click=${() => (this.confirm = '')}>Cancel</button>
+      </div>
     </div>`;
   }
 
   private renderAi(storm: boolean) {
     const m = this.mode;
     const aiAll = m?.aiAll === 'true';
-    const state = !m
-      ? 'Loading…'
-      : aiAll
-        ? 'ON: Savannah answers every call first'
-        : storm
-          ? 'On for Storm Mode only'
-          : 'Off: calls go straight to agents';
-    return html`<section class="card storm" aria-label="AI agent">
+    const state = !m ? 'Loading…' : aiAll ? 'On: Savannah answers every call first' : storm ? 'Off, but Storm Mode has Savannah answering' : 'Off';
+    return html`<section class="card storm mode ${aiAll ? 'on' : ''}" aria-label="AI agent">
       <div class="row between">
         <div class="titlerow">
           <h2>AI agent for all calls</h2>
-          ${m ? html`<span class="status ${aiAll ? 'on' : storm ? 'partial' : ''}">${aiAll ? 'ON' : storm ? 'ON VIA STORM' : 'OFF'}</span>` : nothing}
+          ${m ? html`<span class="pill ${WXCC_CLASS[m.wxcc]}" title=${m.wxccError}>${WXCC_LABEL[m.wxcc]}</span>` : nothing}
         </div>
-        ${m ? html`<span class="pill ${WXCC_CLASS[m.wxcc]}" title=${m.wxccError}>${WXCC_LABEL[m.wxcc]}</span>` : nothing}
+        ${this.renderToggle('ai', aiAll, 'AI agent for all calls', !aiAll && storm)}
       </div>
-      <div class="state ${aiAll || storm ? 'on' : ''}">${state}</div>
+      <div class="state">${state}</div>
       <div class="dim">
         For busy days, short-staffed days or bill due dates. Savannah greets every caller, asks what they need, handles
         outages, balances, payments and extensions, and connects them with a person whenever they ask.
       </div>
-      ${m ? html`<div class="dim">Last changed ${fmtClock(m.updatedAt)} by ${m.updatedBy}</div>` : nothing}
-      ${this.renderSwitch('ai', aiAll, {
-        on: 'Turn on AI for all calls',
-        off: 'Turn off AI for all calls',
-        askOn: 'Turn the AI agent on for all calls? New calls go to Savannah first, and she connects callers with an agent when needed.',
-        askOff: storm
+      ${this.renderConfirm('ai', aiAll, {
+        on: 'Turn the AI agent on for all calls? New calls go to Savannah first, and she connects callers with an agent when needed.',
+        off: storm
           ? 'Turn off AI for all calls? Storm Mode is still on, so Savannah keeps answering until Storm Mode is turned off.'
           : 'Turn off AI for all calls? New calls go straight to agents again.',
       })}
       <div style="display:grid;gap:4px">
-        <h3>Message Savannah reads to every caller</h3>
+        <h3>Note for Savannah to mention (optional)</h3>
         <div class="row">
           <input
             id="broadcast"
@@ -426,21 +456,19 @@ export class HorrySupervisor extends LitElement {
 
   private renderStorm(storm: boolean) {
     const m = this.mode;
-    return html`<section class="card storm" aria-label="Storm Mode">
-      <div class="titlerow">
+    return html`<section class="card storm mode ${storm ? 'on' : ''}" aria-label="Storm Mode">
+      <div class="row between">
         <h2>Storm Mode</h2>
-        ${m ? html`<span class="status ${storm ? 'on' : ''}">${storm ? 'ON' : 'OFF'}</span>` : nothing}
+        ${this.renderToggle('storm', storm, 'Storm Mode')}
       </div>
-      <div class="state ${storm ? 'on' : ''}">${m ? (storm ? 'ON: Savannah is answering outage calls' : 'Off') : 'Loading…'}</div>
+      <div class="state">${m ? (storm ? 'On: Savannah is answering outage calls' : 'Off') : 'Loading…'}</div>
       <div class="dim">
         Savannah answers every call and leads with the outage: she greets members in an outage area by name, confirms
         the restoration estimate and offers a text when power is back.
       </div>
-      ${this.renderSwitch('storm', storm, {
-        on: 'Turn on Storm Mode',
-        off: 'Turn off Storm Mode',
-        askOn: 'Turn Storm Mode on? New calls go to Savannah first, and she sends people to the outage queue when needed.',
-        askOff: m?.aiAll === 'true'
+      ${this.renderConfirm('storm', storm, {
+        on: 'Turn Storm Mode on? New calls go to Savannah first, and she sends people to the outage queue when needed.',
+        off: m?.aiAll === 'true'
           ? 'Turn Storm Mode off? AI for all calls is still on, so Savannah keeps answering with the everyday greeting.'
           : 'Turn Storm Mode off? New calls go back to normal routing.',
       })}
@@ -488,7 +516,7 @@ export class HorrySupervisor extends LitElement {
         ${removing.length ? html` · removing ${removing.map((id) => this.teamName(id)).join(', ')}` : nothing}
       </div>
       <div class="row">
-        <button class="primary" ?disabled=${!this.pending || sel.size === 0 || !!this.busy} @click=${() => void this.applyStaffing()}>
+        <button class="apply" ?disabled=${!this.pending || sel.size === 0 || !!this.busy} @click=${() => void this.applyStaffing()}>
           ${this.busy === 'staffing' ? 'Updating queue…' : 'Apply to outage queue'}
         </button>
         ${this.pending ? html`<button @click=${() => (this.pending = null)}>Cancel</button>` : nothing}
