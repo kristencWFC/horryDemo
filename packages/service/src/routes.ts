@@ -186,18 +186,19 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return { ...m, aiRouting: mode.aiRouting() };
   });
   // Call review dashboard (public/dashboard.html): AI leg + live-agent leg per call.
-  const rangeOf = (q: { from?: string; to?: string }) => {
+  const rangeOf = (q: { from?: string; to?: string; channel?: string }) => {
     const ok = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined);
-    return { from: ok(q.from), to: ok(q.to), tz };
+    const channel = q.channel === 'voice' || q.channel === 'chat' ? (q.channel as 'voice' | 'chat') : undefined;
+    return { from: ok(q.from), to: ok(q.to), tz, channel };
   };
   f.get('/api/analytics', async (req) => {
-    const q = req.query as { sample?: string; from?: string; to?: string };
+    const q = req.query as { sample?: string; from?: string; to?: string; channel?: string };
     return overview(calls.all(), String(q.sample ?? '1') !== '0', rangeOf(q));
   });
   f.get('/api/analytics/export.csv', async (req, reply) => {
-    const q = req.query as { sample?: string; from?: string; to?: string };
+    const q = req.query as { sample?: string; from?: string; to?: string; channel?: string };
     const r = rangeOf(q);
-    const name = `horry-call-review-${r.from ?? 'all'}${r.to && r.to !== r.from ? `-to-${r.to}` : ''}.csv`;
+    const name = `horry-customer-review-${r.from ?? 'all'}${r.to && r.to !== r.from ? `-to-${r.to}` : ''}.csv`;
     reply.header('Content-Type', 'text/csv; charset=utf-8').header('Content-Disposition', `attachment; filename="${name}"`);
     return callsCsv(calls.all(), String(q.sample ?? '1') !== '0', r);
   });

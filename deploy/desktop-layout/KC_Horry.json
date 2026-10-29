@@ -354,7 +354,7 @@
         },
         {
           "nav": {
-            "label": "Call Review",
+            "label": "Customer Review",
             "icon": "analysis",
             "iconType": "momentum",
             "navigateTo": "horry-call-review",
@@ -372,7 +372,7 @@
                   "agentId": "$STORE.agent.agentId"
                 },
                 "wrapper": {
-                  "title": "Call Review",
+                  "title": "Customer Review",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }
@@ -990,7 +990,7 @@
         },
         {
           "nav": {
-            "label": "Call Review",
+            "label": "Customer Review",
             "icon": "analysis",
             "iconType": "momentum",
             "navigateTo": "horry-call-review",
@@ -1008,7 +1008,7 @@
                   "agentId": "$STORE.agent.agentId"
                 },
                 "wrapper": {
-                  "title": "Call Review",
+                  "title": "Customer Review",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }
@@ -1710,7 +1710,7 @@
         },
         {
           "nav": {
-            "label": "Call Review",
+            "label": "Customer Review",
             "icon": "analysis",
             "iconType": "momentum",
             "navigateTo": "horry-call-review",
@@ -1728,7 +1728,7 @@
                   "agentId": "$STORE.agent.agentId"
                 },
                 "wrapper": {
-                  "title": "Call Review",
+                  "title": "Customer Review",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }

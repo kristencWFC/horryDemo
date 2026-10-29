@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Storm Day Call Review · Horry Electric</title>
+<title>Customer Review · Horry Electric</title>
 <style>
   /* Call review dashboard: summary tiles, then why-they-called + by-hour, then sentiment + wrap-up codes,
      then every call with a drill-in that shows Savannah's leg and the live agent's leg side by side. */
@@ -134,8 +134,8 @@
 <body>
 <header class="top">
   <div>
-    <h1>Storm Day Call Review</h1>
-    <div class="sub">Horry Electric Cooperative · Savannah (AI) and live agents · <span id="updated">loading…</span></div>
+    <h1>Customer Review</h1>
+    <div class="sub">Horry Electric Cooperative · phone calls and web chats · Savannah (AI) and live agents · <span id="updated">loading…</span></div>
   </div>
   <label><input type="checkbox" id="sample" checked> Include sample storm day (yesterday)</label>
 </header>
@@ -152,6 +152,13 @@
   </label>
   <label>From <input type="date" id="from"></label>
   <label>To <input type="date" id="to"></label>
+  <label>Channel
+    <select id="channel">
+      <option value="">Phone and web chat</option>
+      <option value="voice">Phone calls</option>
+      <option value="chat">Web chats</option>
+    </select>
+  </label>
   <span class="spacer"></span>
   <a id="csv" class="btn" href="api/analytics/export.csv" download>Download spreadsheet (CSV)</a>
   <button type="button" id="print">Print / save as PDF</button>
@@ -190,8 +197,17 @@
   </section>
 
   <section class="panel">
+    <h2>Phone calls and web chats</h2>
+    <p class="hint">The same picture for each channel in the selected dates: how many Savannah finished on her own and how many went to a person.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Channel</th><th class="num">Conversations</th><th class="num">Resolved by Savannah</th><th class="num">Sent to an agent</th><th class="num">Agent only (AI off)</th><th class="num">Avg length</th><th class="num">Negative</th></tr></thead>
+      <tbody id="channels"></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
     <div class="filters">
-      <h2 style="margin-right:auto">Every call</h2>
+      <h2 style="margin-right:auto">Every conversation</h2>
       <button type="button" data-path="all" aria-pressed="true">All</button>
       <button type="button" data-path="ai" aria-pressed="false">Resolved by Savannah</button>
       <button type="button" data-path="agent" aria-pressed="false">Sent to an agent</button>
@@ -233,6 +249,7 @@
     const q = new URLSearchParams({ sample: $('sample').checked ? '1' : '0' });
     if ($('from').value) q.set('from', $('from').value);
     if ($('to').value) q.set('to', $('to').value);
+    if ($('channel').value) q.set('channel', $('channel').value);
     return q.toString();
   }
 
@@ -249,6 +266,19 @@
   $('preset').addEventListener('change', () => { applyPreset($('preset').value); limit = 60; load(); });
   for (const id of ['from', 'to']) $(id).addEventListener('change', () => { $('preset').value = 'custom'; limit = 60; load(); });
   $('print').addEventListener('click', () => window.print());
+  $('channel').addEventListener('change', () => { limit = 60; load(); });
+
+  function renderChannels() {
+    $('channels').innerHTML = (data.byChannel || []).map((c) => `<tr>
+      <td>${c.channel === 'chat' ? 'Web chat' : 'Phone'}</td>
+      <td class="num">${c.total.toLocaleString()}</td>
+      <td class="num">${c.contained.toLocaleString()}${c.ai ? ` <span style="color:var(--dim)">(${pct(c.contained / c.ai)})</span>` : ''}</td>
+      <td class="num">${c.toAgent.toLocaleString()}</td>
+      <td class="num">${c.agentOnly.toLocaleString()}</td>
+      <td class="num">${mmss(c.avgSec)}</td>
+      <td class="num">${c.total ? pct(c.negativePct) : '—'}</td>
+    </tr>`).join('');
+  }
 
   function tile(k, v, n, hero) {
     return `<div class="tile${hero ? ' hero' : ''}"><span class="k">${k}</span><span class="v">${v}</span><span class="n">${n}</span></div>`;
@@ -256,8 +286,9 @@
 
   function render() {
     const k = data.kpis;
+    renderChannels();
     $('tiles').innerHTML =
-      tile('Calls Savannah answered', k.calls.toLocaleString(), k.live || k.agentOnly ? `${k.live} live today${k.agentOnly ? ` · ${k.agentOnly} more went straight to agents` : ''}` : 'sample day') +
+      tile('Conversations Savannah handled', k.calls.toLocaleString(), `${(k.calls - k.chats).toLocaleString()} calls · ${k.chats.toLocaleString()} web chats${k.agentOnly ? ` · ${k.agentOnly} more went straight to agents` : ''}`) +
       tile('Containment rate', pct(k.containmentRate), `${k.contained} finished without a person`, true) +
       tile('Sent to a live agent', k.toAgent.toLocaleString(), 'with Savannah\'s notes on screen') +
       tile('Restoration sign-ups', k.restorationSignups.toLocaleString(), 'text when power is back') +

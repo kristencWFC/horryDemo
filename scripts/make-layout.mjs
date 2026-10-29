@@ -100,7 +100,7 @@ const MEMBER_TAB = [
   },
 ];
 
-const callReview = page('horry-call-review', 'Call Review', 'analysis', {
+const callReview = page('horry-call-review', 'Customer Review', 'analysis', {
   comp: 'agentx-wc-iframe',
   attributes: { src: `${SERVER}/dashboard.html` },
   properties: { agentId: '$STORE.agent.agentId' },

@@ -249,6 +249,8 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
 export interface Overview {
   generatedAt: string;
   sample: boolean;
+  /** Phone vs web chat side by side, for the date range (ignores the channel filter). */
+  byChannel: { channel: 'voice' | 'chat'; total: number; ai: number; contained: number; toAgent: number; agentOnly: number; avgSec: number; negativePct: number }[];
   kpis: {
     calls: number;
     contained: number;
@@ -260,6 +262,7 @@ export interface Overview {
     avgAiSec: number;
     live: number;
     agentOnly: number;
+    chats: number;
   };
   topics: { topic: Topic; contained: number; toAgent: number }[];
   byHour: { hour: number; contained: number; toAgent: number }[];
@@ -269,7 +272,7 @@ export interface Overview {
 }
 
 /** Date range in the co-op's time zone; from/to are inclusive YYYY-MM-DD (either may be empty). */
-export interface Range { from?: string; to?: string; tz: string }
+export interface Range { from?: string; to?: string; tz: string; channel?: 'voice' | 'chat' }
 
 export const localDay = (iso: string, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 const localHour = (iso: string, tz: string) => Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(new Date(iso)));
@@ -285,7 +288,22 @@ export function viewsFor(rows: CallRow[], includeSample: boolean, range?: Range)
 }
 
 export function overview(rows: CallRow[], includeSample: boolean, range?: Range): Overview {
-  const all = viewsFor(rows, includeSample, range);
+  const everything = viewsFor(rows, includeSample, range);
+  const byChannel = (['voice', 'chat'] as const).map((channel) => {
+    const cv = everything.filter((v) => v.channel === channel);
+    const aiv = cv.filter((v) => v.ai);
+    return {
+      channel,
+      total: cv.length,
+      ai: aiv.length,
+      contained: aiv.filter((v) => v.contained).length,
+      toAgent: aiv.filter((v) => !v.contained).length,
+      agentOnly: cv.length - aiv.length,
+      avgSec: cv.length ? Math.round(cv.reduce((a, v) => a + v.durationSec, 0) / cv.length) : 0,
+      negativePct: cv.length ? cv.filter((v) => v.sentiment === 'negative').length / cv.length : 0,
+    };
+  });
+  const all = range?.channel ? everything.filter((v) => v.channel === range.channel) : everything;
   // Savannah's numbers count only calls she answered; agent-only calls still list below.
   const views = all.filter((v) => v.ai);
   const contained = views.filter((v) => v.contained).length;
@@ -310,6 +328,7 @@ export function overview(rows: CallRow[], includeSample: boolean, range?: Range)
   return {
     generatedAt: new Date().toISOString(),
     sample: includeSample,
+    byChannel,
     kpis: {
       calls: views.length,
       contained,
@@ -321,6 +340,7 @@ export function overview(rows: CallRow[], includeSample: boolean, range?: Range)
       avgAiSec: Math.round(views.reduce((a, v) => a + (v.contained ? v.durationSec : Math.min(v.durationSec, 240)), 0) / n),
       live: views.filter((v) => !v.sample).length,
       agentOnly: all.length - views.length,
+      chats: views.filter((v) => v.channel === 'chat').length,
     },
     topics,
     byHour: first < 0 ? [] : byHour.slice(first, last + 1),
@@ -348,7 +368,7 @@ export function callsCsv(rows: CallRow[], includeSample: boolean, range: Range):
   };
   const time = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: range.tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
   const head = ['Date', 'Time', 'Member', 'Channel', 'Path', 'Why they called', 'Wrap-up code', 'Sentiment', 'Length (min:sec)', 'Restoration text', 'Payment', 'Savannah summary', 'Handed to', 'Agent summary', 'Sample'];
-  const lines = viewsFor(rows, includeSample, range).map((v) => [
+  const lines = viewsFor(rows, includeSample, range).filter((v) => !range.channel || v.channel === range.channel).map((v) => [
     localDay(v.startedAt, range.tz), time(v.startedAt), v.member, v.channel === 'chat' ? 'Web chat' : 'Phone',
     !v.ai ? 'Agent only' : v.contained ? 'Savannah only' : 'Savannah to agent', v.topics.join('; '), v.agentLeg?.wrapUpCode ?? '',
     v.sentiment, Math.floor(v.durationSec / 60) + ':' + String(v.durationSec % 60).padStart(2, '0'),

@@ -5,6 +5,8 @@ Nick confirming).
 
 ## STATE (handoff)
 
+2026-10-29 (afternoon) — Call Review renamed **Customer Review** (layout nav too): channel filter + phone vs web chat table. Web Chats: Savannah summary on top, scrolling transcript, bigger reply box + quick replies. AI Operations: switches + summary line, Reset button (Reset now really restores balances). Savannah: spoken house numbers, safety question only on outage calls, outage greeting only in Storm Mode.
+
 2026-10-29 (later) — Call Review: date range (presets + from/to, Eastern), CSV download, print/PDF; agent-only calls listed as "Agent only" and kept out of Savannah's KPIs; sample day + by-hour in Eastern regardless of server TZ. AI Operations: green on / red off buttons + ON/OFF badges. Member tab: 13-month usage chart. **Flow bug (Kristen, Designer): call-context arrives with an empty ani** — server log shows `call-context ani  → no member` on every call; check the HTTP node URL uses `{{NewPhoneContact.ANI}}`.
 
 2026-10-29 — **AI agent for all calls** (Kristen): supervisor page renamed AI Operations; new switch above Storm Mode. Global_StormMode now = "send to Savannah" (storm OR aiAll), so no flow / Control Hub change; Savannah uses the everyday greeting + a busy-day playbook line when only aiAll is on. Needs: pull + build + restart, then re-upload KC_Horry.json (page label).
