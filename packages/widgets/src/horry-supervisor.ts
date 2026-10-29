@@ -79,6 +79,7 @@ export class HorrySupervisor extends LitElement {
     callerDraft: { state: true },
     callerSaved: { state: true },
     textingLive: { state: true },
+    resetDone: { state: true },
   };
 
   server = DEFAULT_SERVER;
@@ -89,7 +90,8 @@ export class HorrySupervisor extends LitElement {
   /** Team ids the supervisor has ticked but not applied yet (null = no pending edit). */
   pending: Set<string> | null = null;
   /** Which switch is waiting for "Yes" (empty = none). */
-  confirm: '' | 'ai' | 'storm' = '';
+  confirm: '' | 'ai' | 'storm' | 'reset' = '';
+  resetDone = false;
   broadcastDraft: string | null = null;
   busy = '';
   error = '';
@@ -228,6 +230,16 @@ export class HorrySupervisor extends LitElement {
     const base = this.callerDraft ?? { ani: this.settings?.demoAni ?? '', sep: this.settings?.demoMemberSep ?? '', sms: this.settings?.demoSmsTo ?? '' };
     this.callerDraft = { ...base, ...patch };
     this.callerSaved = false;
+  }
+
+  /** Storm Console "Reset demo data", from the Desktop: outages, balances, calls, chats, emails. */
+  private resetDemo(): Promise<void> {
+    return this.run('reset', async () => {
+      await api(this.server, 'api/reset', { method: 'POST', body: {} });
+      this.confirm = '';
+      this.resetDone = true;
+      await this.refresh();
+    });
   }
 
   private saveCaller(): Promise<void> {
@@ -369,6 +381,19 @@ export class HorrySupervisor extends LitElement {
           : 'Texts go to the number the member gives.'}
         ${this.textingLive ? nothing : 'Until texting is live, texts show in the Storm Console.'}
       </div>
+      ${this.confirm === 'reset'
+        ? html`<div class="note">
+            Reset the demo? Balances (Linda's ".18 is due again), outages and their estimates, calls, chats and emails go back
+            to the start. Your demo numbers and the AI switches stay as they are.
+            <div class="row" style="margin-top:6px">
+              <button class="apply" ?disabled=${!!this.busy} @click=${() => void this.resetDemo()}>${this.busy === 'reset' ? 'Resetting…' : 'Yes, reset'}</button>
+              <button @click=${() => (this.confirm = '')}>Cancel</button>
+            </div>
+          </div>`
+        : html`<div class="row">
+            <button ?disabled=${!!this.busy} @click=${() => { this.confirm = 'reset'; this.resetDone = false; }}>Reset demo data</button>
+            ${this.resetDone ? html`<span class="dim">Done: back to the start.</span>` : nothing}
+          </div>`}
     </section>`;
   }
 

@@ -54,10 +54,15 @@ export class MemberStore {
   private overlay: Overlay;
   private store: JsonStore<Overlay>;
 
-  constructor(dataDir: string) {
-    const seed = JSON.parse(readFileSync(join(dataDir, 'members.seed.json'), 'utf8')) as { members: Member[] };
+  constructor(private readonly dataDir: string) {
     this.store = new JsonStore<Overlay>(join(dataDir, 'members.json'));
     this.overlay = this.store.load() ?? {};
+    this.load();
+  }
+
+  private load(): void {
+    const seed = JSON.parse(readFileSync(join(this.dataDir, 'members.seed.json'), 'utf8')) as { members: Member[] };
+    this.members.clear();
     for (const m of seed.members) this.members.set(m.MemberSep, { ...m, ...(this.overlay[m.MemberSep] ?? {}) });
   }
 
@@ -137,6 +142,7 @@ export class MemberStore {
   reset(): void {
     this.overlay = {};
     this.store.save(this.overlay);
+    this.load(); // payments patch the live objects too; reload so balances really come back (2026-10-29)
   }
 }
 
@@ -150,4 +156,24 @@ export function displayName(m: Member): string {
 export function displayAddress(m: Member): string {
   const cap = (s: string) => s.replace(/\b([A-Z])([A-Z]*)\b/g, (_, a: string, b: string) => a + b.toLowerCase());
   return `${cap(m.ServAddr).replace(/\bRd\b/, 'Road').replace(/\bHwy\b/, 'Highway')}, ${cap(m.City)}`;
+}
+
+const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+const pairWords = (n: number): string => (n < 20 ? ONES[n]! : TENS[Math.floor(n / 10)]! + (n % 10 ? '-' + ONES[n % 10] : ''));
+
+/** House numbers the way people say them: 4810 "forty-eight ten", 2601 "twenty-six oh one",
+ *  2600 "twenty-six hundred", 731 "seven thirty-one". The voice stumbled on "4810" (2026-10-29). */
+export function houseNumberWords(num: string): string {
+  if (!/^\d{1,4}$/.test(num)) return num;
+  const n = Number(num);
+  if (n < 100) return pairWords(n);
+  const head = Math.floor(n / 100), tail = n % 100;
+  const first = head < 10 ? ONES[head]! : pairWords(head);
+  return tail === 0 ? `${first} hundred` : tail < 10 ? `${first} oh ${ONES[tail]}` : `${first} ${pairWords(tail)}`;
+}
+
+/** The service address for Savannah to SAY (voice only; screens and chat keep the digits). */
+export function spokenAddress(m: Member): string {
+  return displayAddress(m).replace(/^(\d{1,4})\b/, (d) => houseNumberWords(d)).replace(/\bHighway (\d{1,3})\b/, (_, d: string) => `Highway ${houseNumberWords(d)}`);
 }

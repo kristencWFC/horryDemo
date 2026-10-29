@@ -7,7 +7,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { env, baseUrl, last10, twilioConfigured, wxccConfigured, staffingConfigured } from './env.js';
 import { JsonStore } from './store.js';
 import type { MemberStore, Member } from './members.js';
-import { displayName, displayAddress } from './members.js';
+import { displayName, displayAddress, spokenAddress } from './members.js';
 import type { NextGenClient, Financial } from './nextgen.js';
 import type { OutageStore, Outage } from './outages.js';
 import { spokenEtr } from './outages.js';
@@ -135,7 +135,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       member_found: m ? 'true' : 'false',
       member_name: m ? displayName(m) : 'unknown',
       first_name: m?.FirstName ?? 'there',
-      service_address: m ? displayAddress(m) : 'unknown',
+      service_address: m ? spokenAddress(m) : 'unknown',
       account_number: m ? m.MemberSep : '',
       ...outageFacts(o),
       life_support: m && m.PrioritySvc > 0 ? 'true' : 'false',
@@ -344,7 +344,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     }
     calls.patch(row, { memberSep: m.MemberSep, memberName: displayName(m) });
     calls.step(row, 'identified', `${displayName(m)} — ${displayAddress(m)} (lookup)`);
-    return { found: true, member_name: displayName(m), first_name: m.FirstName, service_address: displayAddress(m), next_step: 'Confirm the service address with the caller, then continue.' };
+    return { found: true, member_name: displayName(m), first_name: m.FirstName, service_address: displayAddress(m), say_address_as: spokenAddress(m), next_step: `Confirm the service address with the caller (say it as: ${spokenAddress(m)}), then continue.` };
   });
 
   tool('get-outage-status', async (row) => {
@@ -643,7 +643,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     outages.reset();
     calls.reset();
     members.reset();
-    return { ok: true, note: 'outages re-seeded, calls cleared, member balances restored (restart to reload member seeds fully)' };
+    return { ok: true, note: 'outages re-seeded, calls cleared, member balances restored' };
   });
 }
 
