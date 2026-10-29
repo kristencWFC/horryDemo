@@ -36,6 +36,7 @@ export interface Deps {
 interface Settings {
   demoAni: string; // the presenter's phone
   demoMemberSep: string; // which member that phone "is" right now
+  demoSmsTo: string; // every demo text goes here (empty = the member's own number)
 }
 
 const ASSISTANT = 'Savannah';
@@ -48,7 +49,8 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
   const { members, nextgen, outages, calls, sms, payments, mode } = d;
   const tz = env.BUSINESS_TIMEZONE;
   const settingsStore = new JsonStore<Settings>(join(d.dataDir, 'settings.json'));
-  const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', ...(settingsStore.load() ?? {}) };
+  const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', ...(settingsStore.load() ?? {}) };
+  sms.demoTo = settings.demoSmsTo;
 
   const toolAuth = (req: FastifyRequest, reply: FastifyReply): boolean => {
     if (env.TOOL_SHARED_SECRET && req.headers['x-tool-secret'] !== env.TOOL_SHARED_SECRET) {
@@ -153,6 +155,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const b = (req.body ?? {}) as Partial<Settings>;
     if (b.demoAni !== undefined) settings.demoAni = last10(b.demoAni);
     if (b.demoMemberSep !== undefined) settings.demoMemberSep = b.demoMemberSep;
+    if (b.demoSmsTo !== undefined) settings.demoSmsTo = sms.demoTo = last10(b.demoSmsTo);
     settingsStore.save(settings);
     return settings;
   });

@@ -46,6 +46,7 @@ interface StaffingDto {
 interface SettingsDto {
   demoAni: string;
   demoMemberSep: string;
+  demoSmsTo?: string;
 }
 
 interface MemberOption {
@@ -77,6 +78,7 @@ export class HorrySupervisor extends LitElement {
     members: { state: true },
     callerDraft: { state: true },
     callerSaved: { state: true },
+    textingLive: { state: true },
   };
 
   server = DEFAULT_SERVER;
@@ -94,8 +96,10 @@ export class HorrySupervisor extends LitElement {
   settings: SettingsDto | null = null;
   members: MemberOption[] = [];
   /** Unsaved phone / member edits (null = show what the service has). */
-  callerDraft: { ani: string; sep: string } | null = null;
+  callerDraft: { ani: string; sep: string; sms: string } | null = null;
   callerSaved = false;
+  /** Real texts (the service has a texting number) vs simulated in the Storm Console outbox. */
+  textingLive = false;
   private timer: number | undefined;
 
   static styles = [
@@ -141,12 +145,14 @@ export class HorrySupervisor extends LitElement {
 
   private async refresh(): Promise<void> {
     try {
-      const [mode, staffing, settings, members] = await Promise.all([
+      const [mode, staffing, settings, members, health] = await Promise.all([
         api<ModeDto>(this.server, 'api/mode'),
         api<StaffingDto>(this.server, 'api/staffing'),
         api<SettingsDto>(this.server, 'api/settings'),
         api<{ members: MemberOption[] }>(this.server, 'api/members'),
+        api<{ twilio?: boolean }>(this.server, 'health'),
       ]);
+      this.textingLive = !!health.twilio;
       this.mode = mode;
       this.staffing = staffing;
       this.settings = settings;
@@ -194,8 +200,8 @@ export class HorrySupervisor extends LitElement {
 
   // ---- demo caller -------------------------------------------------------------------
 
-  private editCaller(patch: Partial<{ ani: string; sep: string }>): void {
-    const base = this.callerDraft ?? { ani: this.settings?.demoAni ?? '', sep: this.settings?.demoMemberSep ?? '' };
+  private editCaller(patch: Partial<{ ani: string; sep: string; sms: string }>): void {
+    const base = this.callerDraft ?? { ani: this.settings?.demoAni ?? '', sep: this.settings?.demoMemberSep ?? '', sms: this.settings?.demoSmsTo ?? '' };
     this.callerDraft = { ...base, ...patch };
     this.callerSaved = false;
   }
@@ -208,8 +214,13 @@ export class HorrySupervisor extends LitElement {
       this.error = 'Enter the 10-digit number you will call from.';
       return Promise.resolve();
     }
+    const smsTo = d.sms.replace(/D/g, '').slice(-10);
+    if (smsTo && smsTo.length !== 10) {
+      this.error = 'Enter a 10-digit cell number for demo texts, or leave it empty.';
+      return Promise.resolve();
+    }
     return this.run('caller', async () => {
-      this.settings = await api<SettingsDto>(this.server, 'api/settings', { method: 'PATCH', body: { demoAni: ani, demoMemberSep: d.sep } });
+      this.settings = await api<SettingsDto>(this.server, 'api/settings', { method: 'PATCH', body: { demoAni: ani, demoMemberSep: d.sep, demoSmsTo: smsTo } });
       this.callerDraft = null;
       this.callerSaved = true;
     });
@@ -312,9 +323,26 @@ export class HorrySupervisor extends LitElement {
         </button>
         ${this.callerDraft ? html`<button @click=${() => (this.callerDraft = null)}>Cancel</button>` : nothing}
       </div>
+      <div class="row">
+        <label for="demo-sms" class="dim" style="white-space:nowrap">Send demo texts to</label>
+        <input
+          id="demo-sms"
+          type="text"
+          inputmode="tel"
+          style="max-width:180px"
+          placeholder="any cell, or empty"
+          .value=${this.callerDraft?.sms ?? s.demoSmsTo ?? ''}
+          @input=${(e: Event) => this.editCaller({ sms: (e.target as HTMLInputElement).value })}
+        />
+        <span class="pill ${this.textingLive ? 'ok' : ''}">${this.textingLive ? 'texting live' : 'texts simulated'}</span>
+      </div>
       <div class="dim">
         ${this.callerSaved ? 'Saved. ' : ''}Now: ${fmtPhone(s.demoAni) || 'no number'} calls as
         <strong>${current?.name ?? 'nobody'}</strong>.
+        ${s.demoSmsTo
+          ? html`Every text (outage updates, "power is back", pay links) goes to <strong>${fmtPhone(s.demoSmsTo)}</strong>.`
+          : 'Texts go to the number the member gives.'}
+        ${this.textingLive ? nothing : 'Until texting is live, texts show in the Storm Console.'}
       </div>
     </section>`;
   }

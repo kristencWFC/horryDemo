@@ -83,6 +83,7 @@ deployed yet).**
 - [ ] Push horryDemo + freeSWITCH; kc-dev-2: pull both, build, restart `horry-demo` + `ivr-controller`
 - [ ] THEN upload the regenerated `KC_Horry.json` (widgets first — lockstep rule)
 - [ ] Optional: `EMAIL_AGENTS=` real agent names in server `.env` for the email assign list
+- [ ] **Texting live**: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` in server .env (health shows twilio:false 2026-10-29). US carriers filter unregistered 10-digit numbers: use a number already on an approved A2P 10DLC campaign or a verified toll-free number. Demo text recipient = AI Operations → Demo caller → Send demo texts to (built 2026-10-29)
 - [ ] Twilio: SMS number inbound webhook → `/horry/webhooks/twilio/sms`; PCI-Mode account for Pay
 
 ## Phase 4 — payments

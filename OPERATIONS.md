@@ -53,7 +53,7 @@ chosen; webhookSecret = the box's agentTool secret pattern), restart `ivr-contro
 | `TOOL_SHARED_SECRET` | from local `.env` (also baked into the agent's tools) |
 | `FS_AGENT_TOOL_URL` / `FS_AGENT_TOOL_SECRET` | same as home-services (FS `/agent-tool/submit`) |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` | SMS number for restoration texts + payment links (point its inbound webhook at `/horry/webhooks/twilio/sms`) |
-| `SMS_OVERRIDE_NUMBER` | optional — every text goes to the presenter |
+| `SMS_OVERRIDE_NUMBER` | optional — every text goes to the presenter. The AI Operations page's **Send demo texts to** field (api/settings `demoSmsTo`) does the same at runtime and wins over this |
 | `WEBEX_ORG_ID`, `WXCC_STORM_VARIABLE_ID`, `WEBEX_CLIENT_ID`, `WEBEX_CLIENT_SECRET`, `WEBEX_REFRESH_TOKEN` | Storm Mode global variable writer (dedicated Service App) |
 | `WXCC_SUMMARY_URL` | Cisco AI Assistant summary endpoint template with `{interactionId}` — [CONFIRM] path. Unset = simulated live-agent summaries |
 | `WXCC_OUTAGE_QUEUE_ID` | id of `Q_Horry_Outage` — the supervisor widget adds/removes teams on it (same Service App). Unset = simulated teams |

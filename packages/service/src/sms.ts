@@ -16,6 +16,9 @@ export interface SmsMessage {
 
 export class Sms {
   private log: SmsMessage[] = [];
+  /** Demo text number set on the AI Operations page (api/settings demoSmsTo): every text goes
+   *  there instead of the member's phone. Wins over SMS_OVERRIDE_NUMBER. */
+  demoTo = '';
 
   outbox(): SmsMessage[] {
     return [...this.log].reverse().slice(0, 200);
@@ -26,7 +29,7 @@ export class Sms {
   }
 
   async send(to: string, body: string, purpose: string): Promise<SmsMessage> {
-    const dest = last10(env.SMS_OVERRIDE_NUMBER || to);
+    const dest = last10(this.demoTo || env.SMS_OVERRIDE_NUMBER || to);
     const msg: SmsMessage = { at: new Date().toISOString(), to: last10(to), body, direction: 'out', status: 'simulated', purpose };
     this.log.push(msg);
     if (!twilioConfigured()) {
