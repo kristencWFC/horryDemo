@@ -845,7 +845,7 @@
       "navigation": [
         {
           "nav": {
-            "label": "Storm Operations",
+            "label": "AI Operations",
             "icon": "dashboard",
             "iconType": "momentum",
             "navigateTo": "horry-storm-ops",
@@ -865,7 +865,7 @@
                   "supervisor": "$STORE.agent.agentName"
                 },
                 "wrapper": {
-                  "title": "Storm Operations",
+                  "title": "AI Operations",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }
@@ -1520,7 +1520,7 @@
       "navigation": [
         {
           "nav": {
-            "label": "Storm Operations",
+            "label": "AI Operations",
             "icon": "dashboard",
             "iconType": "momentum",
             "navigateTo": "horry-storm-ops",
@@ -1540,7 +1540,7 @@
                   "supervisor": "$STORE.agent.agentName"
                 },
                 "wrapper": {
-                  "title": "Storm Operations",
+                  "title": "AI Operations",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }

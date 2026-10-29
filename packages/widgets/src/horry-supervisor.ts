@@ -1,4 +1,7 @@
-// <horry-supervisor> — the supervisor's storm controls on the WxCC Desktop:
+// <horry-supervisor> — the supervisor's AI Operations page on the WxCC Desktop:
+//   0. AI agent for all calls (Kristen 2026-10-29): Savannah answers every call with the
+//      everyday greeting — busy days, short-staffed days, bill due dates. Same WxCC variable
+//      as Storm Mode (the service writes true when either switch is on).
 //   1. Storm Mode on/off (POST api/mode → WxCC global variable Global_StormMode) plus the
 //      broadcast line Savannah reads to every caller.
 //   2. Outage queue staffing (Kristen 2026-10-28, discovery item 3): tick the teams that
@@ -14,6 +17,8 @@ import { themeStyles } from './theme.js';
 
 interface ModeDto {
   storm: 'true' | 'false';
+  aiAll: 'true' | 'false';
+  aiRouting: 'true' | 'false';
   broadcast: string;
   updatedAt: string;
   updatedBy: string;
@@ -64,7 +69,7 @@ export class HorrySupervisor extends LitElement {
     mode: { state: true },
     staffing: { state: true },
     pending: { state: true },
-    confirmStorm: { state: true },
+    confirm: { state: true },
     broadcastDraft: { state: true },
     busy: { state: true },
     error: { state: true },
@@ -81,7 +86,8 @@ export class HorrySupervisor extends LitElement {
   staffing: StaffingDto | null = null;
   /** Team ids the supervisor has ticked but not applied yet (null = no pending edit). */
   pending: Set<string> | null = null;
-  confirmStorm = false;
+  /** Which switch is waiting for "Yes" (empty = none). */
+  confirm: '' | 'ai' | 'storm' = '';
   broadcastDraft: string | null = null;
   busy = '';
   error = '';
@@ -99,6 +105,7 @@ export class HorrySupervisor extends LitElement {
       .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
       .between { justify-content: space-between; }
       .storm { display: grid; gap: 8px; }
+      .group { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--h-muted, inherit); opacity: .8; margin: 6px 2px -4px; }
       .state { font-size: 18px; font-weight: 600; }
       .state.on { color: var(--h-accent); }
       .bigbtn { padding: 10px 16px; font-size: 14px; }
@@ -145,7 +152,7 @@ export class HorrySupervisor extends LitElement {
       this.settings = settings;
       this.members = members.members;
     } catch (err) {
-      this.error = `Can't reach the storm service: ${(err as Error).message}`;
+      this.error = `Can't reach the Horry service: ${(err as Error).message}`;
     }
   }
 
@@ -161,16 +168,18 @@ export class HorrySupervisor extends LitElement {
     }
   }
 
-  // ---- Storm Mode --------------------------------------------------------------------
+  // ---- AI agent + Storm Mode ---------------------------------------------------------
 
-  private setStorm(on: boolean): Promise<void> {
-    return this.run('storm', async () => {
-      const m = await api<{ storm: boolean } & Omit<ModeDto, 'storm'>>(this.server, 'api/mode', {
+  private setMode(which: 'ai' | 'storm', on: boolean): Promise<void> {
+    return this.run(which, async () => {
+      type Raw = { storm: boolean; aiAll: boolean; aiRouting: boolean } & Omit<ModeDto, 'storm' | 'aiAll' | 'aiRouting'>;
+      const m = await api<Raw>(this.server, 'api/mode', {
         method: 'POST',
-        body: { storm: on, by: this.by },
+        body: which === 'ai' ? { aiAll: on, by: this.by } : { storm: on, by: this.by },
       });
-      this.mode = { ...m, storm: m.storm ? 'true' : 'false', wxccError: m.wxccError ?? '' };
-      this.confirmStorm = false;
+      const tf = (v: boolean) => (v ? 'true' : 'false') as 'true' | 'false';
+      this.mode = { ...m, storm: tf(m.storm), aiAll: tf(m.aiAll), aiRouting: tf(m.aiRouting), wxccError: m.wxccError ?? '' };
+      this.confirm = '';
     });
   }
 
@@ -247,6 +256,8 @@ export class HorrySupervisor extends LitElement {
     const extras = (this.staffing?.teams ?? []).filter((t) => t.onQueue && !t.home);
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
+      ${this.renderAi(storm)}
+      <div class="group">Storm</div>
       ${this.renderStorm(storm)}
       ${!storm && extras.length && !this.pending
         ? html`<div class="note">
@@ -258,6 +269,7 @@ export class HorrySupervisor extends LitElement {
           </div>`
         : nothing}
       ${this.renderStaffing()}
+      <div class="group">Demo</div>
       ${this.renderCaller()}
     </div>`;
   }
@@ -307,45 +319,88 @@ export class HorrySupervisor extends LitElement {
     </section>`;
   }
 
-  private renderStorm(storm: boolean) {
+  /** Confirm-then-act toggle shared by the AI agent and Storm Mode cards. */
+  private renderSwitch(which: 'ai' | 'storm', on: boolean, labels: { on: string; off: string; askOn: string; askOff: string }) {
+    if (this.confirm === which) {
+      return html`<div class="note">
+        ${on ? labels.askOff : labels.askOn}
+        <div class="row" style="margin-top:6px">
+          <button class="primary" ?disabled=${!!this.busy} @click=${() => void this.setMode(which, !on)}>
+            ${this.busy === which ? 'Updating…' : on ? 'Yes, turn it off' : 'Yes, turn it on'}
+          </button>
+          <button @click=${() => (this.confirm = '')}>Cancel</button>
+        </div>
+      </div>`;
+    }
+    return html`<div class="row">
+      <button class="bigbtn ${on ? '' : 'primary'}" ?disabled=${!this.mode || !!this.busy} @click=${() => (this.confirm = which)}>
+        ${on ? labels.off : labels.on}
+      </button>
+    </div>`;
+  }
+
+  private renderAi(storm: boolean) {
     const m = this.mode;
-    return html`<section class="card storm" aria-label="Storm Mode">
+    const aiAll = m?.aiAll === 'true';
+    const state = !m
+      ? 'Loading…'
+      : aiAll
+        ? 'ON: Savannah answers every call first'
+        : storm
+          ? 'On for Storm Mode only'
+          : 'Off: calls go straight to agents';
+    return html`<section class="card storm" aria-label="AI agent">
       <div class="row between">
-        <h2>Storm Mode</h2>
+        <h2>AI agent for all calls</h2>
         ${m ? html`<span class="pill ${WXCC_CLASS[m.wxcc]}" title=${m.wxccError}>${WXCC_LABEL[m.wxcc]}</span>` : nothing}
       </div>
-      <div class="state ${storm ? 'on' : ''}">${m ? (storm ? 'ON: Savannah is answering outage calls' : 'Off: normal routing') : 'Loading…'}</div>
+      <div class="state ${aiAll || storm ? 'on' : ''}">${state}</div>
+      <div class="dim">
+        For busy days, short-staffed days or bill due dates. Savannah greets every caller, asks what they need, handles
+        outages, balances, payments and extensions, and connects them with a person whenever they ask.
+      </div>
       ${m ? html`<div class="dim">Last changed ${fmtClock(m.updatedAt)} by ${m.updatedBy}</div>` : nothing}
-      ${this.confirmStorm
-        ? html`<div class="note">
-            ${storm
-              ? 'Turn Storm Mode off? New calls go back to normal routing.'
-              : 'Turn Storm Mode on? New calls go to Savannah first, and she sends people to the outage queue when needed.'}
-            <div class="row" style="margin-top:6px">
-              <button class="primary" ?disabled=${!!this.busy} @click=${() => void this.setStorm(!storm)}>
-                ${this.busy === 'storm' ? 'Updating…' : storm ? 'Yes, turn it off' : 'Yes, turn it on'}
-              </button>
-              <button @click=${() => (this.confirmStorm = false)}>Cancel</button>
-            </div>
-          </div>`
-        : html`<div class="row">
-            <button class="bigbtn ${storm ? '' : 'primary'}" ?disabled=${!m || !!this.busy} @click=${() => (this.confirmStorm = true)}>
-              ${storm ? 'Turn off Storm Mode' : 'Turn on Storm Mode'}
-            </button>
-          </div>`}
+      ${this.renderSwitch('ai', aiAll, {
+        on: 'Turn on AI for all calls',
+        off: 'Turn off AI for all calls',
+        askOn: 'Turn the AI agent on for all calls? New calls go to Savannah first, and she connects callers with an agent when needed.',
+        askOff: storm
+          ? 'Turn off AI for all calls? Storm Mode is still on, so Savannah keeps answering until Storm Mode is turned off.'
+          : 'Turn off AI for all calls? New calls go straight to agents again.',
+      })}
       <div style="display:grid;gap:4px">
         <h3>Message Savannah reads to every caller</h3>
         <div class="row">
           <input
             id="broadcast"
             type="text"
-            placeholder="e.g. Crews are working the Socastee area tonight."
+            placeholder="e.g. Bills are due on the 15th; you can pay by text link any time."
             .value=${this.broadcastDraft ?? m?.broadcast ?? ''}
             @input=${(e: Event) => (this.broadcastDraft = (e.target as HTMLInputElement).value)}
           />
           <button ?disabled=${this.broadcastDraft === null || !!this.busy} @click=${() => void this.saveBroadcast()}>Save message</button>
         </div>
       </div>
+    </section>`;
+  }
+
+  private renderStorm(storm: boolean) {
+    const m = this.mode;
+    return html`<section class="card storm" aria-label="Storm Mode">
+      <h2>Storm Mode</h2>
+      <div class="state ${storm ? 'on' : ''}">${m ? (storm ? 'ON: Savannah is answering outage calls' : 'Off') : 'Loading…'}</div>
+      <div class="dim">
+        Savannah answers every call and leads with the outage: she greets members in an outage area by name, confirms
+        the restoration estimate and offers a text when power is back.
+      </div>
+      ${this.renderSwitch('storm', storm, {
+        on: 'Turn on Storm Mode',
+        off: 'Turn off Storm Mode',
+        askOn: 'Turn Storm Mode on? New calls go to Savannah first, and she sends people to the outage queue when needed.',
+        askOff: m?.aiAll === 'true'
+          ? 'Turn Storm Mode off? AI for all calls is still on, so Savannah keeps answering with the everyday greeting.'
+          : 'Turn Storm Mode off? New calls go back to normal routing.',
+      })}
     </section>`;
   }
 

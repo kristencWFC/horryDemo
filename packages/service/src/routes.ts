@@ -90,6 +90,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       );
     } else {
       lines.push('Normal operations: callers may be calling about billing, payments, service requests or an outage.');
+      if (mode.get().aiAll) lines.push('You are answering every call today to help the team with a busy day. Ask what they are calling about and handle what you can (outages, balances, payments, extensions). Connect them with a person (escalate) whenever they ask or you cannot help.');
     }
     if (m && o) lines.push(`There IS a known outage at this member's location (${o.area}); confirm it is what they are calling about.`);
     if (m && m.OnCutOffList && !storm) {
@@ -144,6 +145,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     staffing: staffingConfigured(),
     fsRelay: fsRelayConfigured(),
     storm: mode.get().storm,
+    aiAll: mode.get().aiAll,
   }));
 
   f.get('/api/settings', async () => settings);
@@ -158,12 +160,13 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
   // Flow fallback + our pages. Flat strings: WxCC HTTP output mapping prefers scalars.
   f.get('/api/mode', async () => {
     const m = mode.get();
-    return { storm: m.storm ? 'true' : 'false', broadcast: m.broadcast, updatedAt: m.updatedAt, updatedBy: m.updatedBy, wxcc: m.wxcc, wxccError: m.wxccError ?? '', history: m.history };
+    return { storm: m.storm ? 'true' : 'false', aiAll: m.aiAll ? 'true' : 'false', aiRouting: mode.aiRouting() ? 'true' : 'false', broadcast: m.broadcast, updatedAt: m.updatedAt, updatedBy: m.updatedBy, wxcc: m.wxcc, wxccError: m.wxccError ?? '', history: m.history };
   });
   f.post('/api/mode', async (req) => {
-    const b = (req.body ?? {}) as { storm?: boolean | string; by?: string; broadcast?: string };
-    const storm = b.storm === true || b.storm === 'true';
-    return mode.set(storm, b.by ?? 'supervisor', b.broadcast);
+    const b = (req.body ?? {}) as { storm?: boolean | string; aiAll?: boolean | string; by?: string; broadcast?: string };
+    const flag = (v: boolean | string | undefined) => (v === undefined ? undefined : v === true || v === 'true');
+    const m = await mode.set({ storm: flag(b.storm), aiAll: flag(b.aiAll) }, b.by ?? 'supervisor', b.broadcast);
+    return { ...m, aiRouting: mode.aiRouting() };
   });
   // Call review dashboard (public/dashboard.html): AI leg + live-agent leg per call.
   f.get('/api/analytics', async (req) => overview(calls.all(), String((req.query as { sample?: string }).sample ?? '1') !== '0'));

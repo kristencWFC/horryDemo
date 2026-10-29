@@ -1,4 +1,9 @@
-// Storm Mode. The source of truth the WxCC flow reads is a WxCC GLOBAL VARIABLE
+// Storm Mode + AI for all calls. The variable means "send new calls to Savannah": it is true
+// when EITHER switch is on (Kristen 2026-10-29: AI on for busy days, not only storms). Which
+// greeting and playbook Savannah uses comes from our initiation webhook, so the flow needs
+// no change. Global_StormMode keeps its name.
+//
+// The source of truth the WxCC flow reads is a WxCC GLOBAL VARIABLE
 // (Kristen's decision 2026-10-27): the supervisor's desktop button → POST api/mode →
 // this module PUTs the variable's defaultValue through the WxCC Config API with a
 // Service App token (writes want a service app — kc-wiki wxcc-bulk-config-apis).
@@ -15,12 +20,14 @@ import { webexAccessToken } from './webex.js';
 
 export interface ModeState {
   storm: boolean;
+  /** Savannah answers every call (everyday greeting) even without a storm. */
+  aiAll: boolean;
   broadcast: string; // spoken once by the AI when set
   updatedAt: string;
   updatedBy: string;
   wxcc: 'synced' | 'failed' | 'not_configured';
   wxccError?: string;
-  history: { at: string; by: string; storm: boolean }[];
+  history: { at: string; by: string; storm: boolean; aiAll?: boolean }[];
 }
 
 export class ModeStore extends EventEmitter {
@@ -30,8 +37,10 @@ export class ModeStore extends EventEmitter {
   constructor(private readonly dataDir: string) {
     super();
     this.store = new JsonStore<ModeState>(join(dataDir, 'mode.json'));
-    this.s = this.store.load() ?? {
+    const saved = this.store.load();
+    this.s = saved ? { ...saved, aiAll: saved.aiAll ?? false } : {
       storm: false,
+      aiAll: false,
       broadcast: '',
       updatedAt: new Date().toISOString(),
       updatedBy: 'system',
@@ -44,15 +53,23 @@ export class ModeStore extends EventEmitter {
     return { ...this.s, history: this.s.history.slice(-20) };
   }
 
-  async set(storm: boolean, by: string, broadcast?: string): Promise<ModeState> {
-    this.s.storm = storm;
+  /** True when new calls should go to Savannah — the value written to the WxCC variable. */
+  aiRouting(): boolean {
+    return this.s.storm || this.s.aiAll;
+  }
+
+  /** Change either switch; a field left out keeps its current value. */
+  async set(patch: { storm?: boolean; aiAll?: boolean }, by: string, broadcast?: string): Promise<ModeState> {
+    if (patch.storm !== undefined) this.s.storm = patch.storm;
+    if (patch.aiAll !== undefined) this.s.aiAll = patch.aiAll;
+    const { storm, aiAll } = this.s;
     if (broadcast !== undefined) this.s.broadcast = broadcast;
     this.s.updatedAt = new Date().toISOString();
     this.s.updatedBy = by || 'supervisor';
-    this.s.history.push({ at: this.s.updatedAt, by: this.s.updatedBy, storm });
+    this.s.history.push({ at: this.s.updatedAt, by: this.s.updatedBy, storm, aiAll });
     if (wxccConfigured()) {
       try {
-        await writeGlobalVariable(storm ? 'true' : 'false');
+        await writeGlobalVariable(this.aiRouting() ? 'true' : 'false');
         this.s.wxcc = 'synced';
         delete this.s.wxccError;
       } catch (err) {
@@ -65,7 +82,7 @@ export class ModeStore extends EventEmitter {
     }
     this.store.save(this.s);
     this.emit('change', this.get());
-    console.log(`HORRY MODE storm=${storm} by ${this.s.updatedBy} (wxcc ${this.s.wxcc})`);
+    console.log(`HORRY MODE storm=${storm} aiAll=${aiAll} by ${this.s.updatedBy} (wxcc ${this.s.wxcc})`);
     return this.get();
   }
 

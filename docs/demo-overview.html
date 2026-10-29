@@ -74,7 +74,7 @@
     <p class="lede">Wednesday, November 4 at 10:00 AM ET. A supervisor turns on Storm Mode with one button, and Savannah,
     our AI agent, answers outage calls, finds the member's account and signs them up for a restoration text. Bills and
     payments use their NextGen CIS billing system, and no one ever reads a card number out loud.</p>
-    <div class="note"><strong>Demo line: (972) 430-9658.</strong> Storm Mode on: Savannah answers first. Storm Mode off: calls go straight to the billing agent.</div>
+    <div class="note"><strong>Demo line: (972) 430-9658.</strong> Storm Mode on: Savannah answers first and leads with the outage. AI for all calls on: Savannah answers first with an everyday greeting (busy days, bill due dates). Both off: calls go straight to the billing agent.</div>
   </header>
 
   <section>
@@ -142,12 +142,12 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Who</th><th>Login</th><th>Role</th></tr></thead>
       <tbody>
-        <tr><td>Supervisor (presenter)</td><td>Supervisor, team <code>KC_HorryElectric</code></td><td>Storm Operations page (Storm Mode, outage queue staffing, demo caller) and Call Review. Takes no calls.</td></tr>
+        <tr><td>Supervisor (presenter)</td><td>Supervisor, team <code>KC_HorryElectric</code></td><td>AI Operations page (AI agent for all calls, Storm Mode, outage queue staffing, demo caller) and Call Review. Takes no calls.</td></tr>
         <tr><td>Billing agent</td><td>Agent, team <code>KC_Horry_Billing</code></td><td>Answers billing calls (and outage calls once the supervisor adds the team to the outage queue) with the <strong>Member</strong> tab, web chats on <strong>Web Chats</strong>, emails on <strong>Email</strong>.</td></tr>
-        <tr><td>Caller</td><td>Presenter's mobile</td><td>Calls (972) 430-9658. Storm Operations → <strong>Demo caller</strong> sets which member the phone plays.</td></tr>
+        <tr><td>Caller</td><td>Presenter's mobile</td><td>Calls (972) 430-9658. AI Operations → <strong>Demo caller</strong> sets which member the phone plays.</td></tr>
       </tbody>
     </table></div>
-    <p style="margin-top:8px">Use two browsers (or one private window) for the two logins. Before each run: Storm Mode off, staffing back to normal, and <strong>Reset demo data</strong> in the <a href="https://kcdev2.workflowconcepts.com/horry/">Storm Console</a>.</p>
+    <p style="margin-top:8px">Use two browsers (or one private window) for the two logins. Before each run: AI for all calls off, Storm Mode off, staffing back to normal, and <strong>Reset demo data</strong> in the <a href="https://kcdev2.workflowconcepts.com/horry/">Storm Console</a>.</p>
 
     <h3>Tests</h3>
     <div class="table-wrap"><table>
@@ -159,6 +159,7 @@
         <tr><td><strong>D</strong> Payment</td><td>Storm Mode on. Caller = Linda (card on file) or Dorothy (link).</td><td>"I'd like to pay my bill."</td><td>Linda: say yes to the Visa ending 4242. Dorothy: open the link, pay with a test card, and Savannah reads back the confirmation.</td></tr>
         <tr><td><strong>E</strong> Web chat</td><td>Open the <a href="https://kcdev2.workflowconcepts.com/horry/site.html">demo co-op site</a>. Start a chat as Linda (phone 843-555-0101).</td><td>"Is my power outage known?" then "Can I talk to a person?"</td><td>Savannah answers with the outage and estimate, then hands off. The agent's chat badge lights up; on Web Chats they accept, see Savannah's part and the account, and reply.</td></tr>
         <tr><td><strong>F</strong> Email</td><td>Agent opens the Email page. Storm Mode on for the outage-group view.</td><td>—</td><td>Pick an email, the AI draft fills in from the account, edit and send. With Storm Mode on, one reply goes to everyone in the Socastee outage. The supervisor can assign an email to an agent.</td></tr>
+        <tr><td><strong>G</strong> Busy day</td><td>Storm Mode off. AI Operations → <strong>Turn on AI for all calls</strong>. Caller = David.</td><td>"What do I owe?" then "I'd like to pay it."</td><td>Savannah answers with the everyday greeting ("How can I help you today?"), not the outage one, and charges the Mastercard ending 1881 on file. Ask for a person and the billing agent rings.</td></tr>
       </tbody>
     </table></div>
 
@@ -217,7 +218,7 @@
         <tr><td>Demo line</td><td>(972) 430-9658</td><td>Mapped to the entry point below</td></tr>
         <tr><td>Entry point</td><td><code>EP_KC_Horry</code></td><td>Control Hub</td></tr>
         <tr><td>Flow</td><td><code>KC_Horry_Electric</code></td><td>Flow Designer. Build sheet: <code>docs/wxcc-flow-notes.md</code></td></tr>
-        <tr><td>Global variable</td><td><code>Global_StormMode</code></td><td>String, default <code>false</code>. Flipped by the Storm Mode button</td></tr>
+        <tr><td>Global variable</td><td><code>Global_StormMode</code></td><td>String, default <code>false</code>. <code>true</code> sends calls to Savannah: set when Storm Mode or AI for all calls is on</td></tr>
         <tr><td>Outage queue</td><td><code>Q_Horry_Outage</code></td><td>Team-based. The supervisor widget adds and removes teams</td></tr>
         <tr><td>Billing queue</td><td><code>Q_Horry_Billing</code></td><td>Staffed by <code>KC_Horry_Billing</code>; also the fallback</td></tr>
         <tr><td>Teams</td><td><code>KC_HorryElectric</code>, <code>KC_Horry_Billing</code></td><td>Extra storm teams must start with <code>KC_Horry</code> to appear in the picker</td></tr>

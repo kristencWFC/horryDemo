@@ -5,6 +5,8 @@ Nick confirming).
 
 ## STATE (handoff)
 
+2026-10-29 — **AI agent for all calls** (Kristen): supervisor page renamed AI Operations; new switch above Storm Mode. Global_StormMode now = "send to Savannah" (storm OR aiAll), so no flow / Control Hub change; Savannah uses the everyday greeting + a busy-day playbook line when only aiAll is on. Needs: pull + build + restart, then re-upload KC_Horry.json (page label).
+
 2026-10-29 — demo site restyled to the co-op's real home page (`site.html`, logo + hero cropped from docs/ screenshot; chat bubble in co-op blue); card-on-file wording tightened + agent patched.
 
 2026-10-28 night — **live on kc-dev-2 and taking calls; overnight build added the agent
@@ -22,7 +24,7 @@ deployed yet).**
 - New pages: `site.html` (demo co-op site + chat bubble), `billing.html?sep=` (mock CIS
   screen), previews `agent.html`, `email.html`, `supervisor.html`.
 - Layout `KC_Horry.json` regenerated: Member panel tab (agent personas), chat badge,
-  Web Chats + Email nav pages, Storm Operations (dashboard icon), Call Review.
+  Web Chats + Email nav pages, AI Operations (dashboard icon; was Storm Operations), Call Review.
 
 2026-10-27 evening — service + agent built.
 

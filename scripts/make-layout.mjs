@@ -53,7 +53,7 @@ const page = (id, label, icon, widget) => ({
 
 // Nav icons must be Momentum names the Desktop knows ('lightning' rendered blank 2026-10-28) —
 // stick to ones already proven in our layouts: analysis, dashboard, team, waveform, home, chat…
-const stormOps = page('horry-storm-ops', 'Storm Operations', 'dashboard', {
+const stormOps = page('horry-storm-ops', 'AI Operations', 'dashboard', {
   comp: 'horry-supervisor',
   script: BUNDLE,
   attributes: { darkmode: '$STORE.app.darkMode' },
