@@ -85,8 +85,8 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
   const tz = env.BUSINESS_TIMEZONE;
   // The Storm Console's demo-caller override lives in routes.ts; it persists to
   // settings.json, so read it from there (same defaults as routes.ts).
-  const settingsStore = new JsonStore<{ demoAni: string; demoMemberSep: string }>(join(d.dataDir, 'settings.json'));
-  const settings = () => ({ demoAni: '2142823566', demoMemberSep: '00212040001', ...(settingsStore.load() ?? {}) });
+  const settingsStore = new JsonStore<{ demoAni: string; demoMemberSep: string; demoSmsTo?: string }>(join(d.dataDir, 'settings.json'));
+  const settings = () => ({ demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', ...(settingsStore.load() ?? {}) });
 
   /** The Desktop knows the caller even when the flow's call-context arrived without an ANI:
    *  stamp the call row so the dashboard and contact history name the member (2026-10-29). */
@@ -130,6 +130,7 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
   async function snapshot(m: Member, row: CallRow | undefined) {
     const fin = await nextgen.financial(m.MemberSep).catch(() => null);
     const o = outages.forMember(m);
+    const sub = o ? outages.subsFor(o.id).find((s) => s.memberSep === m.MemberSep && s.status === 'waiting') : undefined;
     const usage = {
       last30Kwh: m.KwhLast30,
       priorMonthKwh: m.KwhPriorMonth,
@@ -198,12 +199,19 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
       },
       billing,
       usage,
-      outage: o ? { id: o.id, area: o.area, customers: o.customers, cause: o.cause, crew: o.crew, etr: o.etr, etrText: spokenEtr(o.etr, tz), startedAt: o.startedAt, source: o.source } : null,
+      outage: o
+        ? {
+            id: o.id, area: o.area, customers: o.customers, cause: o.cause, crew: o.crew, etr: o.etr, etrText: spokenEtr(o.etr, tz), startedAt: o.startedAt, source: o.source,
+            // Restoration-text sign-up for this member (agent button, Kristen 2026-10-29).
+            subscription: sub ? { phone: sub.phone, channel: sub.channel, status: sub.status } : null,
+            textTo: last10(settings().demoSmsTo ?? '') || textablePhone(m, row),
+          }
+        : null,
       call,
       payments: pays,
       notes: [...(m.Notes ?? [])].reverse().slice(0, 5),
       extensions: m.Extensions ?? [],
-      talkingPoints: talkingPoints(m, billing, usage, o ? { id: o.id, area: o.area, etrText: spokenEtr(o.etr, tz), crew: o.crew, cause: o.cause } : null, call, ext, pays),
+      talkingPoints: talkingPoints(m, billing, usage, o ? { id: o.id, area: o.area, etrText: spokenEtr(o.etr, tz), crew: o.crew, cause: o.cause, subscribedTo: sub?.phone } : null, call, ext, pays),
       actions: {
         paymentLink: { enabled: Boolean(billing), amount: billing ? round2(billing.pastDue > 0 ? billing.pastDue : billing.amountDue) : 0, phone: textablePhone(m, row) },
         cardOnFile: { enabled: Boolean(billing?.cardOnFile), label: billing?.cardOnFile ? `${billing.cardOnFile.brand} ending ${billing.cardOnFile.last4}` : '' },
@@ -323,6 +331,22 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     return { ok: true, confirmation: conf, payBy, message: `Extension to ${payBy} confirmed — confirmation ${conf}. Service stays on while it is in place.` };
   });
 
+  // Agent signs the member up for restoration texts (same store + confirmation text as Savannah's tool).
+  f.post('/api/agent-desk/restoration', async (req, reply) => {
+    const b = (req.body ?? {}) as ActionBody;
+    const { m, row } = await actionTarget(b);
+    if (!m) return reply.code(404).send({ error: 'Member not found' });
+    const o = outages.forMember(m);
+    if (!o) return reply.code(400).send({ error: 'There is no open outage at this address to sign up for.' });
+    const phone = last10(b.phone) || last10(settings().demoSmsTo ?? '') || textablePhone(m, row);
+    if (phone.length !== 10) return reply.code(400).send({ error: 'Enter the 10-digit cell number for the texts.' });
+    outages.subscribe({ outageId: o.id, memberSep: m.MemberSep, memberName: displayName(m), address: displayAddress(m), phone, channel: 'sms', createdBy: 'agent' });
+    await sms.send(phone, `Horry Electric: you're signed up for restoration updates for ${displayAddress(m)} (ref ${o.id}). Current estimate: ${spokenEtr(o.etr, tz)}. Reply STOP to opt out.`, 'signup_confirm');
+    if (row) calls.step(row, 'agent_subscribed', `${byAgent(b)} signed up texts to ${phone} for ${o.id}`, 'restoration_signup');
+    void nextgen.addNote(m.MemberSep, `${byAgent(b)}: restoration texts for ${o.id} to ${phone}.`, 'AN').catch(() => undefined);
+    return { ok: true, message: `Signed up: restoration texts to ${fmtPhone(phone)}. A confirmation text is on its way.` };
+  });
+
   f.post('/api/agent-desk/note', async (req, reply) => {
     const b = (req.body ?? {}) as ActionBody;
     const { m, row } = await actionTarget(b);
@@ -381,7 +405,7 @@ function talkingPoints(
   m: Member,
   b: BillingDto,
   u: { last30Kwh: number; sameMonthLastYearKwh: number; priorMonthKwh: number; vsLastYearPct: number; vsPriorMonthPct: number },
-  o: { id: string; area: string; etrText: string; crew: string; cause: string } | null,
+  o: { id: string; area: string; etrText: string; crew: string; cause: string; subscribedTo?: string } | null,
   call: { journey: { step: string; detail: string }[]; escalation: { reason: string; department: string } | null } | null,
   ext: { allowed: boolean; payBy: string; reason: string },
   pays: ReturnType<typeof paymentDto>[]
@@ -398,7 +422,8 @@ function talkingPoints(
         ? `In outage ${o.id} (${o.area.split(',')[0]}). Savannah already gave the estimate — ${o.etrText}.`
         : `In outage ${o.id}: ${o.cause}, ${o.crew}. Estimate ${o.etrText}.`,
     });
-    if (!did.has('subscribed')) tp.push({ tone: 'info', text: 'Offer a text when power is restored.' });
+    if (o.subscribedTo) tp.push({ tone: 'ok', text: `Signed up for restoration texts to ${fmtPhone(o.subscribedTo)}.` });
+    else if (!did.has('subscribed')) tp.push({ tone: 'info', text: 'Offer a text when power is restored — use Sign up for restoration texts below.' });
   }
   if (b) {
     if (b.pastDue > 0) {

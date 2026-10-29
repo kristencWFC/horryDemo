@@ -65,7 +65,11 @@ interface DeskDto {
     paperless: boolean;
   } | null;
   usage: { last30Kwh: number; priorMonthKwh: number; sameMonthLastYearKwh: number; vsPriorMonthPct: number; vsLastYearPct: number; months?: { month: string; kwh: number }[] };
-  outage: { id: string; area: string; customers: number; cause: string; crew: string; etrText: string } | null;
+  outage: {
+    id: string; area: string; customers: number; cause: string; crew: string; etrText: string;
+    subscription?: { phone: string; channel: string; status: string } | null;
+    textTo?: string;
+  } | null;
   call: {
     guid: string;
     channel: string;
@@ -131,6 +135,7 @@ export class HorryMember extends LitElement {
     result: { state: true },
     amount: { state: true },
     phone: { state: true },
+    subPhone: { state: true },
     payBy: { state: true },
     noteText: { state: true },
     showTranscript: { state: true },
@@ -151,6 +156,8 @@ export class HorryMember extends LitElement {
   /** Agent edits; null = use the suggested value from the service. */
   amount: string | null = null;
   phone: string | null = null;
+  /** Unsaved cell for restoration texts (null = the default the service suggests). */
+  subPhone: string | null = null;
   payBy: string | null = null;
   noteText = '';
   showTranscript = false;
@@ -201,7 +208,9 @@ export class HorryMember extends LitElement {
       .badge.amber { border-color: var(--h-warn); background: var(--h-warn-soft); color: var(--h-warn); }
       .badge.green { border-color: var(--h-ok); background: var(--h-ok-soft); color: var(--h-ok); }
       .badge.red { border-color: var(--h-danger); background: var(--h-danger-soft); color: var(--h-danger); }
-      .uchart { width: 100%; height: auto; display: block; margin: 4px 0 2px; }
+      /* Cap the size: the panel can be 1,500 px wide on a big screen (Kristen 2026-10-29). */
+      .uchart { width: 100%; max-width: 480px; height: auto; display: block; margin: 4px 0 2px; }
+      .restore { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--h-border); display: grid; gap: 6px; }
       .uchart .ulab { font-size: 11px; fill: var(--h-text); font-variant-numeric: tabular-nums; }
       .uchart .umon { font-size: 10.5px; fill: var(--h-dim); }
       .uchart .umon.now { fill: var(--h-text); font-weight: 600; }
@@ -493,6 +502,34 @@ export class HorryMember extends LitElement {
     </section>`;
   }
 
+  /** Restoration texts: sign the member up (or change the number) right from the call. */
+  private renderRestoration(o: NonNullable<DeskDto['outage']>) {
+    const sub = o.subscription;
+    const value = this.subPhone ?? fmtPhone(sub?.phone ?? o.textTo ?? '');
+    return html`<div class="restore">
+      <div class="row between">
+        <strong>Text when power is back</strong>
+        ${sub ? html`<span class="pill ok">Signed up · ${fmtPhone(sub.phone)}</span>` : html`<span class="pill">Not signed up</span>`}
+      </div>
+      <div class="row">
+        <input
+          type="text"
+          inputmode="tel"
+          aria-label="Cell number for restoration texts"
+          style="max-width:200px"
+          placeholder="10-digit cell"
+          .value=${value}
+          @input=${(e: Event) => (this.subPhone = (e.target as HTMLInputElement).value)}
+        />
+        <button class=${sub ? '' : 'primary'} ?disabled=${!!this.busy}
+          @click=${() => void this.act('restore', 'restoration', { phone: value.replace(/\D/g, '') }).then(() => (this.subPhone = null))}>
+          ${this.busy === 'restore' ? 'Signing up…' : sub ? 'Update number' : 'Sign up for restoration texts'}
+        </button>
+      </div>
+      <div class="dim" style="font-size:12px">They get a confirmation now, a text if the estimate changes, and one when power is back.</div>
+    </div>`;
+  }
+
   private renderOutage(d: DeskDto) {
     const o = d.outage;
     return html`<section class="card" aria-label="Outage">
@@ -507,7 +544,8 @@ export class HorryMember extends LitElement {
             <div><dt>Cause</dt><dd>${o.cause}</dd></div>
             <div><dt>Crew</dt><dd>${o.crew}</dd></div>
             <div><dt>Estimate</dt><dd>${o.etrText}</dd></div>
-          </dl>`
+          </dl>
+          ${this.renderRestoration(o)}`
         : html`<div class="dim">No known outage at this service location.</div>`}
     </section>`;
   }
