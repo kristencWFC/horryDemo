@@ -124,6 +124,8 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
       sameMonthLastYearKwh: m.KwhSameMonthLastYear,
       vsPriorMonthPct: pct(m.KwhLast30, m.KwhPriorMonth),
       vsLastYearPct: pct(m.KwhLast30, m.KwhSameMonthLastYear),
+      /** Oldest → newest, 13 bills: the first is the same month last year, the last is now. */
+      months: billHistory(m, 0).reverse().map((h) => ({ month: h.month, kwh: h.kwh })),
     };
     const ext = extensionRule(fin, m);
     const pays = payments.all().filter((p) => p.memberSep === m.MemberSep).slice(0, 5).map(paymentDto);
@@ -411,25 +413,26 @@ function talkingPoints(
   return tp;
 }
 
-/** Deterministic 12-month history for the billing screen, anchored on the account's real
+/** Deterministic 13-month history (billing screen + the Member tab usage chart), anchored on the account's real
  *  current figures (latest bill = current charges; same month last year = seeded kWh). */
 function billHistory(m: Member, paidSinceBill: number) {
   const RATE = 0.118;
   const FACILITY = 32;
   const anchor = parseCisDate(m.BillDate) ?? new Date();
-  const out: { billDate: string; kwh: number; amount: number; paid: number; paidOn: string | null; status: string }[] = [];
+  const out: { billDate: string; month: string; kwh: number; amount: number; paid: number; paidOn: string | null; status: string }[] = [];
   let seed = Number(m.MemberSep.slice(-6)) || 7;
   const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 13; i++) {
     const billDate = new Date(anchor.getFullYear(), anchor.getMonth() - i, anchor.getDate());
+    const month = billDate.toLocaleString('en-US', { month: 'short' }) + ' ' + String(billDate.getFullYear()).slice(2);
     let kwh: number;
     if (i === 0) kwh = m.KwhLast30;
     else if (i === 1) kwh = m.KwhPriorMonth;
-    else if (i === 11) kwh = m.KwhSameMonthLastYear;
+    else if (i === 12) kwh = m.KwhSameMonthLastYear; // same month last year
     else {
       // Seasonal curve between last year's and this year's level (peaks Jan and Jul/Aug).
-      const month = billDate.getMonth();
-      const season = 1 + 0.28 * Math.cos(((month - 0.5) / 12) * 4 * Math.PI);
+      const mon = billDate.getMonth();
+      const season = 1 + 0.28 * Math.cos(((mon - 0.5) / 12) * 4 * Math.PI);
       kwh = Math.round(((m.KwhSameMonthLastYear + m.KwhPriorMonth) / 2) * season * (0.94 + 0.12 * rnd()));
     }
     // Latest bill = what is due now (net of any past due) plus what was paid on it during the demo.
@@ -444,12 +447,12 @@ function billHistory(m: Member, paidSinceBill: number) {
     } else if (i === 1) {
       if (m.PastDueAmount > 0) {
         // Unpaid prior bill: billed = what they paid + what is still past due.
-        out.push({ billDate: cisDate(billDate), kwh, amount: round2(m.PastDueAmount + m.LastPayment), paid: round2(m.LastPayment), paidOn: m.LastPayment > 0 ? m.PaymentDate : null, status: `Past due ${money(m.PastDueAmount)}` });
+        out.push({ billDate: cisDate(billDate), month, kwh, amount: round2(m.PastDueAmount + m.LastPayment), paid: round2(m.LastPayment), paidOn: m.LastPayment > 0 ? m.PaymentDate : null, status: `Past due ${money(m.PastDueAmount)}` });
         continue;
       }
       status = m.PastDueAmount > 0 ? `Past due ${money(m.PastDueAmount)}` : 'Paid';
     }
-    out.push({ billDate: cisDate(billDate), kwh, amount, paid, paidOn, status });
+    out.push({ billDate: cisDate(billDate), month, kwh, amount, paid, paidOn, status });
   }
   return out;
 }

@@ -9,7 +9,7 @@
 // One poll (GET api/agent-desk) every 5 s while a call is selected: member, billing, usage,
 // outage, what Savannah did on this call, recent payments, talking points. Billing
 // assistant buttons POST api/agent-desk/{payment-link|card-on-file|extension|note}.
-import { LitElement, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing, svg } from 'lit';
 import { DEFAULT_SERVER, api, darkmodeProperty, fmtClock, joinUrl } from './common.js';
 import { themeStyles } from './theme.js';
 
@@ -63,7 +63,7 @@ interface DeskDto {
     budgetAmount: number | null;
     paperless: boolean;
   } | null;
-  usage: { last30Kwh: number; priorMonthKwh: number; sameMonthLastYearKwh: number; vsPriorMonthPct: number; vsLastYearPct: number };
+  usage: { last30Kwh: number; priorMonthKwh: number; sameMonthLastYearKwh: number; vsPriorMonthPct: number; vsLastYearPct: number; months?: { month: string; kwh: number }[] };
   outage: { id: string; area: string; customers: number; cause: string; crew: string; etrText: string } | null;
   call: {
     guid: string;
@@ -183,6 +183,10 @@ export class HorryMember extends LitElement {
       .bar .fill { height: 100%; background: var(--h-navy); border-radius: 4px; }
       .bar .fill.now { background: var(--h-accent); }
       .bar .n { text-align: right; font-variant-numeric: tabular-nums; }
+      .uchart { width: 100%; height: auto; display: block; margin: 4px 0 2px; }
+      .uchart .ulab { font-size: 11px; fill: var(--h-text); font-variant-numeric: tabular-nums; }
+      .uchart .umon { font-size: 10.5px; fill: var(--h-dim); }
+      .uchart .umon.now { fill: var(--h-text); font-weight: 600; }
       input[type='text'], textarea {
         font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--h-border);
         background: var(--h-bg); color: var(--h-text); min-width: 0;
@@ -479,20 +483,45 @@ export class HorryMember extends LitElement {
 
   private renderUsage(d: DeskDto) {
     const u = d.usage;
-    const max = Math.max(u.last30Kwh, u.priorMonthKwh, u.sameMonthLastYearKwh, 1);
-    const bar = (label: string, n: number, now = false) => html`<div class="bar">
-      <span>${label}</span>
-      <span class="track"><span class="fill ${now ? 'now' : ''}" style="display:block;width:${Math.round((n / max) * 100)}%"></span></span>
-      <span class="n">${n.toLocaleString()} kWh</span>
-    </div>`;
+    const months = u.months ?? [];
     return html`<section class="card" aria-label="Usage">
       <div class="row between">
-        <h3>Usage</h3>
+        <h3>Usage, last 13 months (kWh)</h3>
         <span class="pill ${u.vsLastYearPct >= 15 ? 'warn' : ''}">${signed(u.vsLastYearPct)} vs last year</span>
       </div>
-      ${bar('Last 30 days', u.last30Kwh, true)} ${bar('Prior month', u.priorMonthKwh)} ${bar('Same month last yr', u.sameMonthLastYearKwh)}
-      <div class="dim" style="font-size:12px">${signed(u.vsPriorMonthPct)} vs prior month</div>
+      ${months.length ? this.usageChart(months) : nothing}
+      <div class="dim" style="font-size:12px">
+        First bar = same month last year (${u.sameMonthLastYearKwh.toLocaleString()} kWh); orange = this month
+        (${u.last30Kwh.toLocaleString()} kWh, ${signed(u.vsPriorMonthPct)} vs prior month).
+      </div>
     </section>`;
+  }
+
+  /** Vertical bars, oldest → newest. Navy history, accent = this month; the first bar (same
+   *  month last year) and the last carry value labels; every bar has a hover title. */
+  private usageChart(months: { month: string; kwh: number }[]) {
+    const W = 360, H = 124, top = 16, base = 106, gap = 3; // sized for the ~400px interaction panel
+    const n = months.length;
+    const max = Math.max(...months.map((m) => m.kwh), 1);
+    const bw = (W - gap * (n - 1)) / n;
+    const bars = months.map((m, i) => {
+      const h = Math.max(2, Math.round(((base - top) * m.kwh) / max));
+      const x = i * (bw + gap), y = base - h, r = Math.min(3, bw / 2);
+      const now = i === n - 1, ly = i === 0;
+      // Rounded data end (top), square at the baseline.
+      const d = `M${x},${base} V${y + r} Q${x},${y} ${x + r},${y} H${x + bw - r} Q${x + bw},${y} ${x + bw},${y + r} V${base} Z`;
+      return svg`<g>
+        <title>${m.month}: ${m.kwh.toLocaleString()} kWh</title>
+        <path d=${d} fill=${now ? 'var(--h-accent)' : 'var(--h-navy)'} opacity=${now || ly ? 1 : 0.55}></path>
+        ${now || ly ? svg`<text x=${x + bw / 2} y=${y - 4} text-anchor="middle" class="ulab">${m.kwh.toLocaleString()}</text>` : nothing}
+        <text x=${x + bw / 2} y=${base + 14} text-anchor="middle" class="umon ${now ? 'now' : ''}">${m.month.split(' ')[0]}</text>
+      </g>`;
+    });
+    return html`<svg class="uchart" viewBox="0 0 ${W} ${H}" role="img"
+      aria-label=${`Monthly usage: ${months.map((m) => `${m.month} ${m.kwh} kWh`).join(', ')}`}>
+      <line x1="0" x2=${W} y1=${base + 0.5} y2=${base + 0.5} stroke="var(--h-border)"></line>
+      ${bars}
+    </svg>`;
   }
 
   private renderPayments(d: DeskDto) {
