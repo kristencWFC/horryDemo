@@ -13,6 +13,8 @@
 //
 // Visitor side and agent side both poll (relative `api/...` paths behind /horry/).
 import { EventEmitter } from 'node:events';
+import { join } from 'node:path';
+import { JsonStore } from './store.js';
 import type { FastifyInstance } from 'fastify';
 import { env, last10 } from './env.js';
 import type { Deps } from './routes.js';
@@ -313,7 +315,8 @@ const DEPT_LABEL: Record<string, string> ={ outage: 'outage', billing: 'billing'
 // ---------------------------------------------------------------------------------------
 
 const IDLE_CLOSE_MS = 20 * 60_000;
-const FORGET_CLOSED_MS = 4 * 60 * 60_000;
+// Ended chats stay on the Web Chats page for review (Kristen 2026-10-29), saved to data/chats.json.
+const FORGET_CLOSED_MS = 7 * 24 * 60 * 60_000;
 
 class ChatManager extends EventEmitter {
   private sessions = new Map<string, ChatSession>();
@@ -321,8 +324,18 @@ class ChatManager extends EventEmitter {
   private real?: ChatTransport;
   private scripted: ChatTransport;
 
+  private store: JsonStore<ChatSession[]>;
+
   constructor(private d: Deps, callTool: (name: string, guid: string, body?: Record<string, unknown>) => Promise<Record<string, unknown>>) {
     super();
+    // Survive restarts. A chat still with Savannah can't resume (her session is gone), so it is ended;
+    // waiting and live chats come back as they were.
+    this.store = new JsonStore<ChatSession[]>(join(d.dataDir, 'chats.json'), 1000);
+    for (const s of this.store.load() ?? []) {
+      if (s.status === 'ai') { s.status = 'closed'; s.closedBy = s.closedBy ?? 'timeout'; }
+      this.sessions.set(s.id, s);
+    }
+    this.on('change', () => this.persist());
     this.scripted = new ScriptedTransport(callTool);
     if (env.ELEVENLABS_API_KEY && env.ELEVENLABS_AGENT_ID) this.real = new ElevenLabsChatTransport(env.ELEVENLABS_API_KEY, env.ELEVENLABS_AGENT_ID);
     // Savannah's tools write to the chat's call row: pick up escalations and payment links.
@@ -335,7 +348,12 @@ class ChatManager extends EventEmitter {
         if (s.status !== 'closed' && now - Date.parse(s.lastAt) > IDLE_CLOSE_MS) this.close(id, 'timeout');
         else if (s.status === 'closed' && now - Date.parse(s.lastAt) > FORGET_CLOSED_MS) this.sessions.delete(id);
       }
+      this.persist();
     }, 60_000).unref();
+  }
+
+  private persist(): void {
+    this.store.save([...this.sessions.values()]);
   }
 
   get mode(): 'live' | 'scripted' {
@@ -440,6 +458,7 @@ class ChatManager extends EventEmitter {
   reset(): void {
     for (const s of this.sessions.values()) this.transportFor(s).stop(s.id);
     this.sessions.clear();
+    this.persist();
   }
 
   markSeen(id: string): void {
@@ -802,7 +821,7 @@ export function registerChat(f: FastifyInstance, d: Deps): void {
       active: all.filter((s) => s.status === 'agent').length,
       withAssistant: all.filter((s) => s.status === 'ai').length,
       unread: all.reduce((n, s) => n + (s.status === 'agent' ? s.messages.slice(s.agentSeenSeq).filter((m) => m.role === 'visitor').length : 0), 0),
-      chats: all.slice(0, 40).map(listView),
+      chats: all.slice(0, 100).map(listView),
     };
   });
   f.get('/api/chats/:id', async (req, reply) => {

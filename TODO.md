@@ -108,7 +108,7 @@ deployed yet).**
       `agent-desk.ts`; mock CIS screen `billing.html?sep=`
 - [x] Web chat — 2026-10-28 night: `site.html` + `chat-bubble.js`, `chat.ts` (live text
       conversation with Savannah when ELEVENLABS env set, scripted fallback over our own tools),
-      `<horry-chat>` page + `<horry-chat-badge>`. Chat sessions are in memory (lost on restart).
+      `<horry-chat>` page + `<horry-chat-badge>`. Chats saved to data/chats.json, ended chats listed 7 days for review (2026-10-29).
 - [x] **Call review dashboard** `/horry/dashboard.html` (2026-10-28, Kristen: item 5) — containment,
       topics from the conversation (AI leg + Cisco wrap-up summary), by hour, sentiment, wrap-up codes,
       per-call drill-in with both legs. Sample storm day (yesterday, deterministic) + live overlay.

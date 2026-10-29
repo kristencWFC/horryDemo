@@ -77,8 +77,8 @@ Widgets: `npm run build` builds `packages/widgets/dist/horry-widgets.js`, served
 | Mock billing-system screen | `billing.html?sep=<account>` |
 | Widget previews (no Desktop needed) | `supervisor.html`, `agent.html?ani=&id=&sep=`, `email.html?agent=` |
 
-Chat sessions live in memory (a restart drops open chats); emails, calls, notes, settings
-persist in `data/`. "Reset demo data" re-seeds outages, calls, balances and the inbox.
+Chats (kept 7 days after they end, listed under Ended on Web Chats), emails, calls, notes and settings
+persist in `data/`; a chat still with Savannah at a restart is ended (her session is gone). "Reset demo data" re-seeds outages, calls, balances and the inbox.
 
 ## Smoke
 

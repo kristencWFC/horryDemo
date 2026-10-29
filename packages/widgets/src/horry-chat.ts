@@ -115,7 +115,8 @@ export class HorryChat extends LitElement {
   draft = '';
   busy = '';
   error = '';
-  showClosed = false;
+  /** Ended chats are listed for review by default; the agent can fold the section away. */
+  showClosed = true;
   private timer: number | undefined;
   private lastWaiting = new Set<string>();
   private cardFor = '';
@@ -142,6 +143,9 @@ export class HorryChat extends LitElement {
       li .last { font-size: 12px; color: var(--h-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .unread { background: var(--h-accent); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; font-weight: 700; }
       .toggle { font-size: 12px; padding: 2px 8px; }
+      li.sect { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--h-border); }
+      li.sect .toggle { width: 100%; text-align: left; border: 0; background: transparent; color: var(--h-dim); font-weight: 600; }
+      li.ended .who { color: var(--h-dim); }
       section.conv { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
       .chead { padding: 10px 14px; border-bottom: 1px solid var(--h-border); display: grid; gap: 8px; }
       .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -284,7 +288,8 @@ export class HorryChat extends LitElement {
 
   private renderList() {
     const l = this.list;
-    const chats = (l?.chats ?? []).filter((c) => this.showClosed || c.status !== 'closed');
+    const open = (l?.chats ?? []).filter((c) => c.status !== 'closed');
+    const ended = (l?.chats ?? []).filter((c) => c.status === 'closed');
     return html`<aside aria-label="Web chats">
       <div class="ahead">
         <div class="row between">
@@ -296,27 +301,44 @@ export class HorryChat extends LitElement {
           <span class="pill ${l?.active ? 'ok' : ''}">${l?.active ?? 0} live</span>
           <span class="pill">${l?.withAssistant ?? 0} with Savannah</span>
         </div>
-        <button class="toggle" @click=${() => (this.showClosed = !this.showClosed)}>${this.showClosed ? 'Hide ended chats' : 'Show ended chats'}</button>
       </div>
       ${this.error ? html`<div class="err" style="margin:8px">${this.error}</div>` : nothing}
       <ul>
-        ${chats.length === 0 ? html`<li class="dim" style="padding:10px">No web chats right now.</li>` : nothing}
-        ${chats.map(
-          (c) => html`<li>
-            <button class=${c.id === this.selectedId ? 'sel' : ''} @click=${() => void this.select(c.id)}>
-              <span class="top">
-                <span class="who">${c.memberName || c.name || 'Website visitor'}</span>
-                ${c.unread ? html`<span class="unread">${c.unread}</span>` : html`<span class="pill ${STATUS_CLASS[c.status]}">${STATUS_LABEL[c.status]}</span>`}
-              </span>
-              <span class="last">
-                ${c.status === 'waiting' ? html`<strong>${DEPT[c.department] ?? 'Member services'}</strong> · waiting ${waitText(c.waitingSince)}` : c.status === 'agent' ? html`${c.agentName} · ${fmtClock(c.lastAt)}` : fmtClock(c.lastAt)}
-              </span>
-              <span class="last">${c.lastText}</span>
-            </button>
-          </li>`
-        )}
+        ${open.length === 0 ? html`<li class="dim" style="padding:10px">No open web chats right now.</li>` : nothing}
+        ${open.map((c) => this.renderItem(c))}
+        ${ended.length
+          ? html`<li class="sect">
+              <button class="toggle" aria-expanded=${this.showClosed ? 'true' : 'false'} @click=${() => (this.showClosed = !this.showClosed)}>
+                ${this.showClosed ? '▾' : '▸'} Ended · last 7 days (${ended.length})
+              </button>
+            </li>`
+          : nothing}
+        ${this.showClosed ? ended.map((c) => this.renderItem(c)) : nothing}
       </ul>
     </aside>`;
+  }
+
+  private renderItem(c: ChatRow) {
+    const closed = c.status === 'closed';
+    const when = new Date(c.lastAt).toDateString() === new Date().toDateString()
+      ? fmtClock(c.lastAt)
+      : `${new Date(c.lastAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${fmtClock(c.lastAt)}`;
+    return html`<li class=${closed ? 'ended' : ''}>
+      <button class=${c.id === this.selectedId ? 'sel' : ''} @click=${() => void this.select(c.id)}>
+        <span class="top">
+          <span class="who">${c.memberName || c.name || 'Website visitor'}</span>
+          ${c.unread ? html`<span class="unread">${c.unread}</span>` : html`<span class="pill ${STATUS_CLASS[c.status]}">${STATUS_LABEL[c.status]}</span>`}
+        </span>
+        <span class="last">
+          ${c.status === 'waiting'
+            ? html`<strong>${DEPT[c.department] ?? 'Member services'}</strong> · waiting ${waitText(c.waitingSince)}`
+            : closed
+              ? `${when} · ${c.agentName || 'Savannah only'}`
+              : c.status === 'agent' ? html`${c.agentName} · ${fmtClock(c.lastAt)}` : fmtClock(c.lastAt)}
+        </span>
+        <span class="last">${c.lastText}</span>
+      </button>
+    </li>`;
   }
 
   private renderConversation() {
@@ -324,7 +346,7 @@ export class HorryChat extends LitElement {
     if (!d) {
       return html`<div class="empty">
         <strong>No chat selected</strong>
-        <span>Chats that need a person appear on the left. Savannah handles the rest on her own.</span>
+        <span>Chats that need a person appear on the left. Savannah handles the rest on her own. Pick an ended chat to read it again.</span>
       </div>`;
     }
     const mine = d.status === 'agent' && d.agentName === this.me;
