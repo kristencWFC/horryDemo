@@ -191,8 +191,8 @@
     <h2>5. Still to build</h2>
     <ul>
       <li>Keypad payment and the agent hand-off to secure pay: talking points for Nov 4. They change the WFC AI Controller that every AI demo runs through, so they wait until after the demo.</li>
-      <li>Cisco AI Assistant wrap-up summaries in the dashboard (confirm the summary API). Simulated until then.</li>
-      <li>Texting live on a real number. Until then texts show in the Storm Console.</li>
+      <li>Cisco AI Assistant wrap-up summaries: they already show on the live agent's Desktop. The Call Review dashboard's copy stays simulated until the summary API is confirmed.</li>
+      <li>Texting live on a real number, including inbound replies (last on the list; may not be needed). Until then texts show in the Storm Console.</li>
     </ul>
     <p style="margin-top:8px">Done: Savannah, the Horry service on kcdev2, the WFC AI Controller on 1151, Storm Mode and staffing writing to WxCC, the call review dashboard, the flow and demo line, the Member tab and billing screen, web chat, and the email board.</p>
   </section>
@@ -206,6 +206,29 @@
       <li>What does "email ticketing" mean to them? Do they use NISC's CallCapture IVR?</li>
       <li>Which departments join the outage queue in a storm? We'll name the demo teams after them.</li>
     </ul>
+  </section>
+
+  <section>
+    <h2>7. Setup reference</h2>
+    <p>Where everything lives, so it can be found again.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Item</th><th>Name</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Demo line</td><td>(972) 430-9658</td><td>Mapped to the entry point below</td></tr>
+        <tr><td>Entry point</td><td><code>EP_KC_Horry</code></td><td>Control Hub</td></tr>
+        <tr><td>Flow</td><td><code>KC_Horry_Electric</code></td><td>Flow Designer. Build sheet: <code>docs/wxcc-flow-notes.md</code></td></tr>
+        <tr><td>Global variable</td><td><code>Global_StormMode</code></td><td>String, default <code>false</code>. Flipped by the Storm Mode button</td></tr>
+        <tr><td>Outage queue</td><td><code>Q_Horry_Outage</code></td><td>Team-based. The supervisor widget adds and removes teams</td></tr>
+        <tr><td>Billing queue</td><td><code>Q_Horry_Billing</code></td><td>Staffed by <code>KC_Horry_Billing</code>; also the fallback</td></tr>
+        <tr><td>Teams</td><td><code>KC_HorryElectric</code>, <code>KC_Horry_Billing</code></td><td>Extra storm teams must start with <code>KC_Horry</code> to appear in the picker</td></tr>
+        <tr><td>Desktop layout</td><td><code>KC_Horry</code></td><td>File <code>GitHub KC/Desktop Layouts/KC_Horry.json</code>; assigned to both teams</td></tr>
+        <tr><td>Service App</td><td>Horry's own Service App</td><td>Config write: Storm Mode variable and queue staffing</td></tr>
+        <tr><td>WFC AI Agent</td><td>Savannah (<code>horryDemo</code>)</td><td>Reached through the WFC AI Controller, extension 1151</td></tr>
+        <tr><td>Demo service</td><td><a href="https://kcdev2.workflowconcepts.com/horry/">kcdev2…/horry/</a></td><td>kc-dev-2 <code>/opt/horryDemo</code>, service <code>horry-demo</code>, port 8165</td></tr>
+        <tr><td>Pages</td><td><a href="https://kcdev2.workflowconcepts.com/horry/site.html">site.html</a>, <a href="https://kcdev2.workflowconcepts.com/horry/dashboard.html">dashboard.html</a>, <code>billing.html?sep=</code></td><td>Demo co-op site with web chat, call review, mock billing screen</td></tr>
+        <tr><td>Code</td><td>GitHub <code>kristencWFC/horryDemo</code></td><td>Run and deploy steps in <code>OPERATIONS.md</code>; status in <code>TODO.md</code></td></tr>
+      </tbody>
+    </table></div>
   </section>
 </main>
 
