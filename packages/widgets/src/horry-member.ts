@@ -43,6 +43,7 @@ interface DeskDto {
     address: string;
     cellPhone: string | null;
     homePhone: string | null;
+    email?: string | null;
     rate: string;
     meter: string;
     lifeSupport: boolean;
@@ -183,6 +184,23 @@ export class HorryMember extends LitElement {
       .bar .fill { height: 100%; background: var(--h-navy); border-radius: 4px; }
       .bar .fill.now { background: var(--h-accent); }
       .bar .n { text-align: right; font-variant-numeric: tabular-nums; }
+      .cis { border: 1px solid var(--h-border); border-radius: 8px; overflow: hidden; background: var(--h-bg); }
+      .cisbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px;
+        background: var(--h-navy); color: var(--h-bg); font-size: 13px; }
+      .cisbar button { font-size: 12px; padding: 3px 10px; background: var(--h-bg); color: var(--h-text); }
+      .cisgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1px; background: var(--h-border); }
+      .cisgrid .cell { background: var(--h-bg); padding: 7px 10px; display: grid; gap: 2px; align-content: start; }
+      .cisgrid .cell span { font-size: 11px; color: var(--h-dim); }
+      .cisgrid .cell b { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+      .cisgrid .cell b.big { font-size: 17px; }
+      .cisgrid .cell b.good { color: var(--h-ok); }
+      .cisgrid .cell b.badc { color: var(--h-danger); }
+      .cisgrid .cell b.warnc { color: var(--h-warn); }
+      .cisbadges { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--h-border); background: var(--h-soft); }
+      .badge { font-size: 11.5px; padding: 2px 8px; border: 1px solid var(--h-border); border-radius: 3px; background: var(--h-bg); }
+      .badge.amber { border-color: var(--h-warn); background: var(--h-warn-soft); color: var(--h-warn); }
+      .badge.green { border-color: var(--h-ok); background: var(--h-ok-soft); color: var(--h-ok); }
+      .badge.red { border-color: var(--h-danger); background: var(--h-danger-soft); color: var(--h-danger); }
       .uchart { width: 100%; height: auto; display: block; margin: 4px 0 2px; }
       .uchart .ulab { font-size: 11px; fill: var(--h-text); font-variant-numeric: tabular-nums; }
       .uchart .umon { font-size: 10.5px; fill: var(--h-dim); }
@@ -325,29 +343,42 @@ export class HorryMember extends LitElement {
     </div>`;
   }
 
+  /** Screen pop styled like the billing system's account header (Kristen 2026-10-29). */
   private renderHeader(d: DeskDto) {
     const m = d.member;
     const b = d.billing;
-    return html`<section class="card" aria-label="Member">
-      <div class="row between">
-        <div class="name">${m.name}</div>
+    const cell = (label: string, value: unknown, cls = '') => html`<div class="cell"><span>${label}</span><b class=${cls}>${value}</b></div>`;
+    return html`<section class="cis" aria-label="Member account">
+      <div class="cisbar">
+        <span><strong>Member account</strong> · billing system</span>
         <button @click=${() => this.openBilling()} title="Open the member's account in the billing system">Open billing screen ↗</button>
       </div>
-      <div class="row">
-        ${m.lifeSupport ? html`<span class="pill bad">Life support</span>` : nothing}
-        ${b?.onCutOffList ? html`<span class="pill bad">Disconnect pending</span>` : nothing}
-        ${d.outage ? html`<span class="pill warn">In outage</span>` : nothing}
-        ${b?.bankDraft ? html`<span class="pill ok">Bank draft</span>` : nothing}
-        ${b?.budgetAmount ? html`<span class="pill ok">Budget billing</span>` : nothing}
-        ${b?.paperless ? html`<span class="pill">Paperless</span>` : nothing}
-        <span class="pill">${m.status}</span>
+      <div class="cisgrid">
+        ${cell('Account / Sep', m.memberSep, 'big')}
+        ${cell('Member name', m.name, 'big')}
+        ${cell('Status', m.status, m.status === 'Active' ? 'good' : 'warnc')}
+        ${cell('Service address', m.address)}
+        ${cell('Primary phone', fmtPhone(m.cellPhone || m.homePhone))}
+        ${cell('Email', m.email || '—')}
+        ${b
+          ? html`${cell('Current balance', money(b.currentBalance), 'big')}
+              ${cell('Amount due', `${money(b.amountDue)} by ${b.dueDate}`)}
+              ${cell('Past due', money(b.pastDue), b.pastDue > 0 ? 'badc' : '')}
+              ${cell('Cut-off date', b.cutOffDate ?? 'None', b.cutOffDate ? 'badc' : '')}
+              ${cell('Last payment', b.lastPayment ? `${money(b.lastPayment)} on ${b.lastPaymentDate}` : '—')}
+              ${cell('Bill date', b.billDate || '—')}`
+          : cell('Billing', 'Billing system unavailable')}
       </div>
-      <dl class="kv">
-        <div><dt>Account</dt><dd>${m.memberSep}</dd></div>
-        <div><dt>Service address</dt><dd>${m.address}</dd></div>
-        <div><dt>Phone</dt><dd>${fmtPhone(m.cellPhone || m.homePhone)}</dd></div>
-        <div><dt>Rate · meter</dt><dd>${m.rate} · ${m.meter}</dd></div>
-      </dl>
+      <div class="cisbadges">
+        ${d.outage ? html`<span class="badge amber">Active outage ${d.outage.id}</span>` : nothing}
+        ${m.lifeSupport ? html`<span class="badge red">Life support</span>` : nothing}
+        ${b?.onCutOffList ? html`<span class="badge red">Disconnect pending</span>` : nothing}
+        ${b?.cardOnFile ? html`<span class="badge green">Card on file ${b.cardOnFile.brand} ••${b.cardOnFile.last4}</span>` : nothing}
+        ${b?.bankDraft ? html`<span class="badge green">Bank draft</span>` : nothing}
+        ${b?.budgetAmount ? html`<span class="badge green">Budget billing</span>` : nothing}
+        ${b?.paperless ? html`<span class="badge">Paperless</span>` : nothing}
+        <span class="badge">${m.rate} · meter ${m.meter}</span>
+      </div>
     </section>`;
   }
 

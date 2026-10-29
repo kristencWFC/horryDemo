@@ -32,6 +32,9 @@ export interface CallRow {
   channel: 'voice' | 'chat';
   startedAt: string;
   endedAt?: string;
+  /** Last time an agent's Member tab showed this call: the only end signal we get for calls that
+   *  go straight to an agent (no AI leg, no post-call webhook). */
+  agentSeenAt?: string;
   memberSep?: string;
   memberName?: string;
   stormMode: boolean;

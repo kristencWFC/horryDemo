@@ -109,6 +109,9 @@ const callReview = page('horry-call-review', 'Customer Review', 'analysis', {
 for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
   const p = base[persona];
   p.appTitle = 'Horry Electric Cooperative';
+  // Answering a call opens its workspace even from Web Chats / AI Operations (Kristen 2026-10-29);
+  // the ICON base (from the Acadian pull-to-work dialer) had true, which left agents on the page.
+  p.stopNavigateOnAcceptTask = false;
   const a = p.area;
 
   // Interaction panel: drop ICON's (md-tab, md-tab-panel) pair, keep Cisco's slot tabs.

@@ -73,8 +73,11 @@ function fromRow(r: CallRow): CallView {
   const topics = topicsFor(r.tags, r.escalation?.reason ?? '', text);
   const ai = r.channel === 'chat' || Boolean(r.conversationId || r.summary || r.escalation) || r.journey.some((j) => !j.step.startsWith('agent_') && j.step !== 'identified');
   // Agent-only calls never get an end time from us; after an hour, stop the clock at the last thing that happened.
-  const lastAt = Date.parse(r.journey.at(-1)?.at ?? r.startedAt);
-  const stale = !r.endedAt && Date.now() - Date.parse(r.startedAt) > 60 * 60_000;
+  // Agent-only calls: ended ~45 s after the agent's Member tab stopped showing the call; otherwise
+  // stop the clock an hour in at the last thing that happened.
+  const seen = r.agentSeenAt ? Date.parse(r.agentSeenAt) : 0;
+  const lastAt = Math.max(seen, Date.parse(r.journey.at(-1)?.at ?? r.startedAt));
+  const stale = !r.endedAt && ((seen > 0 && Date.now() - seen > 45_000) || Date.now() - Date.parse(r.startedAt) > 60 * 60_000);
   const end = r.endedAt ? Date.parse(r.endedAt) : stale ? lastAt : Date.now();
   return {
     id: r.guid,

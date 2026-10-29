@@ -220,6 +220,7 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     const q = req.query as { guid?: string; ani?: string; sep?: string };
     if (!q.guid && !q.ani && !q.sep) return reply.code(400).send({ found: false, error: 'guid, ani or sep required' });
     const { m, row } = await resolve(q);
+    if (row && q.guid && !row.endedAt) calls.patch(row, { agentSeenAt: new Date().toISOString() });
     if (!m) return reply.code(404).send({ found: false, error: 'No member matches this caller', call: row ? { guid: row.guid, ani: row.ani } : null });
     return snapshot(m, row ?? calls.all().find((r) => r.memberSep === m.MemberSep && !q.guid));
   });
