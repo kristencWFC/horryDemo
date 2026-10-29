@@ -3,3 +3,6 @@ node_modules/
 dist/
 packages/service/data/*.json
 !packages/service/data/*.seed.json
+
+# Reference screenshots (source for public/img crops)
+docs/Screenshot*.png
