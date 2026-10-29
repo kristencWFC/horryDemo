@@ -152,10 +152,12 @@
     <p style="margin-top:8px">Use two browsers (or one private window) for the two logins. Before each run: AI for all calls off, Storm Mode off, staffing back to normal, and <strong>Reset demo data</strong> in the <a href="https://kcdev2.workflowconcepts.com/horry/">Storm Console</a>.</p>
 
     <h3>Tests</h3>
+    <p>"Caller = Linda" means: before calling, set AI Operations → <strong>Demo caller</strong> to Linda and save. Your phone
+    number then counts as hers, so you never have to say who you are.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Test</th><th>Set up</th><th>Say</th><th>Expect</th></tr></thead>
       <tbody>
-        <tr><td><strong>A</strong> Normal day</td><td>Storm Mode off. Caller = David.</td><td>Anything</td><td>No AI. The billing agent rings with David's name and account.</td></tr>
+        <tr><td><strong>A</strong> Normal day</td><td>Both AI switches off. Caller = David.</td><td>Nothing to Savannah: the agent answers. Ask them anything about the bill.</td><td>No AI. The billing agent rings and their Member tab already shows David's account, found from your caller ID.</td></tr>
         <tr><td><strong>B</strong> Outage</td><td>Storm Mode on. Caller = Linda.</td><td>"My power's out."</td><td>Savannah greets Linda, confirms the known outage and estimate (about 2½ hours), offers a text. No agent rings. Then <strong>Mark restored</strong> in the Storm Console sends the "power is back" text.</td></tr>
         <tr><td><strong>C</strong> Wire down</td><td>Storm Mode on. Add <code>KC_Horry_Billing</code> to the outage queue. Caller = Marcus.</td><td>"There's a line down across my driveway."</td><td>Savannah gives the 35-foot safety warning and hands over. The billing agent rings at top priority with her summary.</td></tr>
         <tr><td><strong>D</strong> Payment</td><td>Storm Mode on. Caller = Linda (card on file) or Dorothy (link).</td><td>"I'd like to pay my bill."</td><td>Linda: say yes to the Visa ending 4242. Dorothy: open the link, pay with a test card, and Savannah reads back the confirmation.</td></tr>
