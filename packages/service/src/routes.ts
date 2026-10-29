@@ -98,9 +98,8 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       if (mode.get().aiAll) lines.push('You are answering every call today to help the team with a busy day. Ask what they are calling about and handle what you can (outages, balances, payments, extensions). Connect them with a person (escalate) whenever they ask or you cannot help.');
     }
     if (m && o) {
-      lines.push(storm
-        ? `There IS a known outage at this member's location (${o.area}); confirm it is what they are calling about.`
-        : `There is a known outage at this member's location (${o.area}). Do not bring it up; if they mention power or an outage, it is already known, so go straight to the facts.`);
+      // Ask once identity is confirmed, in both modes (Kristen 2026-10-29).
+      lines.push(`There IS a known outage at this member's location (${o.area}). As soon as they confirm their service address, ask: "I see there is an outage in your area. Is this the reason for your call?" If yes, call get_outage_status and give the facts; if no, ask how you can help.`);
     }
     // The cell we text: the demo text number (AI Operations) or the member's cell on file.
     const cell = textNumber(m);
@@ -113,8 +112,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
 
   function firstMessage(storm: boolean, m: Member | undefined, o: Outage | undefined): string {
     const open = `Thank you for calling Horry Electric Cooperative. This is ${ASSISTANT}, the co-op's virtual assistant.`;
-    // Outage-first greeting only in Storm Mode; with AI for all calls it's a normal day (Kristen 2026-10-29).
-    if (storm && m && o) return `${open} Hi ${m.FirstName} — are you calling about the power outage in the ${o.area.split(',')[0]} area?`;
+    // Known caller: identify first; the outage question comes after the address check (playbook).
     if (m) return `${open} Am I speaking with ${m.FirstName}?`;
     if (storm) return `${open} If you're calling to report an outage, I can help with that right away. What's going on?`;
     return `${open} How can I help you today?`;

@@ -488,8 +488,8 @@ export class HorrySupervisor extends LitElement {
       </div>
       <div class="state">${m ? (storm ? 'On: Savannah is answering outage calls' : 'Off') : 'Loading…'}</div>
       <div class="dim">
-        Savannah answers every call and leads with the outage: she greets members in an outage area by name, confirms
-        the restoration estimate and offers a text when power is back.
+        Savannah answers every call and leads with the outage: once a member confirms their address, she asks whether
+        the outage in their area is why they called, gives the restoration estimate and offers a text when power is back.
       </div>
       ${this.renderConfirm('storm', storm, {
         on: 'Turn Storm Mode on? New calls go to Savannah first, and she sends people to the outage queue when needed.',
