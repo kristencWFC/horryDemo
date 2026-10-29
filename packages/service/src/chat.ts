@@ -596,6 +596,33 @@ class ChatManager extends EventEmitter {
     return 'member_services';
   }
 
+  /** The agent's summary card (Kristen 2026-10-29): why it came to a person, what Savannah did
+   *  (from the tool journey, with the details), and the member's own last words before the hand-off. */
+  handoff(s: ChatSession): { reason: string; did: string[]; theirWords: string } {
+    const LABEL: Record<string, string> = {
+      identified: 'Identified the member', outage_known: 'Confirmed the known outage', outage_reported: 'Reported a new outage',
+      subscribed: 'Signed up for restoration texts', billing: 'Gave the balance', payment_link: 'Sent a secure payment link',
+      payment: 'Took a payment', payment_declined: 'Payment was declined', extension: 'Granted a payment extension',
+    };
+    const seen = new Set<string>();
+    const did = (this.d.calls.get(s.id)?.journey ?? [])
+      .filter((j) => LABEL[j.step] && !seen.has(j.step) && seen.add(j.step))
+      .map((j) => {
+        const detail = j.detail
+          .replace(/\s*\((web chat start form|from caller ID|lookup)\)/, '')
+          .replace(/\bsms to (\d{3})(\d{3})(\d{4})\b/, 'text to ($1) $2-$3')
+          .replace(/\s*for OMS-[\d-]+$/, '')
+          .replace(/^OMS-[\d-]+: /, '');
+        return `${LABEL[j.step]}${detail ? `: ${detail}` : ''}`;
+      });
+    const before = s.messages.filter((m) => m.role === 'visitor' && (!s.escalation || m.at <= s.escalation.at));
+    const theirWords = before.slice(-2).map((m) => m.text).join(' / ');
+    const reason = s.escalation
+      ? `${(DEPT_LABEL[s.escalation.department] ?? 'member services').replace(/^./, (c) => c.toUpperCase())} team · ${s.escalation.reason.replace(/_/g, ' ').replace(/^visitor /, '')}`
+      : s.status === 'ai' ? 'Still with Savannah' : '';
+    return { reason, did, theirWords };
+  }
+
   /** On close: the AI transcript, outcome and (if a person joined) the live-agent leg. */
   private finishRow(s: ChatSession, was: ChatStatus): void {
     const { calls } = this.d;
@@ -782,7 +809,7 @@ export function registerChat(f: FastifyInstance, d: Deps): void {
     const s = chat.get((req.params as { id: string }).id);
     if (!s) return reply.code(404).send({ error: 'unknown chat' });
     if ((req.query as { seen?: string }).seen === '1') chat.markSeen(s.id);
-    return { ...listView(s), contact: s.contact, escalation: s.escalation ?? null, messages: s.messages, journey: d.calls.get(s.id)?.journey ?? [] };
+    return { ...listView(s), contact: s.contact, escalation: s.escalation ?? null, messages: s.messages, journey: d.calls.get(s.id)?.journey ?? [], handoff: chat.handoff(s) };
   });
   f.post('/api/chats/:id/accept', async (req, reply) => {
     const b = (req.body ?? {}) as { agentName?: string; agentId?: string };

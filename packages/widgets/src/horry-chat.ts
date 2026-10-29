@@ -51,6 +51,7 @@ interface ChatDetail extends ChatRow {
   contact: string;
   messages: ChatMessage[];
   journey: { at: string; step: string; detail: string }[];
+  handoff?: { reason: string; did: string[]; theirWords: string };
 }
 
 interface MemberCard {
@@ -158,11 +159,27 @@ export class HorryChat extends LitElement {
       .m.system { align-self: center; font-size: 12px; color: var(--h-accent); background: var(--h-accent-soft); border-radius: 999px; padding: 3px 12px; text-align: center; }
       .m.system a { color: inherit; font-weight: 600; }
       .divider { align-self: stretch; text-align: center; font-size: 11px; color: var(--h-dim); border-top: 1px solid var(--h-border); padding-top: 4px; }
-      .composer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--h-border); }
+      /* Kristen 2026-10-29: summary on top, transcript scrolls in the middle, a roomy reply area with quick replies. */
+      .sum { margin: 10px 14px 0; padding: 10px 12px; border-radius: 8px; background: var(--h-soft); border: 1px solid var(--h-border);
+        border-left: 4px solid var(--h-accent); display: grid; gap: 6px; font-size: 13px; }
+      .sum h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--h-dim); }
+      .sum ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; overflow: visible; }
+      .sum li::before { content: '✓ '; color: var(--h-ok); font-weight: 700; }
+      .sum .why { font-weight: 600; }
+      .sum q { font-style: italic; }
+      .tlabel { padding: 8px 14px 0; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--h-dim); font-weight: 600; }
+      .msgs { border-top: 1px solid var(--h-border); border-bottom: 1px solid var(--h-border); margin: 4px 14px 0; border-radius: 6px;
+        border-left: 1px solid var(--h-border); border-right: 1px solid var(--h-border); background: var(--h-bg); }
+      .composer { display: grid; gap: 8px; padding: 10px 14px 12px; background: var(--h-soft); border-top: 1px solid var(--h-border); margin-top: 10px; }
+      .quick { display: flex; flex-wrap: wrap; gap: 6px; }
+      .quick button { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--h-bg); }
+      .quick button:hover { border-color: var(--h-accent); color: var(--h-accent); }
+      .send { display: flex; gap: 8px; align-items: flex-end; }
       textarea {
-        flex: 1; font: inherit; resize: none; padding: 7px 9px; border-radius: 6px; min-height: 38px;
+        flex: 1; font: inherit; resize: vertical; padding: 9px 11px; border-radius: 8px; min-height: 96px;
         border: 1px solid var(--h-border); background: var(--h-bg); color: var(--h-text);
       }
+      .send button { min-width: 84px; padding: 10px 14px; }
       .empty { margin: auto; text-align: center; color: var(--h-dim); padding: 24px; display: grid; gap: 6px; }
       .journey { font-size: 12px; color: var(--h-dim); }
     `,
@@ -332,13 +349,21 @@ export class HorryChat extends LitElement {
         </div>
         ${this.renderAccount(d)}
       </div>
+      ${this.renderHandoff(d)}
+      <div class="tlabel">Full conversation</div>
       <div class="msgs" aria-live="polite">
         ${d.messages.map((m) => html`${m.seq === escAt ? html`<div class="divider">Handed off by Savannah — everything above is the virtual assistant's part</div>` : nothing}${this.renderMsg(m)}`)}
       </div>
       ${mine
         ? html`<div class="composer">
+            <div class="quick" role="group" aria-label="Quick replies">
+              ${this.quickReplies(d).map(
+                (q) => html`<button type="button" title=${q.text} @click=${() => this.useQuick(q.text)}>${q.label}</button>`,
+              )}
+            </div>
+            <div class="send">
             <textarea
-              rows="2"
+              rows="4"
               aria-label="Reply to the member"
               placeholder="Reply to ${d.memberName ? titleCase(d.memberName).split(' ')[0] : 'the member'}…"
               .value=${this.draft}
@@ -351,6 +376,8 @@ export class HorryChat extends LitElement {
               }}
             ></textarea>
             <button class="primary" ?disabled=${!this.draft.trim() || !!this.busy} @click=${() => void this.act('send')}>Send</button>
+            </div>
+            <div class="dim" style="font-size:11.5px">Enter sends · Shift+Enter for a new line · a quick reply fills the box so you can edit it first</div>
           </div>`
         : othersChat
           ? html`<div class="note" style="margin:10px 14px">${d.agentName} has this chat.</div>`
@@ -358,6 +385,40 @@ export class HorryChat extends LitElement {
             ? html`<div class="dim" style="padding:10px 14px">This chat has ended.</div>`
             : nothing}
     `;
+  }
+
+  private renderHandoff(d: ChatDetail) {
+    const h = d.handoff;
+    if (!h || (!h.reason && !h.did.length && !h.theirWords)) return nothing;
+    return html`<div class="sum" aria-label="Summary">
+      <h3>Summary from Savannah</h3>
+      ${h.reason ? html`<div class="why">Why it came to you: ${h.reason}</div>` : nothing}
+      ${h.did.length ? html`<ul>${h.did.map((x) => html`<li>${x}</li>`)}</ul>` : html`<div class="dim">Savannah didn't complete anything on the account yet.</div>`}
+      ${h.theirWords ? html`<div>In their words: <q>${h.theirWords}</q></div>` : nothing}
+    </div>`;
+  }
+
+  private quickReplies(d: ChatDetail): { label: string; text: string }[] {
+    const me = this.me.split(/\s+/)[0] || this.me;
+    const member = d.memberName ? titleCase(d.memberName).split(' ')[0] : '';
+    const hi = member ? `Hi ${member}, this` : 'Hello, this';
+    return [
+      { label: 'Greeting', text: `${hi} is ${me} with Horry Electric. How can I help you today?` },
+      { label: 'I read your chat', text: `${hi} is ${me} with Horry Electric. I've read your conversation with Savannah, so you won't need to repeat anything.` },
+      { label: 'One moment', text: 'Let me check on that for you. One moment, please.' },
+      { label: 'Outage update', text: "I'll make sure you get a text as soon as your power is restored, and if the estimate changes." },
+      { label: 'Anything else?', text: 'Is there anything else I can help you with today?' },
+      { label: 'Closing', text: 'Thank you for chatting with Horry Electric Cooperative. Have a great day!' },
+    ];
+  }
+
+  private useQuick(text: string): void {
+    this.draft = text;
+    void this.updateComplete.then(() => {
+      const ta = this.renderRoot.querySelector('textarea');
+      ta?.focus();
+      ta?.setSelectionRange(text.length, text.length);
+    });
   }
 
   private renderAccount(d: ChatDetail) {

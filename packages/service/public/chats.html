@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Chats preview · Horry Electric</title>
+<style>
+  body { margin: 0; background: #e9edf2; font: 14px/1.4 system-ui, sans-serif; color: #1b2633; }
+  p { max-width: 1100px; margin: 14px auto 8px; padding: 0 16px; color: #5f6c7b; }
+  .frame { max-width: 1100px; height: 820px; margin: 0 auto 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); overflow: hidden; }
+</style>
+</head>
+<body>
+<p>Preview of the Web Chats page as it appears on the WxCC Desktop. Start a chat on <a href="site.html">the demo site</a>; actions here are real.</p>
+<div class="frame"><horry-chat id="w" agentname="Preview Agent"></horry-chat></div>
+<script>document.getElementById('w').setAttribute('server', new URL('.', location.href).href);</script>
+<script src="widgets/horry-widgets.js"></script>
+</body>
+</html>
