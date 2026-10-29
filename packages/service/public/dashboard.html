@@ -37,6 +37,17 @@
   header.top h1 { font-size: 18px; margin: 0; font-weight: 600; }
   header.top .sub { font-size: 12px; opacity: .85; }
   header.top label { font-size: 13px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .rangebar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--line, #d6dce4); font-size: 13px; }
+  .rangebar label { display: flex; gap: 6px; align-items: center; }
+  .rangebar select, .rangebar input { font: inherit; padding: 4px 6px; border: 1px solid var(--line, #d6dce4); border-radius: 6px; background: inherit; color: inherit; }
+  .rangebar .spacer { flex: 1; }
+  .rangebar .btn, .rangebar button { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--line, #d6dce4); border-radius: 6px; background: inherit; color: inherit; text-decoration: none; cursor: pointer; }
+  @media print {
+    .rangebar, .filters button, #more, #tip, header.top label { display: none !important; }
+    header.top { background: #fff !important; color: #000 !important; border-bottom: 2px solid #000; }
+    .panel { break-inside: avoid; }
+    body { background: #fff !important; }
+  }
   main { max-width: 1280px; margin: 0 auto; padding: 16px 20px 40px; display: grid; gap: 16px; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
   .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
@@ -128,6 +139,23 @@
   </div>
   <label><input type="checkbox" id="sample" checked> Include sample storm day (yesterday)</label>
 </header>
+<div class="rangebar" role="group" aria-label="Date range and export">
+  <label>Dates
+    <select id="preset">
+      <option value="all">All dates</option>
+      <option value="today">Today</option>
+      <option value="yesterday">Yesterday</option>
+      <option value="7">Last 7 days</option>
+      <option value="30">Last 30 days</option>
+      <option value="custom">Custom…</option>
+    </select>
+  </label>
+  <label>From <input type="date" id="from"></label>
+  <label>To <input type="date" id="to"></label>
+  <span class="spacer"></span>
+  <a id="csv" class="btn" href="api/analytics/export.csv" download>Download spreadsheet (CSV)</a>
+  <button type="button" id="print">Print / save as PDF</button>
+</div>
 
 <main>
   <section class="tiles" id="tiles" aria-label="Summary"></section>
@@ -186,19 +214,41 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const pct = (x) => `${Math.round(x * 100)}%`;
-  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  const day = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  const day = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const hourLbl = (h) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
 
   let data = null, topic = '', path = 'all', limit = 60;
 
+  // Date range (co-op time zone, Eastern). Presets fill From/To; editing either switches to Custom.
+  const TZ = 'America/New_York';
+  const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const daysAgo = (n) => ymd(new Date(Date.now() - n * 86400000));
+  function applyPreset(p) {
+    const r = { all: ['', ''], today: [daysAgo(0), daysAgo(0)], yesterday: [daysAgo(1), daysAgo(1)], 7: [daysAgo(6), daysAgo(0)], 30: [daysAgo(29), daysAgo(0)] }[p];
+    if (r) { $('from').value = r[0]; $('to').value = r[1]; }
+  }
+  function query() {
+    const q = new URLSearchParams({ sample: $('sample').checked ? '1' : '0' });
+    if ($('from').value) q.set('from', $('from').value);
+    if ($('to').value) q.set('to', $('to').value);
+    return q.toString();
+  }
+
   async function load() {
-    const res = await fetch(`api/analytics?sample=${$('sample').checked ? 1 : 0}`);
+    const q = query();
+    const res = await fetch(`api/analytics?${q}`);
     data = await res.json();
-    $('updated').textContent = `updated ${clock(data.generatedAt)}`;
+    $('csv').href = `api/analytics/export.csv?${q}`;
+    const f = $('from').value, t = $('to').value;
+    const span = !f && !t ? 'all dates' : f === t ? f : `${f || 'start'} to ${t || 'today'}`;
+    $('updated').textContent = `${span} · updated ${clock(data.generatedAt)}`;
     render();
   }
+  $('preset').addEventListener('change', () => { applyPreset($('preset').value); limit = 60; load(); });
+  for (const id of ['from', 'to']) $(id).addEventListener('change', () => { $('preset').value = 'custom'; limit = 60; load(); });
+  $('print').addEventListener('click', () => window.print());
 
   function tile(k, v, n, hero) {
     return `<div class="tile${hero ? ' hero' : ''}"><span class="k">${k}</span><span class="v">${v}</span><span class="n">${n}</span></div>`;
@@ -256,7 +306,7 @@
     $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
       <tr class="call" tabindex="0" data-id="${esc(c.id)}">
-        <td>${c.sample ? day(c.startedAt) + ' ' : ''}${clock(c.startedAt)}${c.sample ? '' : ' <span class="chip live">Live</span>'}</td>
+        <td>${day(c.startedAt)} ${clock(c.startedAt)}${c.sample ? '' : ' <span class="chip live">Live</span>'}</td>
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
         <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.channel === 'chat' ? '<span class="chip">web chat</span>' : ''}</td>
         <td><span class="path">${!c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>

@@ -17,7 +17,7 @@ import { twilioSignatureOk } from './sms.js';
 import type { Payments } from './payments.js';
 import type { ModeStore } from './mode.js';
 import type { StaffingStore } from './staffing.js';
-import { overview, callDetail } from './analytics.js';
+import { overview, callDetail, callsCsv } from './analytics.js';
 import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 
@@ -172,7 +172,21 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return { ...m, aiRouting: mode.aiRouting() };
   });
   // Call review dashboard (public/dashboard.html): AI leg + live-agent leg per call.
-  f.get('/api/analytics', async (req) => overview(calls.all(), String((req.query as { sample?: string }).sample ?? '1') !== '0'));
+  const rangeOf = (q: { from?: string; to?: string }) => {
+    const ok = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined);
+    return { from: ok(q.from), to: ok(q.to), tz };
+  };
+  f.get('/api/analytics', async (req) => {
+    const q = req.query as { sample?: string; from?: string; to?: string };
+    return overview(calls.all(), String(q.sample ?? '1') !== '0', rangeOf(q));
+  });
+  f.get('/api/analytics/export.csv', async (req, reply) => {
+    const q = req.query as { sample?: string; from?: string; to?: string };
+    const r = rangeOf(q);
+    const name = `horry-call-review-${r.from ?? 'all'}${r.to && r.to !== r.from ? `-to-${r.to}` : ''}.csv`;
+    reply.header('Content-Type', 'text/csv; charset=utf-8').header('Content-Disposition', `attachment; filename="${name}"`);
+    return callsCsv(calls.all(), String(q.sample ?? '1') !== '0', r);
+  });
   f.get('/api/analytics/calls/:id', async (req, reply) => {
     const v = callDetail(calls.all(), (req.params as { id: string }).id);
     return v ?? reply.code(404).send({ error: 'No such call' });

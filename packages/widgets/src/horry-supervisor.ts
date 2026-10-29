@@ -111,8 +111,17 @@ export class HorrySupervisor extends LitElement {
       .storm { display: grid; gap: 8px; }
       .group { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--h-muted, inherit); opacity: .8; margin: 6px 2px -4px; }
       .state { font-size: 18px; font-weight: 600; }
-      .state.on { color: var(--h-accent); }
+      .state.on { color: var(--h-ok); }
       .bigbtn { padding: 10px 16px; font-size: 14px; }
+      /* At a glance (Kristen 2026-10-29): green = turn on, red = turn off, ON/OFF badge by each title. */
+      button.go { background: var(--h-ok); border-color: var(--h-ok); color: #fff; font-weight: 600; }
+      button.stop { background: var(--h-danger); border-color: var(--h-danger); color: #fff; font-weight: 600; }
+      :host([darkmode='true']) button.go, :host([darkmode='true']) button.stop { color: #10161c; }
+      button.go:disabled, button.stop:disabled { opacity: .5; }
+      .status { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; padding: 2px 10px; border-radius: 999px; border: 1.5px solid var(--h-border); color: var(--h-dim); }
+      .status.on { background: var(--h-ok); border-color: var(--h-ok); color: #fff; }
+      .status.partial { background: var(--h-ok-soft); border-color: var(--h-ok); color: var(--h-ok); }
+      .titlerow { display: flex; align-items: center; gap: 10px; }
       input[type='text'], select {
         font: inherit; width: 100%; padding: 6px 8px; border-radius: 6px;
         border: 1px solid var(--h-border); background: var(--h-bg); color: var(--h-text);
@@ -353,7 +362,7 @@ export class HorrySupervisor extends LitElement {
       return html`<div class="note">
         ${on ? labels.askOff : labels.askOn}
         <div class="row" style="margin-top:6px">
-          <button class="primary" ?disabled=${!!this.busy} @click=${() => void this.setMode(which, !on)}>
+          <button class=${on ? 'stop' : 'go'} ?disabled=${!!this.busy} @click=${() => void this.setMode(which, !on)}>
             ${this.busy === which ? 'Updating…' : on ? 'Yes, turn it off' : 'Yes, turn it on'}
           </button>
           <button @click=${() => (this.confirm = '')}>Cancel</button>
@@ -361,7 +370,7 @@ export class HorrySupervisor extends LitElement {
       </div>`;
     }
     return html`<div class="row">
-      <button class="bigbtn ${on ? '' : 'primary'}" ?disabled=${!this.mode || !!this.busy} @click=${() => (this.confirm = which)}>
+      <button class="bigbtn ${on ? 'stop' : 'go'}" ?disabled=${!this.mode || !!this.busy} @click=${() => (this.confirm = which)}>
         ${on ? labels.off : labels.on}
       </button>
     </div>`;
@@ -379,7 +388,10 @@ export class HorrySupervisor extends LitElement {
           : 'Off: calls go straight to agents';
     return html`<section class="card storm" aria-label="AI agent">
       <div class="row between">
-        <h2>AI agent for all calls</h2>
+        <div class="titlerow">
+          <h2>AI agent for all calls</h2>
+          ${m ? html`<span class="status ${aiAll ? 'on' : storm ? 'partial' : ''}">${aiAll ? 'ON' : storm ? 'ON VIA STORM' : 'OFF'}</span>` : nothing}
+        </div>
         ${m ? html`<span class="pill ${WXCC_CLASS[m.wxcc]}" title=${m.wxccError}>${WXCC_LABEL[m.wxcc]}</span>` : nothing}
       </div>
       <div class="state ${aiAll || storm ? 'on' : ''}">${state}</div>
@@ -415,7 +427,10 @@ export class HorrySupervisor extends LitElement {
   private renderStorm(storm: boolean) {
     const m = this.mode;
     return html`<section class="card storm" aria-label="Storm Mode">
-      <h2>Storm Mode</h2>
+      <div class="titlerow">
+        <h2>Storm Mode</h2>
+        ${m ? html`<span class="status ${storm ? 'on' : ''}">${storm ? 'ON' : 'OFF'}</span>` : nothing}
+      </div>
       <div class="state ${storm ? 'on' : ''}">${m ? (storm ? 'ON: Savannah is answering outage calls' : 'Off') : 'Loading…'}</div>
       <div class="dim">
         Savannah answers every call and leads with the outage: she greets members in an outage area by name, confirms

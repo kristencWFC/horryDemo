@@ -70,7 +70,7 @@ Widgets: `npm run build` builds `packages/widgets/dist/horry-widgets.js`, served
 | Page | URL (under `https://kcdev2.workflowconcepts.com/horry/`) |
 | --- | --- |
 | Storm Console (demo caller, outages, texts, reset) | `/` |
-| Call review dashboard | `dashboard.html` |
+| Call review dashboard (date range, CSV download `api/analytics/export.csv?from=&to=`, print/PDF) | `dashboard.html` |
 | Demo co-op website + web chat bubble | `site.html` |
 | Presenter call-flow step-through (client-facing; also works opened from disk) | `call-flow.html` |
 | Mock billing-system screen | `billing.html?sep=<account>` |

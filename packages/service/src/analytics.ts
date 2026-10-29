@@ -9,6 +9,9 @@
 // flagged sample) fills the dashboard so it reads like a real storm before any live
 // calls exist; live calls are overlaid and marked live.
 import type { AgentLeg, CallRow } from './calls.js';
+import { env } from './env.js';
+
+const SAMPLE_TZ = env.BUSINESS_TIMEZONE;
 
 export const TOPICS = [
   'Wire down / safety',
@@ -152,10 +155,24 @@ const AGENT_LEG: Record<Topic, { code: string; reason: string; actions: string; 
 
 let sampleCache: { day: string; views: CallView[] } | null = null;
 
-/** ~250 calls on the day before today, the same every time for a given date. */
-export function sampleStormDay(now = new Date()): CallView[] {
-  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const key = day.toDateString();
+/** The instant when the wall clock in `tz` reads y-mo-d h:mi:s (mo 0-based). */
+function wallTime(y: number, mo: number, d: number, h: number, mi: number, s: number, tz: string): Date {
+  const guess = Date.UTC(y, mo, d, h, mi, s);
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(new Date(guess))
+      .map((x) => [x.type, x.value]),
+  );
+  const shown = Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!);
+  return new Date(guess - (shown - guess));
+}
+
+/** ~250 calls on the day before today in the co-op's time zone (6 AM-11 PM there, whatever
+ *  zone the server runs in), the same every time for a given date. */
+export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
+  const [yy, mm, dd] = localDay(new Date(now.getTime() - 86400000).toISOString(), tz).split('-').map(Number) as [number, number, number];
+  const day = { y: yy, mo: mm - 1, d: dd };
+  const key = `${yy}-${mm}-${dd}`;
   if (sampleCache?.day === key) return sampleCache.views;
   const r = rng(20261104);
   const pick = <T>(a: readonly T[]) => a[Math.floor(r() * a.length)] as T;
@@ -165,8 +182,7 @@ export function sampleStormDay(now = new Date()): CallView[] {
       let x = r();
       const m = MIX.find((t) => (x -= t.share) < 0) ?? MIX[0]!;
       const contained = r() < m.contain;
-      const start = new Date(day);
-      start.setHours(6 + i, Math.floor(r() * 60), Math.floor(r() * 60));
+      const start = wallTime(day.y, day.mo, day.d, 6 + i, Math.floor(r() * 60), Math.floor(r() * 60), tz);
       const s = r();
       const sentiment: CallView['sentiment'] = contained
         ? s < 0.38 ? 'positive' : s < 0.9 ? 'neutral' : 'negative'
@@ -252,13 +268,24 @@ export interface Overview {
   calls: Omit<CallView, 'journey' | 'transcript'>[];
 }
 
-export function viewsFor(rows: CallRow[], includeSample: boolean): CallView[] {
+/** Date range in the co-op's time zone; from/to are inclusive YYYY-MM-DD (either may be empty). */
+export interface Range { from?: string; to?: string; tz: string }
+
+export const localDay = (iso: string, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+const localHour = (iso: string, tz: string) => Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(new Date(iso)));
+
+export function viewsFor(rows: CallRow[], includeSample: boolean, range?: Range): CallView[] {
   const live = rows.filter((r) => !r.guid.startsWith('adhoc-') || r.journey.length > 0).map(fromRow);
-  return [...live, ...(includeSample ? sampleStormDay() : [])].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const inRange = (v: CallView) => {
+    if (!range || (!range.from && !range.to)) return true;
+    const d = localDay(v.startedAt, range.tz);
+    return (!range.from || d >= range.from) && (!range.to || d <= range.to);
+  };
+  return [...live, ...(includeSample ? sampleStormDay() : [])].filter(inRange).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
-export function overview(rows: CallRow[], includeSample: boolean): Overview {
-  const all = viewsFor(rows, includeSample);
+export function overview(rows: CallRow[], includeSample: boolean, range?: Range): Overview {
+  const all = viewsFor(rows, includeSample, range);
   // Savannah's numbers count only calls she answered; agent-only calls still list below.
   const views = all.filter((v) => v.ai);
   const contained = views.filter((v) => v.contained).length;
@@ -271,7 +298,7 @@ export function overview(rows: CallRow[], includeSample: boolean): Overview {
     .sort((a, b) => b.contained + b.toAgent - (a.contained + a.toAgent));
   const byHour = Array.from({ length: 24 }, (_, hour) => ({ hour, contained: 0, toAgent: 0 }));
   for (const v of views) {
-    const h = byHour[new Date(v.startedAt).getHours()]!;
+    const h = byHour[localHour(v.startedAt, range?.tz ?? SAMPLE_TZ)]!;
     if (v.contained) h.contained++;
     else h.toAgent++;
   }
@@ -311,4 +338,22 @@ export function callDetail(rows: CallRow[], id: string): CallView | undefined {
   if (id.startsWith('sample-')) return sampleStormDay().find((v) => v.id === id);
   const r = rows.find((x) => x.guid === id);
   return r ? fromRow(r) : undefined;
+}
+
+/** Spreadsheet of the calls in range (the dashboard's Download button). */
+export function callsCsv(rows: CallRow[], includeSample: boolean, range: Range): string {
+  const q = (s: unknown) => {
+    const t = String(s ?? '');
+    return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const time = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: range.tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+  const head = ['Date', 'Time', 'Member', 'Channel', 'Path', 'Why they called', 'Wrap-up code', 'Sentiment', 'Length (min:sec)', 'Restoration text', 'Payment', 'Savannah summary', 'Handed to', 'Agent summary', 'Sample'];
+  const lines = viewsFor(rows, includeSample, range).map((v) => [
+    localDay(v.startedAt, range.tz), time(v.startedAt), v.member, v.channel === 'chat' ? 'Web chat' : 'Phone',
+    !v.ai ? 'Agent only' : v.contained ? 'Savannah only' : 'Savannah to agent', v.topics.join('; '), v.agentLeg?.wrapUpCode ?? '',
+    v.sentiment, Math.floor(v.durationSec / 60) + ':' + String(v.durationSec % 60).padStart(2, '0'),
+    v.restorationSignup ? 'yes' : '', v.payment ? 'yes' : '', v.aiSummary, v.escalation ? v.escalation.department.replace('_', ' ') : '',
+    v.agentLeg ? [v.agentLeg.summary.reason, v.agentLeg.summary.actions].filter(Boolean).join(' ') : '', v.sample ? 'yes' : '',
+  ].map(q).join(','));
+  return '﻿' + [head.join(','), ...lines].join('\r\n'); // BOM so Excel reads UTF-8
 }
