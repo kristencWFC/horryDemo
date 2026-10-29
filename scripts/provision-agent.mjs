@@ -38,7 +38,10 @@
 // conversation_config and only swaps the fields we own. If a call is rejected, run
 // --dump on the template and compare with `--configure --dry-run` — the field names
 // to fix will be obvious.
-import 'dotenv/config';
+// .env wins over the shell: a stray TOOL_SHARED_SECRET from a local test server once got baked
+// into the live agent's webhooks and every call died on a missing first_message (2026-10-29).
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
