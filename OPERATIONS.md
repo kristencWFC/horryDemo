@@ -72,6 +72,7 @@ Widgets: `npm run build` builds `packages/widgets/dist/horry-widgets.js`, served
 | Storm Console (demo caller, outages, texts, reset) | `/` |
 | Call review dashboard | `dashboard.html` |
 | Demo co-op website + web chat bubble | `site.html` |
+| Presenter call-flow step-through (client-facing; also works opened from disk) | `call-flow.html` |
 | Mock billing-system screen | `billing.html?sep=<account>` |
 | Widget previews (no Desktop needed) | `supervisor.html`, `agent.html?ani=&id=&sep=`, `email.html?agent=` |
 
