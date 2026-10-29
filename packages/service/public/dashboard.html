@@ -99,6 +99,7 @@
   .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; margin: 0 4px 2px 0; }
   .chip.live { border-color: #1f8a4c; color: #1f8a4c; font-weight: 600; }
   .chip.sample { border-style: dashed; }
+  .chan { white-space: nowrap; font-size: 13px; }
   .path { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .dot.ai { background: var(--s-ai); } .dot.ag { background: var(--s-agent); }
@@ -217,7 +218,7 @@
     </div>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Time</th><th>Member</th><th>Why they called</th><th>Path</th><th>Wrap-up code</th><th>Sentiment</th><th class="num">Length</th></tr></thead>
+        <thead><tr><th>Time</th><th>Channel</th><th>Member</th><th>Why they called</th><th>Path</th><th>Wrap-up code</th><th>Sentiment</th><th class="num">Length</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
@@ -233,6 +234,7 @@
   const pct = (x) => `${Math.round(x * 100)}%`;
   const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   const day = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  const CHANNEL = { voice: '📞 Phone', chat: '💬 Web chat', sms: '✉️ Text (SMS)' };
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const hourLbl = (h) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
 
@@ -339,13 +341,14 @@
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
       <tr class="call" tabindex="0" data-id="${esc(c.id)}">
         <td>${day(c.startedAt)} ${clock(c.startedAt)}${c.sample ? ' <span class="chip sample" title="Made-up sample storm day">Sample</span>' : c.inProgress ? ' <span class="chip live">In progress</span>' : ''}</td>
+        <td><span class="chan">${CHANNEL[c.channel] || esc(c.channel)}</span></td>
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
-        <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.channel === 'chat' ? '<span class="chip">web chat</span>' : ''}</td>
+        <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</td>
         <td><span class="path">${!c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
         <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained || !c.ai ? '' : '<span class="empty">waiting for summary</span>'}</td>
         <td>${esc(c.sentiment)}</td>
         <td class="num">${mmss(c.durationSec)}</td>
-      </tr>`).join('') || '<tr><td colspan="7" class="empty">No calls match.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="8" class="empty">No conversations match.</td></tr>';
     $('more').hidden = rows.length <= limit;
   }
 
@@ -367,7 +370,7 @@
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:start">
           <div>
             <h2>${esc(c.member)}</h2>
-            <div class="meta">${day(c.startedAt)} ${clock(c.startedAt)} · ${mmss(c.durationSec)} · ${c.channel === 'chat' ? 'web chat' : 'phone'}${c.town ? ' · ' + esc(c.town) : ''}${c.sample ? ' · sample call' : ''}</div>
+            <div class="meta">${day(c.startedAt)} ${clock(c.startedAt)} · ${mmss(c.durationSec)} · ${(CHANNEL[c.channel] || c.channel).replace(/^\S+ /, '')}${c.town ? ' · ' + esc(c.town) : ''}${c.sample ? ' · sample call' : ''}</div>
             <div style="margin-top:6px">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}<span class="chip">${esc(c.sentiment)}</span></div>
           </div>
           <button type="button" id="close">Close</button>
