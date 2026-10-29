@@ -69,6 +69,13 @@
       }
     },
     {
+      "name": "send_receipt",
+      "description": "Text the member a receipt for the payment just made on this call (amount, card, confirmation number). Call when they ask for a receipt or say yes to your offer of one. Uses the cell number on file unless they give another.",
+      "params": {
+        "phone_number": { "type": "string", "description": "10-digit mobile number, digits only. Omit to use the cell number on file.", "required": false }
+      }
+    },
+    {
       "name": "start_keypad_payment",
       "description": "Start a secure keypad payment: the caller enters their card on the phone keypad into a PCI-certified payment service you cannot hear. Call after the caller agreed to the amount. If the response says keypad payments are unavailable, offer the text link instead.",
       "params": {

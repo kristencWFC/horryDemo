@@ -464,6 +464,21 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
   });
 
+  // Text receipt (Kristen 2026-10-29: a caller asked and Savannah had no way to send one).
+  tool('send-receipt', async (row, b) => {
+    const m = rowMember(row);
+    if (!m) return needMember;
+    const mine = payments.all().filter((p) => p.memberSep === m.MemberSep && p.status === 'approved');
+    const p = mine.find((x) => x.guid === row.guid) ?? mine[0];
+    if (!p) return { ok: false, next_step: 'There is no completed payment to send a receipt for. Tell them so.' };
+    const phone = last10(String(b.phone_number ?? '')) || textNumber(m) || last10(row.ani);
+    if (phone.length !== 10) return { ok: false, next_step: 'Ask which cell number to text the receipt to, then call send_receipt with it.' };
+    const card = p.last4 ? `${cardBrand(p.cardType ?? null)} ending ${p.last4}` : 'your card';
+    await sms.send(phone, `Horry Electric receipt: payment of ${money(p.amount)} received on ${card} for account ending ${m.MemberSep.slice(-4)}. Confirmation ${p.confirmation ?? ''}. Thank you, ${m.FirstName}!`, 'receipt');
+    calls.step(row, 'receipt', `receipt for ${money(p.amount)} texted to ${phone}`);
+    return { ok: true, phone: digits(phone), next_step: `Tell them the receipt is on its way to the cell ending ${digits(phone.slice(-4))}. Ask if there is anything else.` };
+  });
+
   tool('start-keypad-payment', async (row, b) => {
     calls.step(row, 'keypad_unavailable', `keypad payment requested (${money(Number(b.amount))}) — Twilio Pay not configured`);
     return { available: false, next_step: 'Keypad payments are not available on this line right now. Offer to text a secure payment link instead (send_payment_link).' };
