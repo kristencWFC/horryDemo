@@ -276,6 +276,12 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       if (!toolAuth(req, reply)) return;
       const b = (req.body ?? {}) as ToolBody;
       const row = calls.resolve(String(b.call_guid ?? ''), String(b.caller_id ?? ''), mode.get().storm);
+      // Caller ID already tells us who this is (incl. the demo phone): bind it so no tool ever
+      // sends Savannah back to ask for an account number (Kristen 2026-10-29).
+      if (!row.memberSep && (row.ani || b.caller_id)) {
+        const m = await memberByAni(row.ani || String(b.caller_id)).catch(() => undefined);
+        if (m) calls.patch(row, { memberSep: m.MemberSep, memberName: displayName(m) });
+      }
       try {
         const out = await fn(row, b);
         console.log(`HORRY TOOL ${row.guid} ${name} ${JSON.stringify(b).slice(0, 160)} → ${JSON.stringify(out).slice(0, 200)}`);
@@ -286,7 +292,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       }
     });
   };
-  const needMember = { ok: false, error: 'member_not_identified', next_step: 'You do not know who this is yet. Ask for the service address or account number and call lookup_member.' };
+  const needMember = { ok: false, error: 'member_not_identified', next_step: 'You do not know who this is yet. Ask for the service address (not the account number) and call lookup_member.' };
 
   tool('lookup-member', async (row, b) => {
     let m: Member | undefined;
@@ -305,7 +311,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
         found: false,
         next_step: misses >= 2
           ? 'Two lookups failed. Offer to connect them with member services (escalate department member_services, reason account_not_found).'
-          : 'No match. Ask for a different detail: the service address, or the account number from their bill.',
+          : 'No match. Ask for a different detail: the service address, or the phone number on the account. Ask for the account number only if they offer it.',
       };
     }
     calls.patch(row, { memberSep: m.MemberSep, memberName: displayName(m) });
