@@ -72,7 +72,8 @@
     <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · WxCC demo · Kristen Christopher · 2026-10-28 · in build</div>
     <h1>Horry Electric Demo</h1>
     <p class="lede">Wednesday, November 4 at 10:00 AM ET. A supervisor turns on Storm Mode with one button, and Savannah,
-    our AI agent, answers outage calls, finds the member's account and signs them up for a restoration text. Bills and
+    our AI agent, answers outage calls, finds the member's account and signs them up for a restoration text. On a busy
+    day without a storm, a second button puts Savannah on every call. Bills and
     payments use their NextGen CIS billing system, and no one ever reads a card number out loud.</p>
     <div class="note"><strong>Demo line: (972) 430-9658.</strong> Storm Mode on: Savannah answers first and leads with the outage. AI for all calls on: Savannah answers first with an everyday greeting (busy days, bill due dates). Both off: calls go straight to the billing agent.</div>
   </header>
@@ -103,7 +104,8 @@
           <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
         </defs>
         <path class="edge" id="e-sup-wxcc" d="M255 92 L255 168" marker-end="url(#ah)"/>
-        <text class="elabel" x="263" y="135">Storm Mode on</text>
+        <text class="elabel" x="263" y="128">AI on: Storm Mode</text>
+        <text class="elabel" x="263" y="143">or all calls</text>
         <path class="edge" id="e-caller-wxcc" d="M142 200 L178 200" marker-end="url(#ah)"/>
         <path class="edge" id="e-wxcc-fs" d="M332 200 L348 200" marker-end="url(#ah)"/>
         <path class="edge" id="e-fs-el" d="M532 200 L568 200" marker-end="url(#ah)"/>
@@ -114,18 +116,18 @@
         <path class="edge" id="e-wxcc-agent" d="M255 232 L255 318" marker-end="url(#ah)"/>
         <text class="elabel" x="263" y="280">queue</text>
         <path class="edge" id="e-el-back" d="M645 232 L645 350 L334 350" marker-end="url(#ah)"/>
-        <text class="elabel" x="420" y="342">hand back with what Savannah collected</text>
-        <path class="edge" id="e-cis-agent" d="M875 92 L875 380 L334 380" marker-end="url(#ah)"/>
+        <text class="elabel" x="370" y="342">hand back with what Savannah collected</text>
+        <path class="edge" id="e-cis-agent" d="M962 60 L982 60 L982 380 L334 380" marker-end="url(#ah)"/>
         <text class="elabel" x="560" y="398">account and billing on the agent's screen</text>
 
-        <g class="node" id="n-sup"><rect x="180" y="30" width="150" height="62" rx="6"/><text class="t" x="196" y="56">Supervisor</text><text class="s" x="196" y="76">Storm Mode button</text></g>
+        <g class="node" id="n-sup"><rect x="180" y="30" width="150" height="62" rx="6"/><text class="t" x="196" y="56">Supervisor</text><text class="s" x="196" y="76">AI Operations page</text></g>
         <g class="node" id="n-caller"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Member</text><text class="s" x="36" y="216">calls in</text></g>
-        <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">checks Storm Mode</text></g>
+        <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">checks AI switch</text></g>
         <g class="node" id="n-fs"><rect x="350" y="170" width="180" height="62" rx="6"/><text class="t" x="364" y="196">WFC AI Controller</text><text class="s" x="364" y="216">bridge to the AI</text></g>
         <g class="node" id="n-el"><rect x="570" y="170" width="150" height="62" rx="6"/><text class="t" x="586" y="196">Savannah (AI)</text><text class="s" x="586" y="216">WFC AI Agent</text></g>
         <g class="node" id="n-svc"><rect x="570" y="30" width="150" height="62" rx="6"/><text class="t" x="586" y="56">Horry service</text><text class="s" x="586" y="76">outages · payments</text></g>
         <g class="node" id="n-cis"><rect x="790" y="30" width="170" height="62" rx="6"/><text class="t" x="806" y="56">NextGen CIS</text><text class="s" x="806" y="76">accounts · billing</text></g>
-        <g class="node" id="n-sms"><rect x="790" y="170" width="170" height="62" rx="6"/><text class="t" x="806" y="196">Texts</text><text class="s" x="806" y="216">restoration · pay link</text></g>
+        <g class="node" id="n-sms"><rect x="790" y="170" width="170" height="62" rx="6"/><text class="t" x="806" y="196">Texts</text><text class="s" x="806" y="216">restored · pay link</text></g>
         <g class="node" id="n-agent"><rect x="180" y="320" width="150" height="62" rx="6"/><text class="t" x="196" y="346">Live agent</text><text class="s" x="196" y="366">desktop widgets</text></g>
       </svg>
     </div>
@@ -236,8 +238,8 @@
 <script>
   const scenarios = [
     { name: 'Storm Mode, outage known', steps: [
-      { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'The supervisor clicks Storm Mode on their desktop. The flow now sends members to Savannah.' },
-      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Linda calls. The flow sees Storm Mode is on and looks up who is calling.' },
+      { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'The supervisor turns on Storm Mode on the AI Operations page. The flow now sends members to Savannah.' },
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Linda calls. The flow sees the AI switch is on and looks up who is calling.' },
       { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The WFC AI Controller connects the call to Savannah. She greets Linda by name and already knows her area is out.' },
       { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'Savannah confirms the service address. The outage is already reported: Socastee, 1,240 members, a tree on the line, about 2½ hours.' },
       { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Linda asks for a text. She gets one if the estimate changes and another when power is back. If she replies OUT, a new ticket opens.' },
@@ -255,8 +257,16 @@
       { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Dorothy has no card on file, so Savannah texts her a secure payment link. She pays on her phone and no card number is spoken.' },
       { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'Savannah checks the payment and confirms the new balance. A note goes on the account.' }
     ]},
+    { name: 'Busy day, AI for all calls', steps: [
+      { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'No storm, but bills are due and the office is short-staffed. The supervisor turns on AI for all calls on the AI Operations page.' },
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'David calls. The flow sees the AI switch is on and sends him to Savannah.' },
+      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'Savannah answers with the everyday greeting, not the outage one: "How can I help you today?"' },
+      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'He asks what he owes. Savannah reads his balance and due date, and on his yes charges the Mastercard on file and reads the confirmation.' },
+      { nodes: ['el', 'agent'], edges: ['e-el-back'], text: 'He has one more question and asks for a person. Savannah hands him to the billing queue with what she collected.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The agent sees his account and the payment Savannah already took, so he never repeats himself.' }
+    ]},
     { name: 'Normal day', steps: [
-      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Storm Mode is off, so the flow routes the call as it does on any normal day.' },
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Both AI switches are off, so the flow routes the call as it does on any normal day.' },
       { nodes: ['wxcc', 'agent'], edges: ['e-wxcc-agent'], text: 'The call queues to the billing agent.' },
       { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: "The member's account shows on the agent's screen with balance, due date, usage and outage status." }
     ]}
