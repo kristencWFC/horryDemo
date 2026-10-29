@@ -32,6 +32,8 @@ export interface CallView {
   channel: 'voice' | 'chat';
   primaryTopic: Topic;
   topics: Topic[];
+  /** Savannah took part (false = Storm Mode / AI for all calls was off: straight to an agent). */
+  ai: boolean;
   contained: boolean; // Savannah finished it, no person needed
   sentiment: 'positive' | 'neutral' | 'negative';
   durationSec: number;
@@ -64,7 +66,11 @@ export function topicsFor(tags: string[], reason: string, text: string): Topic[]
 function fromRow(r: CallRow): CallView {
   const text = [r.summary, r.escalation?.summary, r.agentLeg?.summary.reason, r.agentLeg?.summary.actions].filter(Boolean).join(' ');
   const topics = topicsFor(r.tags, r.escalation?.reason ?? '', text);
-  const end = r.endedAt ? Date.parse(r.endedAt) : Date.now();
+  const ai = r.channel === 'chat' || Boolean(r.conversationId || r.summary || r.escalation) || r.journey.some((j) => !j.step.startsWith('agent_') && j.step !== 'identified');
+  // Agent-only calls never get an end time from us; after an hour, stop the clock at the last thing that happened.
+  const lastAt = Date.parse(r.journey.at(-1)?.at ?? r.startedAt);
+  const stale = !r.endedAt && Date.now() - Date.parse(r.startedAt) > 60 * 60_000;
+  const end = r.endedAt ? Date.parse(r.endedAt) : stale ? lastAt : Date.now();
   return {
     id: r.guid,
     sample: false,
@@ -74,10 +80,11 @@ function fromRow(r: CallRow): CallView {
     channel: r.channel,
     primaryTopic: topics[0] ?? 'Other',
     topics,
-    contained: !r.escalation,
+    ai,
+    contained: ai && !r.escalation,
     sentiment: r.sentiment ?? 'neutral',
     durationSec: r.durationSec ?? Math.max(0, Math.round((end - Date.parse(r.startedAt)) / 1000)),
-    aiSummary: r.summary ?? r.outcome ?? (r.endedAt ? '' : 'Call in progress'),
+    aiSummary: r.summary ?? r.outcome ?? (!ai ? '' : r.endedAt || stale ? '' : 'Call in progress'),
     restorationSignup: r.tags.includes('restoration_signup'),
     payment: r.tags.includes('payment'),
     journey: r.journey,
@@ -176,6 +183,7 @@ export function sampleStormDay(now = new Date()): CallView[] {
       views.push({
         id,
         sample: true,
+        ai: true,
         startedAt: start.toISOString(),
         member: name,
         town,
@@ -235,6 +243,7 @@ export interface Overview {
     payments: number;
     avgAiSec: number;
     live: number;
+    agentOnly: number;
   };
   topics: { topic: Topic; contained: number; toAgent: number }[];
   byHour: { hour: number; contained: number; toAgent: number }[];
@@ -249,7 +258,9 @@ export function viewsFor(rows: CallRow[], includeSample: boolean): CallView[] {
 }
 
 export function overview(rows: CallRow[], includeSample: boolean): Overview {
-  const views = viewsFor(rows, includeSample);
+  const all = viewsFor(rows, includeSample);
+  // Savannah's numbers count only calls she answered; agent-only calls still list below.
+  const views = all.filter((v) => v.ai);
   const contained = views.filter((v) => v.contained).length;
   const topics = TOPICS.map((topic) => ({
     topic,
@@ -282,6 +293,7 @@ export function overview(rows: CallRow[], includeSample: boolean): Overview {
       payments: views.filter((v) => v.payment).length,
       avgAiSec: Math.round(views.reduce((a, v) => a + (v.contained ? v.durationSec : Math.min(v.durationSec, 240)), 0) / n),
       live: views.filter((v) => !v.sample).length,
+      agentOnly: all.length - views.length,
     },
     topics,
     byHour: first < 0 ? [] : byHour.slice(first, last + 1),
@@ -291,7 +303,7 @@ export function overview(rows: CallRow[], includeSample: boolean): Overview {
       negative: views.filter((v) => v.sentiment === 'negative').length,
     },
     wrapUps: [...codes].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count),
-    calls: views.map(({ journey: _j, transcript: _t, ...rest }) => rest),
+    calls: all.map(({ journey: _j, transcript: _t, ...rest }) => rest),
   };
 }
 

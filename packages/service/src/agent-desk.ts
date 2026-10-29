@@ -88,7 +88,19 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
   const settingsStore = new JsonStore<{ demoAni: string; demoMemberSep: string }>(join(d.dataDir, 'settings.json'));
   const settings = () => ({ demoAni: '2142823566', demoMemberSep: '00212040001', ...(settingsStore.load() ?? {}) });
 
+  /** The Desktop knows the caller even when the flow's call-context arrived without an ANI:
+   *  stamp the call row so the dashboard and contact history name the member (2026-10-29). */
   async function resolve(q: { guid?: string; ani?: string; sep?: string }): Promise<{ m?: Member; row?: CallRow }> {
+    const out = await lookup(q);
+    const { m, row } = out;
+    if (m && row && !row.memberSep) {
+      const ani = last10(q.ani);
+      calls.patch(row, { memberSep: m.MemberSep, memberName: displayName(m), ...(ani.length === 10 && !row.ani ? { ani } : {}) });
+    }
+    return out;
+  }
+
+  async function lookup(q: { guid?: string; ani?: string; sep?: string }): Promise<{ m?: Member; row?: CallRow }> {
     const row = q.guid ? calls.get(q.guid) : undefined;
     if (row?.memberSep) return { m: members.bySep(row.memberSep), row };
     if (q.sep) {

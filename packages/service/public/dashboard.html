@@ -167,6 +167,7 @@
       <button type="button" data-path="all" aria-pressed="true">All</button>
       <button type="button" data-path="ai" aria-pressed="false">Resolved by Savannah</button>
       <button type="button" data-path="agent" aria-pressed="false">Sent to an agent</button>
+      <button type="button" data-path="direct" aria-pressed="false">Agent only (AI off)</button>
       <button type="button" id="clearTopic" hidden>Clear topic filter</button>
     </div>
     <div class="tablewrap">
@@ -206,7 +207,7 @@
   function render() {
     const k = data.kpis;
     $('tiles').innerHTML =
-      tile('Calls Savannah answered', k.calls.toLocaleString(), k.live ? `${k.live} live today` : 'sample day') +
+      tile('Calls Savannah answered', k.calls.toLocaleString(), k.live || k.agentOnly ? `${k.live} live today${k.agentOnly ? ` · ${k.agentOnly} more went straight to agents` : ''}` : 'sample day') +
       tile('Containment rate', pct(k.containmentRate), `${k.contained} finished without a person`, true) +
       tile('Sent to a live agent', k.toAgent.toLocaleString(), 'with Savannah\'s notes on screen') +
       tile('Restoration sign-ups', k.restorationSignups.toLocaleString(), 'text when power is back') +
@@ -250,7 +251,7 @@
 
   function renderRows() {
     const rows = data.calls.filter((c) =>
-      (!topic || c.topics.includes(topic)) && (path === 'all' || (path === 'ai' ? c.contained : !c.contained)));
+      (!topic || c.topics.includes(topic)) && (path === 'all' || (path === 'ai' ? c.contained : path === 'agent' ? c.ai && !c.contained : !c.ai)));
     $('clearTopic').hidden = !topic;
     $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
@@ -258,8 +259,8 @@
         <td>${c.sample ? day(c.startedAt) + ' ' : ''}${clock(c.startedAt)}${c.sample ? '' : ' <span class="chip live">Live</span>'}</td>
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
         <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.channel === 'chat' ? '<span class="chip">web chat</span>' : ''}</td>
-        <td><span class="path"><span class="dot ai"></span>${c.contained ? 'Savannah only' : 'Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
-        <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained ? '' : '<span class="empty">waiting for summary</span>'}</td>
+        <td><span class="path">${!c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
+        <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained || !c.ai ? '' : '<span class="empty">waiting for summary</span>'}</td>
         <td>${esc(c.sentiment)}</td>
         <td class="num">${mmss(c.durationSec)}</td>
       </tr>`).join('') || '<tr><td colspan="7" class="empty">No calls match.</td></tr>';
@@ -272,7 +273,9 @@
     const c = await res.json();
     const a = c.agentLeg;
     const src = a ? (a.source === 'cisco' ? 'Cisco AI Assistant' : a.source === 'posted' ? 'Cisco AI Assistant (from the desktop)' : 'Simulated for the demo') : '';
-    const story = c.contained
+    const story = !c.ai
+      ? 'AI was off for this call (Storm Mode and AI for all calls both off), so it went straight to an agent.'
+      : c.contained
       ? `Savannah handled this call from start to finish. ${esc(c.aiSummary)}`
       : `Savannah started the call${c.escalation ? ` and sent it to ${esc(c.escalation.department.replace('_', ' '))} (${esc(c.escalation.reason.replace(/_/g, ' '))})` : ''}. ${a ? `The agent ${esc(a.summary.actions.charAt(0).toLowerCase() + a.summary.actions.slice(1))} Status: ${esc(a.summary.status || 'n/a')}.` : 'The live agent\'s summary will appear here when Cisco publishes it.'}`;
     const scrim = document.createElement('div');
