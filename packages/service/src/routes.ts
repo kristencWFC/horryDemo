@@ -97,7 +97,11 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       lines.push('Normal operations: callers may be calling about billing, payments, service requests or an outage.');
       if (mode.get().aiAll) lines.push('You are answering every call today to help the team with a busy day. Ask what they are calling about and handle what you can (outages, balances, payments, extensions). Connect them with a person (escalate) whenever they ask or you cannot help.');
     }
-    if (m && o) lines.push(`There IS a known outage at this member's location (${o.area}); confirm it is what they are calling about.`);
+    if (m && o) {
+      lines.push(storm
+        ? `There IS a known outage at this member's location (${o.area}); confirm it is what they are calling about.`
+        : `There is a known outage at this member's location (${o.area}). Do not bring it up; if they mention power or an outage, it is already known, so go straight to the facts.`);
+    }
     // The cell we text: the demo text number (AI Operations) or the member's cell on file.
     const cell = textNumber(m);
     if (m && cell) lines.push(`Cell number on file for texts: ending ${cell.slice(-4).split('').join(' ')}. Offer it instead of asking for a number.`);
@@ -109,7 +113,8 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
 
   function firstMessage(storm: boolean, m: Member | undefined, o: Outage | undefined): string {
     const open = `Thank you for calling Horry Electric Cooperative. This is ${ASSISTANT}, the co-op's virtual assistant.`;
-    if (m && o) return `${open} Hi ${m.FirstName} — are you calling about the power outage in the ${o.area.split(',')[0]} area?`;
+    // Outage-first greeting only in Storm Mode; with AI for all calls it's a normal day (Kristen 2026-10-29).
+    if (storm && m && o) return `${open} Hi ${m.FirstName} — are you calling about the power outage in the ${o.area.split(',')[0]} area?`;
     if (m) return `${open} Am I speaking with ${m.FirstName}?`;
     if (storm) return `${open} If you're calling to report an outage, I can help with that right away. What's going on?`;
     return `${open} How can I help you today?`;
