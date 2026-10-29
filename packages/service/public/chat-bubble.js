@@ -9,46 +9,46 @@
 
   const CSS = `
   #hecc-bubble { position: fixed; right: 22px; bottom: 22px; height: 56px; padding: 0 22px 0 18px; border-radius: 28px;
-    border: none; background: #c2521b; color: #fff; font: 600 15px/1 'IBM Plex Sans', system-ui, sans-serif; cursor: pointer;
+    border: none; background: #0d5ba8; color: #fff; font: 600 15px/1 Roboto, system-ui, sans-serif; cursor: pointer;
     box-shadow: 0 8px 24px rgba(20, 30, 40, .3); z-index: 900; display: inline-flex; align-items: center; gap: 9px; }
   #hecc-bubble:hover { filter: brightness(1.06); }
   #hecc-bubble svg { width: 22px; height: 22px; }
   #hecc-panel { position: fixed; right: 22px; bottom: 90px; width: min(380px, calc(100vw - 32px)); height: min(590px, calc(100vh - 120px));
     background: #fffdf9; color: #1d1b18; border: 1px solid #e2dccf; border-radius: 14px; box-shadow: 0 18px 50px rgba(20, 30, 40, .28);
-    display: none; flex-direction: column; overflow: hidden; z-index: 901; font: 15px/1.5 'IBM Plex Sans', system-ui, sans-serif; text-align: left; }
+    display: none; flex-direction: column; overflow: hidden; z-index: 901; font: 15px/1.5 Roboto, system-ui, sans-serif; text-align: left; }
   #hecc-panel.open { display: flex; }
-  #hecc-panel .phead { background: #123a5e; color: #fff; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  #hecc-panel .phead { background: #0d5ba8; color: #fff; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
   #hecc-panel .pdot { width: 9px; height: 9px; border-radius: 50%; background: #58d68d; flex: none; }
   #hecc-panel .pwho { font-weight: 600; font-size: 14px; }
   #hecc-panel .psub { font-size: 11.5px; opacity: .8; }
   #hecc-panel .pbtns { margin-left: auto; display: flex; align-items: center; gap: 6px; }
   #hecc-panel .pclose { border: none; background: transparent; color: #fff; font-size: 18px; cursor: pointer; padding: 2px 6px; }
-  #hecc-end { background: transparent; color: rgba(255,255,255,.85); font: 600 11px 'IBM Plex Sans', sans-serif; letter-spacing: .04em;
+  #hecc-end { background: transparent; color: rgba(255,255,255,.85); font: 600 11px Roboto, sans-serif; letter-spacing: .04em;
     cursor: pointer; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35); }
   #hecc-start { padding: 20px 18px; display: flex; flex-direction: column; gap: 10px; }
   #hecc-start p { margin: 0 0 4px; color: #6b655c; font-size: 13.5px; }
   #hecc-start label { font-size: 12px; color: #6b655c; margin-bottom: -6px; }
   #hecc-start input { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid #d9d2c4; border-radius: 8px; background: #fff; }
-  #hecc-start button { font: inherit; font-weight: 600; padding: 11px; border: none; border-radius: 8px; background: #c2521b; color: #fff; cursor: pointer; margin-top: 4px; }
+  #hecc-start button { font: inherit; font-weight: 600; padding: 11px; border: none; border-radius: 8px; background: #0d5ba8; color: #fff; cursor: pointer; margin-top: 4px; }
   #hecc-start .fine { font-size: 11.5px; color: #8a8378; margin: 2px 0 0; }
   #hecc-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: none; flex-direction: column; gap: 8px; background: #f7f4ee; }
   #hecc-msgs .m { max-width: 84%; padding: 8px 12px; border-radius: 12px; font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
-  #hecc-msgs .m.visitor { align-self: flex-end; background: #123a5e; color: #fff; border-bottom-right-radius: 3px; }
+  #hecc-msgs .m.visitor { align-self: flex-end; background: #0d5ba8; color: #fff; border-bottom-right-radius: 3px; }
   #hecc-msgs .m.assistant, #hecc-msgs .m.agent { align-self: flex-start; background: #fff; border: 1px solid #e2dccf; border-bottom-left-radius: 3px; }
   #hecc-msgs .m.agent { border-left: 3px solid #2f7d4f; }
   #hecc-msgs .m .who { display: block; font-size: 10.5px; font-weight: 600; color: #6b655c; margin-bottom: 2px; }
   #hecc-msgs .m.system { align-self: center; background: #fbeee4; color: #8e3a12; font-size: 12px; border-radius: 999px; padding: 5px 14px; text-align: center; }
-  #hecc-msgs .m.system a { display: inline-block; margin-top: 6px; background: #c2521b; color: #fff; text-decoration: none; font-weight: 600; padding: 6px 14px; border-radius: 8px; }
+  #hecc-msgs .m.system a { display: inline-block; margin-top: 6px; background: #0d5ba8; color: #fff; text-decoration: none; font-weight: 600; padding: 6px 14px; border-radius: 8px; }
   #hecc-msgs .m.typing { align-self: flex-start; background: #fff; border: 1px solid #e2dccf; color: #6b655c; letter-spacing: 3px; }
   #hecc-chips { display: none; flex-wrap: wrap; gap: 7px; padding: 8px 12px 2px; background: #f7f4ee; }
   #hecc-chips button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 12px; cursor: pointer;
-    border: 1.5px solid #c2521b; border-radius: 999px; background: #fff; color: #c2521b; }
-  #hecc-chips button:hover { background: #c2521b; color: #fff; }
+    border: 1.5px solid #0d5ba8; border-radius: 999px; background: #fff; color: #0d5ba8; }
+  #hecc-chips button:hover { background: #0d5ba8; color: #fff; }
   #hecc-composer { display: none; gap: 8px; padding: 10px 12px; border-top: 1px solid #e2dccf; background: #fffdf9; }
   #hecc-composer input { flex: 1; font: inherit; font-size: 14px; padding: 9px 12px; border: 1px solid #d9d2c4; border-radius: 8px; }
-  #hecc-composer button { font: inherit; font-weight: 600; padding: 9px 16px; border: none; border-radius: 8px; background: #c2521b; color: #fff; cursor: pointer; }
+  #hecc-composer button { font: inherit; font-weight: 600; padding: 9px 16px; border: none; border-radius: 8px; background: #0d5ba8; color: #fff; cursor: pointer; }
   #hecc-note { font-size: 12.5px; color: #6b655c; text-align: center; padding: 10px 12px 12px; background: #fffdf9; display: none; border-top: 1px solid #e2dccf; }
-  #hecc-note button { display: block; margin: 8px auto 0; font: inherit; font-weight: 600; font-size: 13px; padding: 8px 16px; border: 0; border-radius: 8px; background: #c2521b; color: #fff; cursor: pointer; }
+  #hecc-note button { display: block; margin: 8px auto 0; font: inherit; font-weight: 600; font-size: 13px; padding: 8px 16px; border: 0; border-radius: 8px; background: #0d5ba8; color: #fff; cursor: pointer; }
   `;
 
   let root = null;

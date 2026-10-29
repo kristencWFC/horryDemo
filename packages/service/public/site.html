@@ -3,140 +3,197 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Horry Electric Cooperative — demo site</title>
+<title>Home - Horry Electric Cooperative Inc (demo)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-  /* Demo stand-in for the member website: our own simple styling, no real logo or images. */
-  :root { --navy:#123a5e; --navy2:#0d2c48; --ink:#1d1b18; --muted:#6b655c; --line:#e2dccf; --paper:#f7f4ee; --card:#fffdf9; --accent:#c2521b; --ok:#2f7d4f; }
+  /* Demo stand-in modeled on the co-op's home page (docs/ screenshot, 2026-10-29). Logo + hero photo are
+     cropped from that screenshot; everything else is ours. */
+  :root { --blue:#0d5ba8; --blue2:#094a8c; --green:#00844a; --yellow:#fbc02d; --red:#d6262f; --ink:#222; --muted:#555;
+          --dark:#1c1c1c; --foot:#2d2d2d; --line:#e3e3e3; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
-  a { color: var(--navy); }
-  .demo { background:#1d1b18; color:#f1ece3; font:12px "IBM Plex Mono", monospace; text-align:center; padding:6px 16px; letter-spacing:.02em; }
-  header { background:#fff; border-bottom:1px solid var(--line); }
-  .wrap { max-width:1100px; margin:0 auto; padding:0 20px; }
-  .top { display:flex; align-items:center; gap:18px; padding:14px 0; flex-wrap:wrap; }
-  .logo { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--navy); }
-  .mark { width:38px; height:38px; border-radius:8px; background:var(--navy); color:#fff; display:grid; place-items:center; font-weight:700; font-size:15px; letter-spacing:.02em; }
-  .logo b { display:block; font-size:17px; line-height:1.1; }
-  .logo small { display:block; font-size:11.5px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
-  nav { margin-left:auto; display:flex; gap:18px; flex-wrap:wrap; font-size:14px; }
-  nav a { text-decoration:none; color:var(--ink); font-weight:500; }
-  nav a:hover { color:var(--accent); }
-  .alert { background:#fbeee4; border-bottom:1px solid #f0d3bd; color:#8e3a12; font-size:14px; }
-  .alert .wrap { padding:9px 20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .alert b { font-weight:600; }
-  .hero { background:linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%); color:#fff; }
-  .hero .wrap { padding:54px 20px 60px; display:grid; grid-template-columns: 1.3fr 1fr; gap:36px; align-items:center; }
-  .hero h1 { margin:0 0 12px; font-size:clamp(28px, 4vw, 40px); line-height:1.15; font-weight:600; }
-  .hero p { margin:0 0 22px; color:#d6e1ec; max-width:52ch; }
-  .btns { display:flex; gap:10px; flex-wrap:wrap; }
-  .btn { display:inline-block; text-decoration:none; font-weight:600; padding:12px 20px; border-radius:8px; border:1.5px solid transparent; cursor:pointer; font:inherit; font-weight:600; }
-  .btn.primary { background:var(--accent); color:#fff; }
-  .btn.ghost { border-color:rgba(255,255,255,.55); color:#fff; background:transparent; }
-  .quick { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:12px; padding:18px; }
-  .quick h2 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#a9c3df; font-weight:600; }
-  .quick a { display:flex; justify-content:space-between; align-items:center; color:#fff; text-decoration:none; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.14); font-weight:500; }
-  .quick a:last-child { border-bottom:0; }
-  .quick a span { color:#a9c3df; font-size:13px; }
-  main .wrap { padding:36px 20px 54px; display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:18px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
-  .card h3 { margin:0 0 6px; font-size:17px; color:var(--navy); font-weight:600; }
-  .card p { margin:0 0 12px; color:var(--muted); font-size:14px; }
-  .map { grid-column: 1 / -1; display:grid; grid-template-columns: 1fr 280px; gap:18px; align-items:stretch; }
-  .mapbox { border:1px dashed #b9b09f; border-radius:10px; min-height:220px; display:grid; place-items:center; color:var(--muted);
-    background: repeating-linear-gradient(45deg, #f2eee6 0 12px, #efe9df 12px 24px); font:13px "IBM Plex Mono", monospace; text-align:center; padding:16px; }
-  .stats { display:grid; gap:10px; align-content:start; }
-  .stat { border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#fff; }
-  .stat b { display:block; font-size:22px; color:var(--navy); }
-  .stat span { font-size:12.5px; color:var(--muted); }
-  footer { border-top:1px solid var(--line); background:#fff; color:var(--muted); font-size:13px; }
-  footer .wrap { padding:20px; display:flex; gap:20px; flex-wrap:wrap; justify-content:space-between; }
+  body { margin:0; background:#fff; color:var(--ink); font:16px/1.5 Roboto, system-ui, sans-serif; }
+  a { color: var(--blue); }
+  .demo { background:#111; color:#eee; font-size:12px; text-align:center; padding:6px 16px; }
+  .wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
+
+  header .top { display:flex; align-items:center; gap:24px; padding:14px 24px 6px; flex-wrap:wrap; }
+  header .logo img { height:88px; width:auto; display:block; }
+  .util { margin-left:auto; display:flex; gap:clamp(18px, 5vw, 70px); flex-wrap:wrap; align-items:center; }
+  .util a { display:flex; gap:12px; align-items:center; text-decoration:none; color:var(--ink); }
+  .util svg { width:24px; height:24px; fill:var(--blue); flex:none; }
+  .util b { display:block; font-size:13.5px; font-weight:500; }
+  .util i { display:block; font-size:12px; color:var(--muted); }
+  .util a:nth-child(2) i { color:var(--blue); }
+  .peak { text-align:right; color:var(--red); font-weight:500; font-size:15px; padding:0 170px 6px 24px; }
+  nav.main { background:linear-gradient(105deg, var(--blue) 0 80%, var(--green) 80% 100%); }
+  nav.main .wrap { display:flex; align-items:center; gap:clamp(14px, 3.4vw, 56px); padding:14px 24px; flex-wrap:wrap; }
+  nav.main a { color:#fff; text-decoration:none; font-size:12px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+  nav.main a::after { content:" \2304"; font-size:11px; }
+  nav.main a.acct { margin-left:auto; background:#fff; color:var(--blue); padding:6px 14px; }
+  nav.main a.acct::after { content:" \1F512"; font-size:11px; }
+
+  .hero { position:relative; background:#cfd8df url("img/horry-hero.jpg") center/cover no-repeat; min-height:clamp(220px, 30vw, 420px); }
+  .hero .card { position:absolute; left:clamp(16px, 5vw, 64px); top:50%; transform:translateY(-50%); max-width:420px;
+    background:rgba(255,255,255,.94); padding:22px 24px; border-top:5px solid var(--green); box-shadow:0 8px 30px rgba(0,0,0,.18); }
+  .hero h1 { margin:0 0 8px; font-size:clamp(22px, 2.6vw, 30px); line-height:1.2; color:var(--blue); }
+  .hero p { margin:0 0 16px; color:var(--muted); font-size:15px; }
+  .btn { display:inline-block; font:inherit; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:.03em;
+    padding:11px 20px; border:2px solid var(--blue); background:var(--blue); color:#fff; cursor:pointer; text-decoration:none; }
+  .btn.ghost { background:#fff; color:var(--blue); }
+
+  .circles { display:flex; justify-content:center; gap:clamp(18px, 6vw, 90px); flex-wrap:wrap; margin-top:-46px; position:relative; padding:0 16px; }
+  .circles a { display:flex; flex-direction:column; align-items:center; gap:8px; text-decoration:none; color:var(--blue); font-weight:500; font-size:14px; width:120px; text-align:center; }
+  .circles span { width:92px; height:92px; border-radius:50%; background:var(--blue); border:5px solid #fff; display:grid; place-items:center; box-shadow:0 3px 10px rgba(0,0,0,.2); }
+  .circles svg { width:40px; height:40px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+
+  .reminder { background:var(--yellow); text-align:center; padding:10px 40px; margin-top:22px; position:relative; }
+  .reminder b { display:block; text-decoration:underline; font-size:15px; }
+  .reminder span { font-size:14.5px; }
+
+  .featured { background:var(--green); padding:40px 0 48px; }
+  .featured h2, .rec h2 { text-align:center; font-size:36px; font-weight:500; margin:0 0 26px; }
+  .featured h2 { color:#fff; }
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:22px; }
+  .fcard { background:#fff; display:grid; grid-template-columns:96px 1fr; gap:14px; padding:12px 12px 46px; position:relative; min-height:170px; }
+  .fcard .pic { background:var(--blue); display:grid; place-items:center; color:#fff; font-weight:700; font-size:13px; text-align:center; padding:8px; }
+  .fcard .pic.y { background:var(--yellow); color:var(--dark); }
+  .fcard .pic.g { background:#5b2a86; }
+  .fcard h3 { margin:0 0 8px; font-weight:400; font-size:19px; line-height:1.15; color:var(--blue); }
+  .fcard p { margin:0; font-size:14.5px; }
+  .go { position:absolute; right:12px; bottom:10px; width:30px; height:30px; border-radius:50%; background:var(--blue); color:#fff;
+    display:grid; place-items:center; text-decoration:none; font-size:16px; border:0; cursor:pointer; }
+
+  .rec { padding:40px 0 52px; }
+  .rec .grid3 { max-width:900px; margin:0 auto; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); }
+  .rcard { box-shadow:0 2px 8px rgba(0,0,0,.18); position:relative; padding-bottom:44px; }
+  .rcard .band { height:120px; display:grid; place-items:center; }
+  .rcard .band svg { width:58px; height:58px; fill:none; stroke:#fff; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .rcard p { margin:0; padding:16px 16px 0; font-size:14.5px; }
+
+  .glance { background:linear-gradient(120deg, var(--dark) 0 76%, var(--yellow) 76% 100%); color:#fff; padding:52px 0 60px; }
+  .glance h2 { margin:0 0 30px; font-size:34px; font-weight:500; }
+  .stats { display:flex; gap:clamp(24px, 6vw, 70px); flex-wrap:wrap; max-width:72%; }
+  .stat { text-align:center; min-width:110px; }
+  .stat svg { width:40px; height:40px; fill:none; stroke:var(--yellow); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .stat b { display:block; font-size:22px; margin:10px 0 18px; }
+  .stat span { font-size:14px; }
+  .glance em { display:block; font-size:12.5px; margin-top:12px; }
+
+  footer { background:var(--foot); color:#fff; padding:36px 0 26px; }
+  footer h2 { display:flex; align-items:center; justify-content:center; gap:26px; font-weight:400; font-size:30px; margin:0 0 30px; }
+  footer h2::before, footer h2::after { content:""; width:74px; height:1px; background:#fff; }
+  .contacts { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:20px; padding-bottom:22px; border-bottom:1px solid #555; }
+  .contacts div { display:flex; gap:10px; font-size:14px; }
+  .contacts svg { width:22px; height:22px; fill:var(--yellow); flex:none; }
+  .contacts small { display:block; color:var(--yellow); font-size:12.5px; }
+  .legal { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:16px; font-size:12.5px; color:#ccc; }
+  .legal a { color:#fff; text-decoration:none; margin-left:16px; }
+
   @media (max-width: 760px) {
-    .hero .wrap { grid-template-columns: 1fr; padding:36px 16px 40px; }
-    .map { grid-template-columns: 1fr; }
-    nav { margin-left:0; }
-    .wrap { padding-left:16px; padding-right:16px; }
+    .wrap { padding:0 16px; }
+    header .top { padding:12px 16px 4px; }
+    header .logo img { height:64px; }
+    .util { margin-left:0; }
+    .peak { text-align:left; padding:0 16px 6px; }
+    nav.main { background:var(--blue); }
+    nav.main a.acct { margin-left:0; }
+    .hero { min-height:0; padding:16px; background-size:cover; }
+    .hero .card { position:static; transform:none; max-width:none; }
+    .circles { margin-top:18px; }
+    .glance { background:var(--dark); }
+    .stats { max-width:none; }
   }
 </style>
 </head>
 <body>
-  <div class="demo">DEMO SITE — built by Workflow Concepts for a Webex Contact Center demonstration. Not the cooperative's real website; members and data are fictional.</div>
+  <div class="demo">DEMO SITE: built by Workflow Concepts for a Webex Contact Center demonstration. Not the cooperative's live website; members and data are fictional.</div>
+
   <header>
-    <div class="wrap top">
-      <a class="logo" href="#"><span class="mark">HE</span><span><b>Horry Electric</b><small>Cooperative · Conway, SC</small></span></a>
-      <nav aria-label="Main">
-        <a href="#outages">Outages</a>
-        <a href="#billing">Pay My Bill</a>
-        <a href="#start">Start / Stop Service</a>
-        <a href="#programs">Energy Programs</a>
-        <a href="#" onclick="horryChat.open();return false;">Contact</a>
-      </nav>
+    <div class="top">
+      <a class="logo" href="#"><img src="img/horry-logo.png" alt="Horry Electric Cooperative"></a>
+      <div class="util">
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="8.5" r="2.6"/><path d="M2 19c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6zM13.5 19c.2-2.2-.5-3.9-1.6-5 .9-.4 1.8-.6 2.8-.6 2.9 0 5.3 2 5.3 5.6z"/></svg><span><b>About Us</b><i>Meet The Co-op</i></span></a>
+        <a href="#" onclick="horryChat.open();return false;"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><span><b>Contact Us</b><i>Get In Touch</i></span></a>
+        <a href="#outages"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2zM9 19h6v1.5a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 20.5z"/></svg><span><b>Outage Viewer</b><i>Stay Up-To-Date</i></span></a>
+      </div>
     </div>
+    <div class="peak">Winter Peak Hours: 6-9 a.m. (Nov. – Mar.)</div>
+    <nav class="main" aria-label="Main">
+      <div class="wrap">
+        <a href="#">Services</a>
+        <a href="#billing">Members</a>
+        <a href="#">Energy Programs</a>
+        <a href="#">Community &amp; News</a>
+        <a href="#outages">Outage Center</a>
+        <a href="#">Vegetation Management</a>
+        <a class="acct" href="#billing">My Account</a>
+      </div>
+    </nav>
   </header>
-  <div class="alert" id="alert"><div class="wrap"><b>Outage update:</b> <span id="alertText">Crews are working outages in our service area. Check the outage map or chat with us for your address.</span></div></div>
 
   <section class="hero">
+    <div class="card">
+      <h1>We're here for you, day or night.</h1>
+      <p>Report an outage, check restoration status, pay your bill or ask for a payment extension. Chat with us right here.</p>
+      <button class="btn" type="button" onclick="horryChat.open()">Chat with us</button>
+      <a class="btn ghost" href="#outages">Outage Center</a>
+    </div>
+  </section>
+
+  <div class="circles">
+    <a href="#billing" onclick="horryChat.open();return false;"><span><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M3 10h18M7 14h4"/></svg></span>Pay My Bill</a>
+    <a href="#outages" onclick="horryChat.open();return false;"><span><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/><path d="M12 7v4"/></svg></span>Report an Outage</a>
+    <a href="#outages"><span><svg viewBox="0 0 24 24"><path d="M12 3v11M12 18v.5" stroke-width="3"/></svg></span>Outage Viewer</a>
+    <a href="#start"><span><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>Start / Stop Service</a>
+  </div>
+
+  <div class="reminder" id="alert"><b id="alertHead">IMPORTANT REMINDER</b><span id="alertText">Winter peak hours begin November 1. Peak hours will be from 6-9 a.m. (November 1 - March 31).</span></div>
+
+  <section class="featured" id="billing">
     <div class="wrap">
-      <div>
-        <h1>Your member-owned electric cooperative, serving Horry County.</h1>
-        <p>Report an outage, check restoration status, pay your bill or set up a payment arrangement — online, by phone, or by chatting with us right here.</p>
-        <div class="btns">
-          <button class="btn primary" type="button" onclick="horryChat.open()">Chat with us</button>
-          <a class="btn ghost" href="#outages">Report an outage</a>
-        </div>
-      </div>
-      <div class="quick">
-        <h2>Quick links</h2>
-        <a href="#billing">Pay my bill <span>→</span></a>
-        <a href="#outages">Report an outage <span>843-369-2212</span></a>
-        <a href="#outages">Outage map <span>→</span></a>
-        <a href="#start">Start, stop or move service <span>→</span></a>
+      <h2>Featured</h2>
+      <div class="grid3">
+        <div class="fcard"><div class="pic">Storm Center</div><div><h3>Report an outage by chat</h3><p>Tell us your address and we'll tell you if the outage is known, when power is expected back, and text you when it's on.</p></div><button class="go" type="button" onclick="horryChat.open()" aria-label="Chat">›</button></div>
+        <div class="fcard"><div class="pic y">Pay My Bill</div><div><h3>Payments &amp; extensions</h3><p>Check your balance, pay securely or ask for a few extra days, any time of day.</p></div><button class="go" type="button" onclick="horryChat.open()" aria-label="Chat">›</button></div>
+        <div class="fcard"><div class="pic g">Rest Easy</div><div><h3>Levelized billing</h3><p>Even out seasonal highs and lows with the same predictable amount each month.</p></div><a class="go" href="#" aria-label="Learn more">›</a></div>
       </div>
     </div>
   </section>
 
-  <main>
+  <section class="rec" id="start">
     <div class="wrap">
-      <div class="card map" id="outages">
-        <div>
-          <h3>Outage map</h3>
-          <p>Live outage areas by substation and circuit.</p>
-          <div class="mapbox">Outage map placeholder<br>(the real site embeds the co-op's outage map here)</div>
-        </div>
-        <div class="stats">
-          <div class="stat"><b id="sOut">—</b><span>members without power</span></div>
-          <div class="stat"><b id="sAreas">—</b><span>active outage areas</span></div>
-          <div class="stat"><b>105,000+</b><span>members served</span></div>
-        </div>
-      </div>
-      <div class="card" id="billing">
-        <h3>Pay my bill</h3>
-        <p>Pay online, set up bank draft or Rest Easy levelized billing, or ask for a payment extension.</p>
-        <a href="#" onclick="horryChat.open();return false;">Ask about my bill →</a>
-      </div>
-      <div class="card">
-        <h3>Report an outage</h3>
-        <p>Call 843-369-2212, text OUT, or chat with us — we'll tell you if it's already known and text you when it's restored.</p>
-        <a href="#" onclick="horryChat.open();return false;">Check my address →</a>
-      </div>
-      <div class="card" id="start">
-        <h3>Start, stop or move service</h3>
-        <p>New to the area or moving within it? Member services can set it up.</p>
-        <a href="#">Service requests →</a>
-      </div>
-      <div class="card" id="programs">
-        <h3>Energy programs</h3>
-        <p>Rebates, energy audits and tips to keep your bill steady through the seasons.</p>
-        <a href="#">Learn more →</a>
+      <h2>Recommended for You</h2>
+      <div class="grid3">
+        <div class="rcard"><div class="band" style="background:var(--green)"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20V9l6-5 6 5v11M10 20v-6h4v6"/></svg></div><p>The goal during an outage is to restore service to as many members as possible.</p><a class="go" href="#outages" aria-label="Learn more">›</a></div>
+        <div class="rcard"><div class="band" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div><p>There is power in storm preparation. Preparing can help reduce stress and anxiety.</p><a class="go" href="#" aria-label="Learn more">›</a></div>
+        <div class="rcard"><div class="band" style="background:#3c6e3a"><svg viewBox="0 0 24 24"><path d="M12 22V12M7 12l5-9 5 9zM5 17l7-8 7 8z"/></svg></div><p>A clear right-of-way minimizes outages, plus improves power quality, reliability, and safety.</p><a class="go" href="#" aria-label="Learn more">›</a></div>
       </div>
     </div>
-  </main>
+  </section>
+
+  <section class="glance" id="outages">
+    <div class="wrap">
+      <h2>Outages at a Glance</h2>
+      <div class="stats">
+        <div class="stat"><svg viewBox="0 0 24 24"><path d="M3 18a9 9 0 1 1 18 0zM12 18l4-6"/></svg><b id="sOut">—</b><span>Members without power</span></div>
+        <div class="stat"><svg viewBox="0 0 24 24"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg><b id="sAreas">—</b><span>Active outage areas</span></div>
+        <div class="stat"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><b>24/7</b><span>Outages: 843-369-2212</span></div>
+      </div>
+      <em>Updated live from the outage system.</em>
+    </div>
+  </section>
 
   <footer>
     <div class="wrap">
-      <span><strong>Horry Electric Cooperative</strong> · demo site · Conway, South Carolina</span>
-      <span>Workflow Concepts demo — fictional members and data.</span>
+      <h2>Stay Connected</h2>
+      <div class="contacts">
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span><small>Conway Office</small>2774 Cultra Road<br>Conway, SC 29526</span></div>
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span><small>Socastee Office</small>5889 Hwy 707<br>Myrtle Beach, SC 29588</span></div>
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span><small>Mailing Address</small>PO Box 119<br>Conway, SC 29528</span></div>
+        <div><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><span><small>Phone</small>843-369-2211</span></div>
+      </div>
+      <div class="legal"><span>Horry Electric Cooperative · Workflow Concepts demo, fictional members and data</span><span><a href="#">Privacy Policy</a><a href="#">Terms and Conditions</a></span></div>
     </div>
   </footer>
 
@@ -149,8 +206,10 @@
       const act = outages.filter((o) => o.status === 'active');
       document.getElementById('sOut').textContent = act.reduce((n, o) => n + (o.customers || 0), 0).toLocaleString();
       document.getElementById('sAreas').textContent = String(act.length);
-      if (act.length) document.getElementById('alertText').textContent = act.length + ' active outage' + (act.length === 1 ? '' : 's') + ', including ' + act[0].area + '. Chat with us to check your address.';
-      else document.getElementById('alert').style.display = 'none';
+      if (act.length) {
+        document.getElementById('alertHead').textContent = 'OUTAGE UPDATE';
+        document.getElementById('alertText').textContent = act.length + ' active outage' + (act.length === 1 ? '' : 's') + ', including ' + act[0].area + '. Chat with us to check your address.';
+      }
     } catch { /* static copy stands */ }
   })();
 </script>

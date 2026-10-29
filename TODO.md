@@ -5,6 +5,8 @@ Nick confirming).
 
 ## STATE (handoff)
 
+2026-10-29 — demo site restyled to the co-op's real home page (`site.html`, logo + hero cropped from docs/ screenshot; chat bubble in co-op blue); card-on-file wording tightened + agent patched.
+
 2026-10-28 night — **live on kc-dev-2 and taking calls; overnight build added the agent
 member card + billing screen pop, web chat and the email pick board (commit d6b6a78, not
 deployed yet).**
@@ -83,7 +85,7 @@ deployed yet).**
 
 ## Phase 4 — payments
 
-- [x] Card on file (`saleWithProfile`), secure link (`pay.html` → token sale)
+- [x] Card on file (`saleWithProfile`), secure link (`pay.html` → token sale). 2026-10-29: Savannah reads the real brand + last four ("Visa ending 4 2 4 2"), says "one moment", reads the confirmation. Demo: call as Linda (Visa 4242) or David (Mastercard 1881)
 - [ ] (deferred 2026-10-28: changes the shared FS controller every AI demo runs through and can't
       be tested without live calls — talk track for Nov 4; Savannah no longer offers keypad)
       **Keypad pay for the demo: freeSWITCH collects digits** (pause Savannah, play_and_get_digits,
@@ -109,6 +111,7 @@ deployed yet).**
 - [ ] Agent widget: capture the AI Assistant wrap-up summary from the Desktop SDK and POST it
       (the live path if the REST endpoint isn't available)
 - [ ] Real voice restoration callbacks (ElevenLabs outbound) — simulated today
+- [ ] LAST (Kristen 2026-10-29): inbound text replies (Twilio inbound) — hard to add, may not be needed
 - [ ] Agent data-collection fields (sentiment, call_reason) for post-call analysis
 - [ ] Email inbox beat (optional), storm roster page (optional)
 - [x] **Outage queue staffing** (discovery item 3; Kristen 2026-10-28: add the extra staff's
@@ -120,7 +123,7 @@ deployed yet).**
       `<horry-email>` page: pick/assign/release, template drafts from the member's data, send
       (simulated, account note logged), Storm Mode outage-group bulk reply. Drafts for tree
       trimming / transfer / medical promise actions nothing performs — read before sending.
-- [ ] **Show Cisco's auto wrap-up summary** (Kristen 2026-10-28) — WxCC AI Assistant
+- [x] **Show Cisco's auto wrap-up summary** — Kristen 2026-10-29: it already shows on the live agent's Desktop; dashboard copy stays simulated until the API is confirmed. (was: Kristen 2026-10-28) — WxCC AI Assistant
       generates the call summary + wrap-up code when a live agent ends the call. Enable AI
       Assistant auto-summary on the Horry team/queues and show it after the escalated call
       (pairs with our "what the AI did" widget: ours = the AI leg, Cisco's = the agent leg).

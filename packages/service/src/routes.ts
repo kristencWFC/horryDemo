@@ -41,6 +41,8 @@ interface Settings {
 const ASSISTANT = 'Savannah';
 const money = (n: number | null | undefined) => `$${(n ?? 0).toFixed(2)}`;
 const digits = (s: string) => s.replace(/\D/g, '').split('').join(' ');
+// "VISA" → "Visa", "MASTERCARD" → "Mastercard" (Savannah reads it aloud).
+const cardBrand = (b: string | null) => (b ? b.charAt(0) + b.slice(1).toLowerCase() : 'card');
 
 export function registerRoutes(f: FastifyInstance, d: Deps): void {
   const { members, nextgen, outages, calls, sms, payments, mode } = d;
@@ -418,7 +420,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       return { status: 'declined', next_step: 'The card on file was declined. Offer the secure text link to use a different card.' };
     }
     calls.step(row, 'payment', `${money(amount)} approved — card on file ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
-    return { status: 'approved', amount, card: `${s.cardType} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} payment on the ${s.cardType} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
+    return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
   });
 
   tool('start-keypad-payment', async (row, b) => {
@@ -627,7 +629,7 @@ function billingSummary(fin: Financial, m: Member, kwh: number, kwhLy: number) {
     extension_allowed: fin.AllowArrangementFlag,
     bank_draft: fin.ChkProfileExists,
     rest_easy_levelized: (fin.BudgetOrLevelizedBillAmount ?? 0) > 0 ? money(fin.BudgetOrLevelizedBillAmount) : 'no',
-    card_on_file: fin.CardProfileExists ? `card ending ${fin.Last4CcDigits}` : 'none',
+    card_on_file: fin.CardProfileExists ? `${cardBrand(m.CardBrand)} ending ${digits(fin.Last4CcDigits ?? '')}` : 'none',
     usage_last_30_days_kwh: kwh,
     usage_same_period_last_year_kwh: kwhLy,
     usage_change_vs_last_year: `${pct >= 0 ? 'up' : 'down'} ${Math.abs(pct)} percent`,
