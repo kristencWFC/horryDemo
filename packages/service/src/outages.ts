@@ -116,7 +116,19 @@ export class OutageStore extends EventEmitter {
   }
 
   active(): Outage[] {
-    return this.all().filter((o) => o.status === 'active');
+    const act = this.all().filter((o) => o.status === 'active');
+    // Demo safety: an active outage whose estimate has passed (e.g. seeded yesterday) rolls
+    // forward to 2½ hours from now, so Savannah never reads yesterday's time (2026-10-29).
+    const now = Date.now();
+    let rolled = false;
+    for (const o of act) {
+      if (o.etr && Date.parse(o.etr) < now) {
+        o.etr = new Date(Math.ceil((now + 2.5 * 3600_000) / 300_000) * 300_000).toISOString();
+        rolled = true;
+      }
+    }
+    if (rolled) this.save();
+    return act;
   }
 
   get(id: string): Outage | undefined {

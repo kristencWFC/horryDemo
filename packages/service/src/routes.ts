@@ -69,6 +69,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return infos[0] ? members.bySep(String(infos[0].MemberSep)) : undefined;
   }
 
+  /** Where restoration texts go unless the caller gives another number. */
+  const textNumber = (m: Member | undefined): string => last10(settings.demoSmsTo) || last10(m?.CellPhone ?? '');
+
   const rowMember = (row: CallRow): Member | undefined => (row.memberSep ? members.bySep(row.memberSep) : undefined);
 
   function outageFacts(o: Outage | undefined) {
@@ -95,6 +98,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       if (mode.get().aiAll) lines.push('You are answering every call today to help the team with a busy day. Ask what they are calling about and handle what you can (outages, balances, payments, extensions). Connect them with a person (escalate) whenever they ask or you cannot help.');
     }
     if (m && o) lines.push(`There IS a known outage at this member's location (${o.area}); confirm it is what they are calling about.`);
+    // The cell we text: the demo text number (AI Operations) or the member's cell on file.
+    const cell = textNumber(m);
+    if (m && cell) lines.push(`Cell number on file for texts: ending ${cell.slice(-4).split('').join(' ')}. Offer it instead of asking for a number.`);
     if (m && m.OnCutOffList && !storm) {
       lines.push(`This account is past due ${money(m.PastDueAmount)} and on the cut-off list for ${m.CutOffDate}. If they call about billing, explain gently and offer a payment or an extension.`);
     }
@@ -117,7 +123,10 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       assistant_name: ASSISTANT,
       first_message: firstMessage(st.storm, m, o),
       call_playbook: playbook(st.storm, m, o),
-      broadcast_message: st.broadcast ? `ANNOUNCEMENT to mention once, early in the call: ${st.broadcast}` : '',
+      // Paraphrased, never read verbatim: a saved 'please hold' line once made her tell a caller to hold mid-answer.
+      broadcast_message: st.broadcast
+        ? `Supervisor's note for today (work it in once, briefly and in your own words, only if it adds something the caller has not already heard; skip it if you are already telling them about their outage; never tell anyone to hold): ${st.broadcast}`
+        : '',
       member_found: m ? 'true' : 'false',
       member_name: m ? displayName(m) : 'unknown',
       first_name: m?.FirstName ?? 'there',
@@ -381,7 +390,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const o = (row.outageId && outages.get(row.outageId)?.status === 'active' ? outages.get(row.outageId) : undefined) ?? outages.forMember(m);
     if (!o) return { ok: false, next_step: 'There is no open outage for this location yet — report it first with report_outage, then subscribe.' };
     const channel = String(b.channel) === 'voice' ? 'voice' : 'sms';
-    const phone = last10(String(b.phone_number ?? '')) || last10(row.ani) || last10(m.CellPhone);
+    const phone = last10(String(b.phone_number ?? '')) || textNumber(m) || last10(row.ani);
     const sub = outages.subscribe({ outageId: o.id, memberSep: m.MemberSep, memberName: displayName(m), address: displayAddress(m), phone, channel, createdBy: 'ai' });
     calls.step(row, 'subscribed', `${channel} to ${phone} for ${o.id}`, 'restoration_signup');
     if (channel === 'sms') {
