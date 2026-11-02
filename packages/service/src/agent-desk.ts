@@ -247,6 +247,7 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     if (row && q.guid && !row.endedAt) calls.patch(row, { agentSeenAt: new Date().toISOString() });
     // The agent's Desktop is showing this call again after Savannah sent it back: close the loop.
     if (row && q.guid) {
+      handoffs.supersede(row.ani, row.guid);
       const h = handoffs.activeByAni(row.ani);
       if (h && h.status === 'returning') handoffs.step(h, 'returned', `Back with ${h.agentName}.`, 'done');
     }

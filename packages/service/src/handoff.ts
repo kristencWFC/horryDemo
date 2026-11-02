@@ -40,8 +40,8 @@ export interface Handoff {
   card?: string;
 }
 
-/** A hand-off is "live" for this long; after that the flow and the widget ignore it. */
-const ACTIVE_MS = 30 * 60_000;
+/** How long a hand-off stays live per state: a transfer that never happened dies fast; a payment in progress gets longer. */
+const ACTIVE_MS: Record<HandoffStatus, number> = { pending: 5 * 60_000, with_ai: 20 * 60_000, paid: 20 * 60_000, returning: 20 * 60_000, done: 0, failed: 0 };
 const ACTIVE: HandoffStatus[] = ['pending', 'with_ai', 'paid', 'returning'];
 
 export class HandoffStore extends EventEmitter {
@@ -74,7 +74,7 @@ export class HandoffStore extends EventEmitter {
   }
 
   private isActive(h: Handoff): boolean {
-    return ACTIVE.includes(h.status) && Date.now() - Date.parse(h.createdAt) < ACTIVE_MS;
+    return ACTIVE.includes(h.status) && Date.now() - Date.parse(h.updatedAt) < ACTIVE_MS[h.status];
   }
 
   /** The open hand-off for this caller (the flow and Savannah only know the caller's number). */
@@ -102,8 +102,18 @@ export class HandoffStore extends EventEmitter {
     return h;
   }
 
+  /** The agent answered a different call from this number: whatever was waiting on the old one is over. */
+  supersede(ani: string, newGuid: string): void {
+    const h = this.activeByAni(ani);
+    if (h && h.guid && h.guid !== newGuid && (h.status === 'pending' || h.status === 'with_ai')) {
+      this.step(h, 'superseded', 'A new call from this number reached an agent; this hand-off was never completed.', 'failed');
+    }
+  }
+
   step(h: Handoff, step: string, detail: string, status?: HandoffStatus, patch: Partial<Handoff> = {}): void {
     const now = new Date().toISOString();
+    const last = h.steps.at(-1);
+    if (last && last.step === step && last.detail === detail) return; // webhooks can fire twice
     h.steps.push({ at: now, step, detail });
     if (status) h.status = status;
     Object.assign(h, patch, { updatedAt: now });
