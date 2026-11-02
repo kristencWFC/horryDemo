@@ -7,9 +7,9 @@ Nick confirming).
 
 2026-10-29 (afternoon) — Call Review renamed **Customer Review** (layout nav too): channel filter + phone vs web chat table. Web Chats: Savannah summary on top, scrolling transcript, bigger reply box + quick replies. AI Operations: switches + summary line, Reset button (Reset now really restores balances). Savannah: spoken house numbers, safety question only on outage calls, outage greeting only in Storm Mode. (11/02: AI Operations mode cards side by side with tinted headers — green on, light red off; summary banner the same. Later 10/29: no outage greeting at all; for a known caller she asks "Am I speaking with Linda?", checks the address, then "I see there is an outage in your area. Is this the reason for your call?" in either mode.)
 
-2026-10-29 (later) — Call Review: date range (presets + from/to, Eastern), CSV download, print/PDF; agent-only calls listed as "Agent only" and kept out of Savannah's KPIs; sample day + by-hour in Eastern regardless of server TZ. AI Operations: green on / red off buttons + ON/OFF badges. Member tab: 13-month usage chart. **Flow bug (Kristen, Designer): call-context arrives with an empty ani** — server log shows `call-context ani  → no member` on every call; check the HTTP node URL uses `{{NewPhoneContact.ANI}}`.
+2026-10-29 (later) — Call Review: date range (presets + from/to, Eastern), CSV download, print/PDF; agent-only calls listed as "Agent only" and kept out of Savannah's KPIs; sample day + by-hour in Eastern regardless of server TZ. AI Operations: green on / red off buttons + ON/OFF badges. Member tab: 13-month usage chart. Flow bug (call-context arrived with an empty ani) — fixed in Designer by Kristen 2026-11-02 (`{{NewPhoneContact.ANI}}`).
 
-2026-10-29 — **AI agent for all calls** (Kristen): supervisor page renamed AI Operations; new switch above Storm Mode. Global_StormMode now = "send to Savannah" (storm OR aiAll), so no flow / Control Hub change; Savannah uses the everyday greeting + a busy-day playbook line when only aiAll is on. Needs: pull + build + restart, then re-upload KC_Horry.json (page label).
+2026-10-29 — **AI agent for all calls** (Kristen): supervisor page renamed AI Operations; new switch above Storm Mode. Global_StormMode now = "send to Savannah" (storm OR aiAll), so no flow / Control Hub change; Savannah uses the everyday greeting + a busy-day playbook line when only aiAll is on. Deployed and KC_Horry.json re-uploaded 2026-11-02.
 
 2026-10-29 — demo site restyled to the co-op's real home page (`site.html`, logo + hero cropped from docs/ screenshot; chat bubble in co-op blue); card-on-file wording tightened + agent patched.
 
@@ -85,9 +85,9 @@ deployed yet).**
 - [ ] Control Hub: `Q_Horry_Billing` staffed by `KC_Horry_Billing`; extra `KC_Horry_*` teams; layout `KC_Horry` on both teams
 - [x] Designer: `KC_Horry_Electric` per `docs/wxcc-flow-notes.md` — 2026-10-28
 - [ ] Push horryDemo + freeSWITCH; kc-dev-2: pull both, build, restart `horry-demo` + `ivr-controller`
-- [ ] THEN upload the regenerated `KC_Horry.json` (widgets first — lockstep rule)
+- [x] THEN upload the regenerated `KC_Horry.json` (widgets first — lockstep rule) — 2026-11-02
 - [ ] Optional: `EMAIL_AGENTS=` real agent names in server `.env` for the email assign list
-- [ ] **Texting live**: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` in server .env (health shows twilio:false 2026-10-29). US carriers filter unregistered 10-digit numbers: use a number already on an approved A2P 10DLC campaign or a verified toll-free number. Demo text recipient = AI Operations → Demo caller → Send demo texts to (built 2026-10-29)
+- [x] **Texting live** 2026-10-29: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` in server .env. US carriers filter unregistered 10-digit numbers: use a number already on an approved A2P 10DLC campaign or a verified toll-free number. Demo text recipient = AI Operations → Demo caller → Send demo texts to (built 2026-10-29)
 - [ ] Twilio: SMS number inbound webhook → `/horry/webhooks/twilio/sms`; PCI-Mode account for Pay
 
 ## Phase 4 — payments
