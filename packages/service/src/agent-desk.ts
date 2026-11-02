@@ -25,6 +25,7 @@ import type { CallStore, CallRow } from './calls.js';
 import type { Sms } from './sms.js';
 import type { Payments, PaymentSession } from './payments.js';
 import type { HandoffStore, Handoff } from './handoff.js';
+import type { ModeStore } from './mode.js';
 
 export interface AgentDeskDeps {
   dataDir: string;
@@ -35,6 +36,7 @@ export interface AgentDeskDeps {
   sms: Sms;
   payments: Payments;
   handoffs: HandoffStore;
+  mode: ModeStore;
 }
 
 interface TalkingPoint {
@@ -84,7 +86,7 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): void {
-  const { members, nextgen, outages, calls, sms, payments, handoffs } = d;
+  const { members, nextgen, outages, calls, sms, payments, handoffs, mode } = d;
   const tz = env.BUSINESS_TIMEZONE;
   // The Storm Console's demo-caller override lives in routes.ts; it persists to
   // settings.json, so read it from there (same defaults as routes.ts).
@@ -222,6 +224,8 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
         note: { enabled: true },
       },
       billingScreen: `billing.html?sep=${m.MemberSep}`,
+      /** Savannah is answering calls: show the outage banner and card (Kristen 2026-11-02). */
+      aiOn: mode.aiRouting(),
       handoff: handoffDto(handoffs.activeByAni(row?.ani || m.CellPhone || '')),
     };
   }

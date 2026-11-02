@@ -93,6 +93,8 @@ interface DeskDto {
   };
   billingScreen: string;
   handoff?: HandoffDto | null;
+  /** False = Savannah is off, calls go straight to agents: no outage banner or card. */
+  aiOn?: boolean;
 }
 
 /** Live payment hand-off to Savannah (use case 1). */
@@ -465,7 +467,7 @@ export class HorryMember extends LitElement {
     return html`<div class="wrap">
       ${this.loadError ? html`<div class="err">${this.loadError}</div>` : nothing}
       ${this.renderHeader(d)} ${this.renderHandoff(this.handoff ?? d.handoff ?? null)} ${this.renderSavannah(d)} ${this.renderBilling(d)} ${this.renderAssistant(d)}
-      ${this.renderOutage(d)} ${this.renderUsage(d)} ${this.renderPayments(d)}
+      ${d.aiOn === false ? nothing : this.renderOutage(d)} ${this.renderUsage(d)} ${this.renderPayments(d)}
     </div>`;
   }
 
@@ -496,7 +498,7 @@ export class HorryMember extends LitElement {
           : cell('Billing', 'Billing system unavailable')}
       </div>
       <div class="cisbadges">
-        ${d.outage ? html`<span class="badge outage">⚠ Active outage ${d.outage.id} · ${d.outage.area}</span>` : nothing}
+        ${d.outage && d.aiOn !== false ? html`<span class="badge outage">⚠ Active outage ${d.outage.id} · ${d.outage.area}</span>` : nothing}
         ${b?.onCutOffList ? html`<span class="badge red">Disconnect pending</span>` : nothing}
         ${b?.cardOnFile ? html`<span class="badge green">Card on file ${b.cardOnFile.brand} ••${b.cardOnFile.last4}</span>` : nothing}
         ${b?.budgetAmount ? html`<span class="badge green">Budget billing</span>` : nothing}
@@ -615,12 +617,12 @@ export class HorryMember extends LitElement {
           @click=${() => void this.act('handoff', 'handoff', { amount: amt, ani: this.callerAni, agentEmail: this.agentEmail }).then(() => void this.pollHandoff())}>
           ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
         </button>
-        <button ?disabled=${busy || !a.paymentLink.enabled || !amtOk}
+        <button class="primary" ?disabled=${busy || !a.paymentLink.enabled || !amtOk}
           @click=${() => void this.act('link', 'payment-link', { amount: amt, phone: (this.phone ?? a.paymentLink.phone).replace(/\D/g, '') })}>
           ${this.busy === 'link' ? 'Sending…' : 'Text secure pay link'}
         </button>
         ${a.cardOnFile.enabled
-          ? html`<button ?disabled=${busy || !amtOk} @click=${() => void this.act('card', 'card-on-file', { amount: amt })}>
+          ? html`<button class="primary" ?disabled=${busy || !amtOk} @click=${() => void this.act('card', 'card-on-file', { amount: amt })}>
               ${this.busy === 'card' ? 'Charging…' : `Pay with ${a.cardOnFile.label}`}
             </button>`
           : nothing}
@@ -632,7 +634,7 @@ export class HorryMember extends LitElement {
               <label for="payby">Pay by (MM/DD/YY)</label>
               <input id="payby" type="text" .value=${this.payBy ?? a.extension.payBy} @input=${(e: Event) => (this.payBy = (e.target as HTMLInputElement).value)} />
             </div>
-            <button style="align-self:end" ?disabled=${busy} @click=${() => void this.act('ext', 'extension', { payBy: this.payBy ?? a.extension.payBy })}>
+            <button class="primary" style="align-self:end" ?disabled=${busy} @click=${() => void this.act('ext', 'extension', { payBy: this.payBy ?? a.extension.payBy })}>
               ${this.busy === 'ext' ? 'Requesting…' : 'Grant payment extension'}
             </button>
           </div>
@@ -643,7 +645,7 @@ export class HorryMember extends LitElement {
         <textarea id="note" placeholder="e.g. Member asked about budget billing; mailed brochure." .value=${this.noteText} @input=${(e: Event) => (this.noteText = (e.target as HTMLTextAreaElement).value)}></textarea>
       </div>
       <div class="row">
-        <button ?disabled=${busy || !this.noteText.trim()} @click=${() => void this.act('note', 'note', { text: this.noteText }).then(() => { if (this.result?.ok) this.noteText = ''; })}>
+        <button class="primary" ?disabled=${busy || !this.noteText.trim()} @click=${() => void this.act('note', 'note', { text: this.noteText }).then(() => { if (this.result?.ok) this.noteText = ''; })}>
           ${this.busy === 'note' ? 'Saving…' : 'Add note'}
         </button>
       </div>
@@ -669,7 +671,7 @@ export class HorryMember extends LitElement {
           .value=${value}
           @input=${(e: Event) => (this.subPhone = (e.target as HTMLInputElement).value)}
         />
-        <button class=${sub ? '' : 'primary'} ?disabled=${!!this.busy}
+        <button class="primary" ?disabled=${!!this.busy}
           @click=${() => void this.act('restore', 'restoration', { phone: value.replace(/\D/g, '') }).then(() => (this.subPhone = null))}>
           ${this.busy === 'restore' ? 'Signing up…' : sub ? 'Update number' : 'Sign up for restoration texts'}
         </button>

@@ -54,8 +54,8 @@ export const themeStyles = css`
   button:hover:not(:disabled) { border-color: var(--h-text); }
   button:disabled { opacity: 0.5; cursor: default; }
   button:focus-visible, input:focus-visible { outline: 2px solid var(--h-accent); outline-offset: 2px; }
-  button.primary { background: var(--h-accent); border-color: var(--h-accent); color: #fff; font-weight: 600; }
-  :host([darkmode='true']) button.primary { color: #1b1206; }
+  button.primary { background: var(--h-navy); border-color: var(--h-navy); color: var(--h-bg); font-weight: 600; }
+  :host([darkmode='true']) button.primary { color: #10203a; }
   .card { border: 1px solid var(--h-border); border-radius: 8px; padding: 12px; display: grid; gap: 10px; background: var(--h-bg); }
   .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--h-border); color: var(--h-dim); white-space: nowrap; }
   .pill.ok { border-color: var(--h-ok); color: var(--h-ok); }
