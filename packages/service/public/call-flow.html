@@ -126,10 +126,10 @@
     { name: '1 · Agent hands a payment to Savannah', steps: [
       { nodes: ['caller', 'wxcc', 'agent'], edges: ['e-caller-wxcc', 'e-wxcc-agent'], text: 'Savannah is off. Dorothy calls and goes straight to the billing agent.' },
       { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab pops her account: $194 past due, the due date in red. She wants to pay.' },
-      { nodes: ['agent', 'svc'], edges: [], text: 'The agent clicks Hand payment to Savannah and transfers the call to the payment line. The service records the hand-off with a 4-digit reference.' },
-      { nodes: ['fs', 'el', 'svc', 'cis'], edges: ['e-fs-el', 'e-el-svc', 'e-svc-cis'], text: 'Savannah answers already knowing the member and the amount. She offers the card on file or texts a secure link, and reports each step to the service.' },
-      { nodes: ['svc', 'agent'], edges: ['e-cis-agent'], text: "The agent's Member tab shows the steps as they happen: card offered, payment approved, confirmation number." },
-      { nodes: ['el', 'fs', 'wxcc'], edges: ['e-el-back'], text: 'Done. The WFC AI Controller sends the call back to the contact center and keys the reference. The flow looks it up and routes to the return queue with that agent\'s own skill.' },
+      { nodes: ['agent', 'svc'], edges: [], text: 'The agent clicks Hand payment to Savannah and transfers the call to the payment entry point. The service has recorded the hand-off under a 4-digit reference.' },
+      { nodes: ['wxcc', 'fs', 'el', 'svc'], edges: ['e-wxcc-fs', 'e-fs-el', 'e-el-svc'], text: 'The payment flow looks up the hand-off and bridges to Savannah. She already knows the member and the amount, asks "card on file, e-check on file, or a new card?", and reports each step to the service.' },
+      { nodes: ['svc', 'agent'], edges: ['e-cis-agent'], text: "The agent's Calls page keeps the member on screen and shows the steps as they happen: Savannah answered, payment approved, confirmation number." },
+      { nodes: ['el', 'fs', 'wxcc'], edges: ['e-el-back'], text: 'Done. Savannah hangs up her side; the flow continues and uses Queue To Agent with the email from the hand-off.' },
       { nodes: ['wxcc', 'agent'], edges: ['e-wxcc-agent'], text: 'The same agent gets the call back with the payment on screen and finishes the conversation.' }
     ]},
     { name: '2 · Storm: outage known', steps: [
@@ -148,8 +148,8 @@
     ]},
     { name: '3 · Payment reminders', steps: [
       { nodes: ['sup', 'svc'], edges: [], text: 'The supervisor uploads a list of past-due accounts and picks voice or text.' },
-      { nodes: ['svc', 'fs', 'el'], edges: ['e-fs-el'], text: 'For voice, the WFC AI Controller places each call and Savannah reminds the member of the past-due amount.' },
-      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'She offers to take the payment on the card on file or by secure link, and notes the outcome.' },
+      { nodes: ['svc', 'el'], edges: [], text: 'For voice, Savannah calls each member from 207-531-5136 and reminds them of the past-due amount.' },
+      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'She asks "card on file, e-check on file, or a new card?", takes the payment, and notes the outcome.' },
       { nodes: ['svc', 'sms'], edges: ['e-svc-sms'], text: 'For text, each member gets a secure pay link.' },
       { nodes: ['svc'], edges: [], text: 'Every call and text shows on Customer Review: paid, promised, no answer.' }
     ]},

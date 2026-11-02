@@ -141,50 +141,49 @@
 
   <section>
     <h2>3. The three demo use cases</h2>
-    <p>Everything on Nov 4 hangs on three stories. The second is built; the first is a new kind of call flow, designed
-    below; the third is a new page.</p>
+    <p>Everything on Nov 4 hangs on three stories. All three are built; the first and third get their live test on
+    Tuesday, November 3.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Use case</th><th>What they see</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>Agent hands a payment to Savannah</td><td>Savannah is off. Dorothy calls and reaches the billing agent, whose Member tab shows her account with the amount due in red (past due). The agent hands the call to Savannah to take the payment, watches each step on the Member tab, and gets the call back when it's done.</td><td><span class="pill open">to build</span></td></tr>
+        <tr><td class="num">1</td><td>Agent hands a payment to Savannah</td><td>Savannah is off. Dorothy calls and reaches the billing agent, whose Member tab shows her account with the amount due in red (past due). The agent hands the call to Savannah to take the payment, watches each step on the Calls page, and gets the call back when it's done.</td><td><span class="pill done">built · live test Tue</span></td></tr>
         <tr><td class="num">2</td><td>Storm</td><td>The supervisor turns Savannah on. Linda calls: Savannah greets her by name, checks the address, asks "I see there is an outage in your area. Is this the reason for your call?", gives the estimate, offers a text or a call when the power is back, and connects her with a person if she asks. Extra teams join outage calls with one click.</td><td><span class="pill done">built</span></td></tr>
-        <tr><td class="num">3</td><td>Payment reminders</td><td>Upload a list of past-due accounts (CSV) and choose voice or text. Savannah calls each member, reminds them of the past-due amount and offers to take the payment (card on file, e-check on file, or a new card by secure link); or a text goes out with a secure pay link. Results land on Customer Review.</td><td><span class="pill open">to build</span></td></tr>
+        <tr><td class="num">3</td><td>Payment reminders</td><td>Upload a list of past-due accounts (CSV) and choose voice or text. Savannah calls each member, reminds them of the past-due amount and offers to take the payment (card on file, e-check on file, or a new card by secure link); or a text goes out with a secure pay link. Results land on Customer Review.</td><td><span class="pill done">built · live test Tue</span></td></tr>
       </tbody>
     </table></div>
 
     <h3>Use case 1 in detail: the payment hand-off</h3>
-    <p>The member never reads a card number to a person, and the agent keeps the call.</p>
+    <p>The member never reads a card number to a person, the agent keeps the call, and the call never leaves Webex
+    Contact Center.</p>
     <ol>
       <li>Savannah is off. Dorothy calls (972) 430-9658 and routes straight to the billing agent. The Member tab pops her account: $194 past due, the due date in red.</li>
-      <li>She wants to pay. The agent clicks <strong>Hand payment to Savannah</strong> on the Member tab, then transfers the call to the payment line. The service records the hand-off (call, member, agent, amount) and gives it a 4-digit reference.</li>
-      <li>The payment line reaches Savannah through the WFC AI Controller. She already knows the member and the amount from the hand-off, asks "credit card on file, e-check on file, or a new card?", takes the payment, and reports each step back to the Horry service.</li>
-      <li>The Member tab shows those steps as they happen: hand-off started, card offered, payment approved, confirmation number. The agent's state is set to <em>Awaiting payment</em> so no other call lands in the meantime.</li>
-      <li>When the payment is done, the WFC AI Controller sends the call back to the contact center on the return line and keys the reference as touch tones. The flow reads the digits, asks the service whose call it is, and routes it to the return queue with a skill that matches the agent's email, so it reaches that agent and no one else.</li>
-      <li>The agent rings again with the same member; the Member tab shows the payment and confirmation. The agent finishes the conversation.</li>
+      <li>She wants to pay. The agent clicks <strong>Hand payment to Savannah</strong>, then transfers the call: Transfer → Entry point → <code>EP_KC_Horry_Payment</code>. The service has recorded the hand-off (member, agent, amount) under a 4-digit reference keyed to the caller's number.</li>
+      <li>The payment entry point's flow asks the service who handed this caller over, then bridges to Savannah exactly as the main flow does. Savannah already knows the member and the amount: "Dorothy, the agent asked me to take care of your payment of $194. Would you like to use the credit card on file, the e-check on file, or a new card?"</li>
+      <li>The agent's new <strong>Calls</strong> page keeps Dorothy's account on screen after the call leaves the Desktop and shows each step as it happens: hand-off started, transferred, Savannah answered, payment approved with the confirmation number, sending the call back.</li>
+      <li>Savannah says "I'll send you back to the agent now" and hangs up her side. The flow continues and uses <strong>Queue To Agent</strong> with the agent's email from the hand-off, so the member reaches that agent and no one else.</li>
+      <li>The agent rings again with the same member; the Calls page says "Back with you" and shows the payment. The agent finishes the conversation.</li>
     </ol>
     <div class="table-wrap"><table>
       <thead><tr><th>Part</th><th>What it does</th><th>Where</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td>Hand-off record</td><td><code>POST api/handoff</code> returns the reference; <code>GET api/handoff/{ref}</code> for the return flow, the Member tab and the dashboard</td><td>Horry service</td><td><span class="pill open">to build</span></td></tr>
-        <tr><td>Payment line</td><td>A phone number the agent transfers to → WFC AI Controller → Savannah with the payment playbook</td><td>WFC</td><td><span class="pill open">[CONFIRM] number</span></td></tr>
-        <tr><td>Savannah's payment tools</td><td>Card on file, secure link and payment status as today, plus a hand-off step update and a "send the call back" tool</td><td>WFC AI Agent</td><td><span class="pill open">to build</span></td></tr>
-        <tr><td>Member tab</td><td><strong>Hand payment to Savannah</strong> button, a live <em>Payment hand-off</em> panel, and the agent state (Awaiting payment, then Available) through the Desktop SDK</td><td>Widget</td><td><span class="pill open">to build</span></td></tr>
-        <tr><td>Return path</td><td>The WFC AI Controller dials the return line and sends the reference as touch tones, the way the earlier demos do</td><td>WFC AI Controller</td><td><span class="pill open">to build</span></td></tr>
-        <tr><td>Return flow</td><td>Reads the digits → <code>GET api/handoff/{ref}</code> → sets the agent-email skill → queues to <code>Q_Horry_Return</code></td><td>Designer (Kristen)</td><td><span class="pill open">to build</span></td></tr>
-        <tr><td>Control Hub</td><td>Return entry point and number, queue <code>Q_Horry_Return</code> with skills-based routing, a text skill for the agent's email, each billing agent's profile carrying their email</td><td>Kristen</td><td><span class="pill open">to build</span></td></tr>
-        <tr><td>Customer Review</td><td>Path "Agent → Savannah (payment)" with the hand-off steps, and a hand-offs count in the numbers</td><td>Dashboard</td><td><span class="pill open">to build</span></td></tr>
+        <tr><td>Hand-off record</td><td>The button posts it; the flow reads it by caller number; the Calls page and Customer Review read it live</td><td>Horry service</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Payment entry point</td><td><code>EP_KC_Horry_Payment</code>, 972-903-8486; the agent transfers to it</td><td>Control Hub</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Payment flow</td><td>Look up the hand-off → bridge to Savannah → on return, Queue To Agent by email (fallback: billing queue)</td><td>Designer (Kristen)</td><td><span class="pill open">in progress</span></td></tr>
+        <tr><td>Savannah</td><td>Payment-only greeting and script on a hand-off call; card on file, e-check on file or secure link; every step reported back</td><td>WFC AI Agent</td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Calls page + Member tab</td><td><strong>Hand payment to Savannah</strong> button and the live hand-off panel</td><td>Desktop layout <code>KC_Horry</code></td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Customer Review</td><td>Path "Agent → Savannah (payment) → agent" with its own filter</td><td>Dashboard</td><td><span class="pill done">built</span></td></tr>
       </tbody>
     </table></div>
-    <div class="note"><strong>[CONFIRM]</strong> Kristen: the agent transfers (blind) and the return call brings the member back by skill, rather than a consult where the agent stays on the line. Both keep card data away from the agent; the blind transfer is what is designed above.</div>
+    <div class="note"><strong>[CONFIRM]</strong> Kristen: Queue To Agent by email works in the tenant (the email must match what the Desktop reports for the agent).</div>
 
     <h3>Use case 3 in detail: payment reminders</h3>
     <ul>
-      <li>A <strong>Payment reminders</strong> page for the supervisor: upload a CSV (account, name, phone, amount, due date), check the list, choose <strong>Voice</strong> or <strong>Text</strong>, send.</li>
-      <li>Voice: the service asks the WFC AI Controller to place each call. Savannah says who she is, confirms she is speaking with the member, gives the past-due amount and offers the card on file or a secure link; she notes the outcome (paid, promised, no answer, wrong number).</li>
-      <li>Text: each member gets a secure pay link by text.</li>
-      <li>Customer Review shows every reminder as an outbound call or a text with its outcome.</li>
+      <li>A <strong>Payment reminders</strong> page for the supervisor: choose the CSV from the billing system (account, name, phone, amount, due date) or paste the rows, check and edit the list, choose <strong>Voice</strong> or <strong>Text</strong>, send.</li>
+      <li>Voice: Savannah calls each member in turn from the co-op's outbound number, 207-531-5136. "Hi, this is Savannah calling from Horry Electric Cooperative. Am I speaking with Dorothy?" Then the past-due amount and the same payment question: credit card on file, e-check on file, or a new card by secure link. If they can't pay today she offers an extension. Outcome per row: paid, promised to pay, no answer, declined.</li>
+      <li>Text: each member gets a reminder with a secure pay link; the row flips to "paid" when the link is used.</li>
+      <li>Customer Review shows every reminder as an outbound call or a text under the topic "Payment reminder".</li>
     </ul>
-    <div class="note"><strong>[CONFIRM]</strong> Kristen: the caller ID the reminder calls show, and whether the demo list is the six demo members or an uploaded file on the day.</div>
+    <div class="note">For the demo, <strong>Send every row to the demo number</strong> points the whole list at the presenter's phone, so one person can answer as Dorothy.</div>
   </section>
 
   <section>
@@ -192,8 +191,8 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Who</th><th>Login</th><th>Role</th></tr></thead>
       <tbody>
-        <tr><td>Supervisor (presenter)</td><td>Supervisor, team <code>KC_HorryElectric</code></td><td>AI Operations page (Savannah on or off, outage team staffing, demo caller), Customer Review and, once built, Payment reminders. Takes no calls.</td></tr>
-        <tr><td>Billing agent</td><td>Agent, team <code>KC_Horry_Billing</code></td><td>Answers billing calls (and outage calls once the supervisor adds the team under Outage team staffing) with the <strong>Member</strong> tab, web chats on <strong>Web Chats</strong>, emails on <strong>Email</strong>.</td></tr>
+        <tr><td>Supervisor (presenter)</td><td>Supervisor, team <code>KC_HorryElectric</code></td><td>AI Operations page (Savannah on or off, outage team staffing, demo caller), Payment reminders and Customer Review. Takes no calls.</td></tr>
+        <tr><td>Billing agent</td><td>Agent, team <code>KC_Horry_Billing</code></td><td>Answers billing calls (and outage calls once the supervisor adds the team under Outage team staffing) with the <strong>Member</strong> tab and the <strong>Calls</strong> page, web chats on <strong>Web Chats</strong>, emails on <strong>Email</strong>.</td></tr>
         <tr><td>Caller</td><td>Presenter's mobile</td><td>Calls (972) 430-9658. AI Operations → <strong>Demo caller</strong> sets which member the phone plays.</td></tr>
       </tbody>
     </table></div>
@@ -206,13 +205,13 @@
       <thead><tr><th>Test</th><th>Set up</th><th>Say</th><th>Expect</th></tr></thead>
       <tbody>
         <tr><td><strong>A</strong> Normal day</td><td>Savannah off. Caller = David.</td><td>Nothing to Savannah: the agent answers. Ask them anything about the bill.</td><td>No AI. The billing agent rings and their Member tab already shows David's account, found from your caller ID. No "What Savannah did" section.</td></tr>
-        <tr><td><strong>B</strong> Payment hand-off <span class="pill open">to build</span></td><td>Savannah off. Caller = Dorothy.</td><td>"I'd like to pay what I owe."</td><td>The agent's Member tab shows $194 past due with the due date in red. The agent clicks <strong>Hand payment to Savannah</strong> and transfers. The Member tab shows each step as Savannah takes the payment; the call comes back to the same agent with the confirmation on screen.</td></tr>
+        <tr><td><strong>B</strong> Payment hand-off</td><td>Savannah off. Caller = Dorothy. Agent on the <strong>Calls</strong> page.</td><td>"I'd like to pay what I owe."</td><td>The Calls page shows $194 past due with the due date in red. The agent clicks <strong>Hand payment to Savannah</strong>, then Transfer → Entry point → EP_KC_Horry_Payment. The Calls page keeps Dorothy on screen and shows each step as Savannah takes the payment (say "the e-check on file" or "a new card"); the call rings back to the same agent with "Back with you" and the confirmation.</td></tr>
         <tr><td><strong>C</strong> Outage</td><td>Savannah on. Caller = Linda.</td><td>"My power's out."</td><td>Savannah greets Linda, checks her address, asks "I see there is an outage in your area. Is this the reason for your call?", gives the estimate (about 2½ hours), offers a text. No agent rings. Then <strong>Mark restored</strong> in the Storm Console sends the "power is back" text.</td></tr>
         <tr><td><strong>D</strong> Wire down</td><td>Savannah on. Add <code>KC_Horry_Billing</code> under Outage team staffing. Caller = Marcus.</td><td>"There's a line down across my driveway."</td><td>Savannah gives the 35-foot safety warning and hands over. The billing agent rings at top priority with her summary.</td></tr>
-        <tr><td><strong>E</strong> Payment with Savannah</td><td>Savannah on. Caller = Linda (card on file) or Dorothy (link).</td><td>"I'd like to pay my bill."</td><td>Linda: say yes to the Visa ending 4242. Dorothy: open the link, pay with a test card, and Savannah reads back the confirmation.</td></tr>
+        <tr><td><strong>E</strong> Payment with Savannah</td><td>Savannah on. Caller = Linda (card on file), Grace (e-check on file) or Dorothy (link).</td><td>"I'd like to pay my bill."</td><td>Savannah asks which they'd like to use. Linda: "the card on file" → Visa ending 4242. Grace: "the e-check" → drafted from the bank account on file. Dorothy: "a new card" → open the link, pay with a test card, and Savannah reads back the confirmation.</td></tr>
         <tr><td><strong>F</strong> Web chat</td><td>Open the <a href="https://kcdev2.workflowconcepts.com/horry/site.html">demo co-op site</a>. Start a chat as Linda (phone 843-555-0101).</td><td>"Is my power outage known?" then "Can I talk to a person?"</td><td>Savannah answers with the outage and estimate, then hands off. The agent's chat badge lights up; on Web Chats they accept, see Savannah's part and the account, and reply.</td></tr>
         <tr><td><strong>G</strong> Email</td><td>Agent opens the Email page. Savannah on for the outage-group view.</td><td>—</td><td>Pick an email, the AI draft fills in from the account, edit and send. With Savannah on, one reply goes to everyone in the Socastee outage. The supervisor can assign an email to an agent.</td></tr>
-        <tr><td><strong>H</strong> Payment reminders <span class="pill open">to build</span></td><td>Supervisor opens Payment reminders, uploads the sample CSV, picks Voice.</td><td>Answer the call as Dorothy.</td><td>Savannah calls, confirms it's Dorothy, gives the past-due amount and offers the card on file or a link. The reminder and its outcome show on Customer Review.</td></tr>
+        <tr><td><strong>H</strong> Payment reminders</td><td>Supervisor opens Payment reminders → <strong>Load the sample list</strong> → <strong>Send every row to the demo number</strong> → Voice.</td><td>Answer the call as Dorothy: "Yes, this is Dorothy… the e-check on file."</td><td>Savannah calls from 207-531-5136, confirms it's Dorothy, gives the past-due amount, asks how she'd like to pay and takes it. The row turns "paid" with the confirmation; the call shows on Customer Review as an outbound call. Try Text for the secure-link version.</td></tr>
       </tbody>
     </table></div>
 
@@ -224,7 +223,7 @@
         <tr><td>Marcus Jordan</td><td><code>00187520002</code></td><td>843-555-0142</td><td>2215 Peachtree Rd, Myrtle Beach</td><td>Same outage, on life support. Reports a wire down.</td></tr>
         <tr><td>Dorothy Skipper</td><td><code>00230115001</code></td><td>843-555-0118</td><td>1420 Cultra Rd, Conway</td><td>$194 past due, cut-off coming. Pays by link or asks for an extension.</td></tr>
         <tr><td>David Nguyen</td><td><code>00198844001</code></td><td>843-555-0165</td><td>731 Hwy 9 Bus, Loris</td><td>Normal-day billing questions. Mastercard ending 1881 on file.</td></tr>
-        <tr><td>Grace Bellamy</td><td><code>00244501003</code></td><td>843-555-0177</td><td>4120 Hwy 501, Aynor</td><td>In the Aynor outage. Bank draft.</td></tr>
+        <tr><td>Grace Bellamy</td><td><code>00244501003</code></td><td>843-555-0177</td><td>4120 Hwy 501, Aynor</td><td>In the Aynor outage. Bank account on file (e-check).</td></tr>
         <tr><td>Robert Causey</td><td><code>00176230001</code></td><td>843-555-0190</td><td>2601 Hwy 90, Longs</td><td>High bill: Savannah compares usage with last year.</td></tr>
       </tbody>
     </table></div>
@@ -258,14 +257,13 @@
   <section>
     <h2>6. Still to build</h2>
     <ul>
-      <li><strong>Use case 1, the payment hand-off:</strong> the hand-off record, Savannah's payment playbook on the payment line, the return by touch-tone reference, the return queue with the agent-email skill, and the Member tab button and panel. [CONFIRM] the payment line number and the return number.</li>
-      <li><strong>Use case 3, payment reminders:</strong> the upload page, outbound calls through the WFC AI Controller, reminder texts, and the results on Customer Review.</li>
-      <li>Customer Review rows for the hand-off path, outbound reminder calls and reminder texts.</li>
+      <li><strong>Use case 1:</strong> the payment flow in Designer (look up the hand-off, bridge, Queue To Agent) and a live test on Tuesday.</li>
+      <li><strong>Use case 3:</strong> attach the outbound number on the server and a live reminder call on Tuesday.</li>
       <li>Keypad payment stays a talking point (a PCI-certified payment service in production).</li>
       <li>Cisco AI Assistant wrap-up summaries: they already show on the live agent's Desktop. The Call Review dashboard's copy stays simulated until the summary API is confirmed.</li>
       <li>Texting live on a real number, including inbound replies (last on the list; may not be needed). Until then texts show in the Storm Console.</li>
     </ul>
-    <p style="margin-top:8px">Done: Savannah, the Horry service on kcdev2, the WFC AI Controller on 1151, the Savannah switch and outage team staffing writing to WxCC, the call review dashboard, the flow and demo line, the Member tab and billing screen, web chat, and the email board.</p>
+    <p style="margin-top:8px">Done: Savannah, the Horry service on kcdev2, the WFC AI Controller on 1151, the Savannah switch and outage team staffing writing to WxCC, Customer Review, the flow and demo line, the Member tab, the Calls page and the payment hand-off, Payment reminders, the billing screen, web chat, and the email board.</p>
   </section>
 
   <section>
@@ -292,13 +290,13 @@
         <tr><td>Outage queue</td><td><code>Q_Horry_Outage</code></td><td>Team-based. The supervisor widget adds and removes teams</td></tr>
         <tr><td>Billing queue</td><td><code>Q_Horry_Billing</code></td><td>Staffed by <code>KC_Horry_Billing</code>; also the fallback</td></tr>
         <tr><td>Teams</td><td><code>KC_HorryElectric</code>, <code>KC_Horry_Billing</code></td><td>Extra storm teams must start with <code>KC_Horry</code> to appear in the picker</td></tr>
-        <tr><td>Payment line (use case 1)</td><td>[CONFIRM]</td><td>The number the agent transfers to → WFC AI Controller → Savannah with the payment playbook</td></tr>
-        <tr><td>Return line (use case 1)</td><td>[CONFIRM]</td><td>Entry point the WFC AI Controller calls back with the touch-tone reference; the flow routes to <code>Q_Horry_Return</code> by the agent-email skill</td></tr>
+        <tr><td>Payment entry point (use case 1)</td><td><code>EP_KC_Horry_Payment</code>, 972-903-8486</td><td>The agent transfers to it. Its branch in <code>KC_Horry_Electric</code> (DNIS case) looks up the hand-off, bridges to Savannah, then Queue To Agent. Build sheet: <code>docs/wxcc-flow-notes.md</code></td></tr>
+        <tr><td>Outbound number (use case 3)</td><td>207-531-5136</td><td>Attached to Savannah for reminder calls; the caller ID members see. Server <code>.env</code>: <code>ELEVENLABS_PHONE_NUMBER_ID</code>, <code>OUTBOUND_CALLER_NUMBER</code></td></tr>
         <tr><td>Desktop layout</td><td><code>KC_Horry</code></td><td>File <code>GitHub KC/Desktop Layouts/KC_Horry.json</code>; assigned to both teams</td></tr>
         <tr><td>Service App</td><td>Horry's own Service App</td><td>Config write: the Savannah switch (<code>Global_StormMode</code>) and outage team staffing</td></tr>
         <tr><td>WFC AI Agent</td><td>Savannah (<code>horryDemo</code>)</td><td>Reached through the WFC AI Controller, extension 1151</td></tr>
         <tr><td>Demo service</td><td><a href="https://kcdev2.workflowconcepts.com/horry/">kcdev2…/horry/</a></td><td>kc-dev-2 <code>/opt/horryDemo</code>, service <code>horry-demo</code>, port 8165</td></tr>
-        <tr><td>Pages</td><td><a href="https://kcdev2.workflowconcepts.com/horry/site.html">site.html</a>, <a href="https://kcdev2.workflowconcepts.com/horry/dashboard.html">dashboard.html</a>, <code>billing.html?sep=</code></td><td>Demo co-op site with web chat, call review, mock billing screen</td></tr>
+        <tr><td>Pages</td><td><a href="https://kcdev2.workflowconcepts.com/horry/site.html">site.html</a>, <a href="https://kcdev2.workflowconcepts.com/horry/dashboard.html">dashboard.html</a>, <code>billing.html?sep=</code></td><td>Demo co-op site with web chat, Customer Review, mock billing screen; <code>call-flow.html</code> presenter page, <code>reminders.html</code> and <code>agent.html?mode=desk</code> previews</td></tr>
         <tr><td>Code</td><td>GitHub <code>kristencWFC/horryDemo</code></td><td>Run and deploy steps in <code>OPERATIONS.md</code>; status in <code>TODO.md</code></td></tr>
       </tbody>
     </table></div>
@@ -310,10 +308,10 @@
     { name: '1 · Agent hands a payment to Savannah', steps: [
       { nodes: ['caller', 'wxcc', 'agent'], edges: ['e-caller-wxcc', 'e-wxcc-agent'], text: 'Savannah is off. Dorothy calls and goes straight to the billing agent.' },
       { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab pops her account: $194 past due, the due date in red. She wants to pay.' },
-      { nodes: ['agent', 'svc'], edges: [], text: 'The agent clicks Hand payment to Savannah and transfers the call to the payment line. The service records the hand-off with a 4-digit reference.' },
-      { nodes: ['fs', 'el', 'svc', 'cis'], edges: ['e-fs-el', 'e-el-svc', 'e-svc-cis'], text: 'Savannah answers already knowing the member and the amount. She offers the card on file or texts a secure link, and reports each step to the service.' },
-      { nodes: ['svc', 'agent'], edges: ['e-cis-agent'], text: "The agent's Member tab shows the steps as they happen: card offered, payment approved, confirmation number." },
-      { nodes: ['el', 'fs', 'wxcc'], edges: ['e-el-back'], text: 'Done. The WFC AI Controller sends the call back to the contact center and keys the reference. The flow looks it up and routes to the return queue with that agent\'s own skill.' },
+      { nodes: ['agent', 'svc'], edges: [], text: 'The agent clicks Hand payment to Savannah and transfers the call to the payment entry point. The service has recorded the hand-off under a 4-digit reference.' },
+      { nodes: ['wxcc', 'fs', 'el', 'svc'], edges: ['e-wxcc-fs', 'e-fs-el', 'e-el-svc'], text: 'The payment flow looks up the hand-off and bridges to Savannah. She already knows the member and the amount, asks "card on file, e-check on file, or a new card?", and reports each step to the service.' },
+      { nodes: ['svc', 'agent'], edges: ['e-cis-agent'], text: "The agent's Calls page keeps the member on screen and shows the steps as they happen: Savannah answered, payment approved, confirmation number." },
+      { nodes: ['el', 'fs', 'wxcc'], edges: ['e-el-back'], text: 'Done. Savannah hangs up her side; the flow continues and uses Queue To Agent with the email from the hand-off.' },
       { nodes: ['wxcc', 'agent'], edges: ['e-wxcc-agent'], text: 'The same agent gets the call back with the payment on screen and finishes the conversation.' }
     ]},
     { name: '2 · Storm: outage known', steps: [
@@ -332,8 +330,8 @@
     ]},
     { name: '3 · Payment reminders', steps: [
       { nodes: ['sup', 'svc'], edges: [], text: 'The supervisor uploads a list of past-due accounts and picks voice or text.' },
-      { nodes: ['svc', 'fs', 'el'], edges: ['e-fs-el'], text: 'For voice, the WFC AI Controller places each call and Savannah reminds the member of the past-due amount.' },
-      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'She offers to take the payment on the card on file or by secure link, and notes the outcome.' },
+      { nodes: ['svc', 'el'], edges: [], text: 'For voice, Savannah calls each member from 207-531-5136 and reminds them of the past-due amount.' },
+      { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: 'She asks "card on file, e-check on file, or a new card?", takes the payment, and notes the outcome.' },
       { nodes: ['svc', 'sms'], edges: ['e-svc-sms'], text: 'For text, each member gets a secure pay link.' },
       { nodes: ['svc'], edges: [], text: 'Every call and text shows on Customer Review: paid, promised, no answer.' }
     ]},
