@@ -35,6 +35,9 @@
   if (q.get('sep')) $('acct').value = q.get('sep');
   if (q.get('w')) $('w').value = q.get('w');
   if (q.get('dark') === '1') $('dark').checked = true;
+  // ?mode=desk&agent=email previews the Calls page (nav) version, which follows the agent's hand-off.
+  if (q.get('mode')) el.setAttribute('mode', q.get('mode'));
+  if (q.get('agent')) el.agentemail = q.get('agent');
   function apply() {
     $('frame').style.maxWidth = (Number($('w').value) || 400) + 'px';
     el.setAttribute('darkmode', $('dark').checked ? 'true' : 'false');

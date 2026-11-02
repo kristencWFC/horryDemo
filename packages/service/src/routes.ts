@@ -20,6 +20,7 @@ import type { StaffingStore } from './staffing.js';
 import { overview, callDetail, callsCsv } from './analytics.js';
 import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
+import type { HandoffStore, Handoff, HandoffStatus } from './handoff.js';
 
 export interface Deps {
   dataDir: string;
@@ -31,6 +32,7 @@ export interface Deps {
   payments: Payments;
   mode: ModeStore;
   staffing: StaffingStore;
+  handoffs: HandoffStore;
 }
 
 interface Settings {
@@ -46,7 +48,7 @@ const digits = (s: string) => s.replace(/\D/g, '').split('').join(' ');
 const cardBrand = (b: string | null) => (b ? b.charAt(0) + b.slice(1).toLowerCase() : 'card');
 
 export function registerRoutes(f: FastifyInstance, d: Deps): void {
-  const { members, nextgen, outages, calls, sms, payments, mode } = d;
+  const { members, nextgen, outages, calls, sms, payments, mode, handoffs } = d;
   const tz = env.BUSINESS_TIMEZONE;
   const settingsStore = new JsonStore<Settings>(join(d.dataDir, 'settings.json'));
   const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', ...(settingsStore.load() ?? {}) };
@@ -117,6 +119,26 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     if (storm) return `${open} If you're calling to report an outage, I can help with that right away. What's going on?`;
     return `${open} How can I help you today?`;
   }
+
+  function handoffPlaybook(h: Handoff, card: string): string {
+    return [
+      `PAYMENT HAND-OFF: ${h.agentName}, a member services representative, has already verified this member and handed the call to you ONLY to take a payment of ${money(h.amount)}.`,
+      'Do not confirm the address, do not ask about outages, do not ask what they are calling about, and do not offer anything else.',
+      card
+        ? `Card on file: ${card}. On a clear yes, say "One moment while I run that" and call pay_with_card_on_file with amount ${h.amount.toFixed(2)}. If they want a different amount, use that amount.`
+        : `There is no card on file: offer the secure text link (send_payment_link, amount ${h.amount.toFixed(2)}), then call check_payment_status until it is approved.`,
+      `After the payment is approved (or declined twice), offer a text receipt. Then say "I'll send you back to ${h.agentName} now — one moment" and call wrap_up, then end_call.`,
+      `If they ask about anything else, say ${h.agentName} will help with that as soon as they are back together, and finish the payment first. If they do not want to pay after all, say that is fine and send them back the same way (wrap_up, then end_call).`,
+    ].join('\n');
+  }
+
+  /** Add a step to the live hand-off behind this call, if there is one. */
+  const hoStep = (row: CallRow, step: string, detail: string, status?: HandoffStatus, patch: Partial<Handoff> = {}) => {
+    const h = handoffs.activeByAni(row.ani);
+    if (!h) return;
+    if (step === 'paid' && h.status === 'paid') return;
+    handoffs.step(h, step, detail, status, patch);
+  };
 
   async function dynamicVars(row: CallRow | undefined, m: Member | undefined) {
     const st = mode.get();
@@ -264,6 +286,22 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const row = calls.findRecentByAni(ani);
     const m = (row && rowMember(row)) ?? (await memberByAni(ani));
     const vars = await dynamicVars(row, m);
+    // Use case 1: an agent handed this caller to Savannah for a payment. Payment-only greeting
+    // and playbook; the flow sends the member back to that agent when she hangs up.
+    const h = handoffs.activeByAni(ani);
+    if (h && m && (h.status === 'pending' || h.status === 'with_ai')) {
+      const fin = await nextgen.financial(m.MemberSep).catch(() => null);
+      const card = fin?.CardProfileExists ? `${cardBrand(m.CardBrand ?? null)} ending ${digits(fin.Last4CcDigits ?? '')}` : '';
+      const cell = textNumber(m) || last10(ani);
+      vars.first_message =
+        `Hi ${m.FirstName}, this is ${ASSISTANT}, Horry Electric's virtual assistant. ${h.agentName} asked me to take care of your payment of ${money(h.amount)}. ` +
+        (card ? `I can put that on the ${card} you have on file — would you like me to?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))} — shall I send it?`);
+      vars.call_playbook = handoffPlaybook(h, card);
+      if (row) calls.patch(row, { handoffRef: h.ref, memberSep: m.MemberSep, memberName: displayName(m) });
+      handoffs.step(h, 'ai_answered', `Savannah has ${m.FirstName} on the line.`, 'with_ai');
+      console.log(`HORRY VOICE ${row?.guid ?? 'ANI ' + last10(ani)}: initiation → payment hand-off ${h.ref} for ${h.agentName}`);
+      return { type: 'conversation_initiation_client_data', dynamic_variables: vars };
+    }
     console.log(`HORRY VOICE ${row?.guid ?? 'ANI ' + last10(ani)}: initiation → ${m ? displayName(m) : 'unknown caller'} outage=${vars.outage_known} storm=${vars.storm_mode}`);
     return { type: 'conversation_initiation_client_data', dynamic_variables: vars };
   });
@@ -289,7 +327,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       transcript,
       // A chat's AI conversation ends at hand-off while the agent is still chatting; chat.ts sets
       // endedAt when the chat closes.
-      endedAt: row.endedAt ?? (row.channel === 'chat' ? undefined : new Date().toISOString()),
+      endedAt: row.endedAt ?? (row.channel === 'chat' || row.handoffRef ? undefined : new Date().toISOString()),
     });
     console.log(`HORRY VOICE ${row.guid}: post-call ${p.data.conversation_id} ${transcript.length} turns, sentiment ${row.sentiment}`);
     return { ok: true };
@@ -441,6 +479,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     calls.patch(row, { paymentId: s.id });
     await sms.send(phone, `Horry Electric: here is your secure payment link for ${money(amount)} on account ending ${m.MemberSep.slice(-4)}: ${baseUrl()}/pay.html?s=${s.id}`, 'payment_link');
     calls.step(row, 'payment_link', `${money(amount)} link texted to ${phone}`, 'payment');
+    hoStep(row, 'link_sent', `Secure payment link for ${money(amount)} texted to ${phone}.`);
     return { ok: true, amount, phone: digits(phone), next_step: `Tell them the link is on its way to ${digits(phone)}; they can pay now while you stay on the line. Then call check_payment_status.` };
   });
 
@@ -456,9 +495,11 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     await payments.payWithProfile(s);
     if (s.status !== 'approved') {
       calls.step(row, 'payment_declined', `${money(amount)} card on file declined`);
+      hoStep(row, 'declined', `${money(amount)} on the card on file was declined.`);
       return { status: 'declined', next_step: 'The card on file was declined. Offer the secure text link to use a different card.' };
     }
     calls.step(row, 'payment', `${money(amount)} approved — card on file ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
+    hoStep(row, 'paid', `${money(amount)} approved on ${cardBrand(s.cardType ?? null)} ending ${s.last4}. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4}` });
     return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
   });
 
@@ -474,6 +515,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const card = p.last4 ? `${cardBrand(p.cardType ?? null)} ending ${p.last4}` : 'your card';
     await sms.send(phone, `Horry Electric receipt: payment of ${money(p.amount)} received on ${card} for account ending ${m.MemberSep.slice(-4)}. Confirmation ${p.confirmation ?? ''}. Thank you, ${m.FirstName}!`, 'receipt');
     calls.step(row, 'receipt', `receipt for ${money(p.amount)} texted to ${phone}`);
+    hoStep(row, 'receipt', `Receipt texted to ${phone}.`);
     return { ok: true, phone: digits(phone), next_step: `Tell them the receipt is on its way to the cell ending ${digits(phone.slice(-4))}. Ask if there is anything else.` };
   });
 
@@ -487,6 +529,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     if (!s) return { status: 'none', next_step: 'No payment has been started. Offer a secure payment link.' };
     if (s.status === 'approved') {
       if (!row.journey.some((j) => j.step === 'payment')) calls.step(row, 'payment', `${money(s.amount)} approved — ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
+      hoStep(row, 'paid', `${money(s.amount)} approved on ${cardBrand(s.cardType ?? null)} ending ${s.last4}. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4}` });
       return { status: 'approved', amount: s.amount, card: `${s.cardType} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(s.amount)} payment on the ${s.cardType} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
     }
     if (s.status === 'declined') return { status: 'declined', attempts: s.attempts, next_step: s.attempts >= 2 ? 'Declined twice: offer a representative (escalate department billing, reason payment_declined).' : 'The card was declined. They can try another card from the same link.' };
@@ -498,6 +541,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const esc = { department: String(b.department ?? 'member_services'), urgency: String(b.urgency ?? 'normal'), reason: String(b.reason ?? 'other'), summary: String(b.summary ?? ''), at: new Date().toISOString() };
     calls.patch(row, { escalation: esc });
     calls.step(row, 'escalated', `${esc.department} / ${esc.urgency}: ${esc.reason}`, esc.department === 'outage' ? 'outage_escalation' : 'escalation');
+    hoStep(row, 'returning', 'Savannah is sending the call back to a representative.', 'returning');
     const data: Record<string, string> = {
       escalate: 'true',
       department: esc.department,
@@ -522,6 +566,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const tags = String(b.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean);
     calls.patch(row, { outcome: String(b.outcome ?? ''), tags: [...new Set([...row.tags, ...tags])] });
     calls.step(row, 'wrapped', String(b.outcome ?? ''));
+    { const h = handoffs.activeByAni(row.ani); if (h) hoStep(row, 'returning', `Sending the call back to ${h.agentName}.`, 'returning'); }
     if (row.channel !== 'chat') await relayResultToFreeswitch(row.guid, { escalate: 'false', outcome: String(b.outcome ?? '').slice(0, 240) });
     return { ok: true, next_step: 'Say a one-sentence goodbye, then call end_call.' };
   });
@@ -636,6 +681,24 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
 
   // WxCC flow, after the bridge: the AI's outcome as flat strings for one HTTP node (Crete's
   // /api/intake pattern) — no parsing of BYE headers in Designer. Unknown guid = not escalated.
+  // Payment hand-off flow (EP_KC_Horry_Payment): who handed this caller over, so the flow can
+  // bridge to Savannah and afterwards Queue To Agent by email. Unknown caller → found=false.
+  f.get('/api/handoff/by-ani/:ani', async (req) => {
+    const ani = (req.params as { ani: string }).ani;
+    const h = handoffs.activeByAni(ani);
+    if (h && h.status === 'pending') handoffs.step(h, 'transferred', 'Call transferred — connecting to Savannah.');
+    console.log(`HORRY HANDOFF by-ani ${last10(ani)} → ${h ? `${h.ref} for ${h.agentEmail}` : 'none'}`);
+    return {
+      found: h ? 'true' : 'false',
+      ref: h?.ref ?? '',
+      agent_email: h?.agentEmail ?? '',
+      agent_name: h?.agentName ?? '',
+      member_name: h?.memberName ?? '',
+      account_number: h?.memberSep ?? '',
+      amount: h ? h.amount.toFixed(2) : '',
+    };
+  });
+
   f.get('/api/intake/:guid', async (req) => {
     const row = calls.get((req.params as { guid: string }).guid);
     const m = row ? rowMember(row) : undefined;
@@ -657,6 +720,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     outages.reset();
     calls.reset();
     members.reset();
+    handoffs.reset();
     return { ok: true, note: 'outages re-seeded, calls cleared, member balances restored' };
   });
 }

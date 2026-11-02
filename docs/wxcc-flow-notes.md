@@ -60,10 +60,27 @@ webex-service-app-auth).
 8. **Fallbacks**: bridge failure (FS down) → straight to the step-7 queue with CAD
    `aiReason=ai_unavailable` — callers are never stranded.
 
-## Live agent → secure payment → back (phase 4, not built)
+## Payment hand-off: agent → Savannah → same agent (use case 1, 2026-11-02)
 
-Agent widget "Take secure payment" → middleware mints a session tied to GUID + agent id →
-agent blind-transfers to the secure-pay EP → same flow, Case on `X-Pay-Session` → bridge
-to the AI with `X-Solution-Name=horryelectric` + session → AI takes card on file / link /
-keypad → BYE with `X-IVR-Payment-Ref` + `X-IVR-Return-Agent` → **Queue to Agent** (last
-agent) with 30 s fallback to `Q_Horry_Billing`.
+Kristen's branch in `KC_Horry_Electric`: **Case** on `NewPhoneContact.DNIS` = `9729038486`
+(EP_KC_Horry_Payment). The agent gets there with Desktop **Transfer → Entry point →
+EP_KC_Horry_Payment** after clicking **Hand payment to Savannah** on the Member tab / Calls page.
+
+1. **HTTP Request** `GET {{mw}}/api/handoff/by-ani/{{NewPhoneContact.ANI}}`, timeout 10 s.
+   Output mapping (strings): `$.found` → `hoFound`, `$.agent_email` → `hoAgentEmail`,
+   `$.agent_name` → `hoAgentName`, `$.ref` → `hoRef`, `$.member_name` → `memberName`,
+   `$.account_number` → `accountNumber`, `$.amount` → `hoAmount`.
+2. **Case** `hoFound`: not `true` → play "Sorry, there is no payment waiting on this line" →
+   **Queue** `Q_Horry_Billing`. (Nobody is stranded if the agent forgot the button.)
+3. **BridgeTransfer** → DN **1122**, same headers as the main path (`X-Call-GUID={{GUID}}`,
+   `X-Solution-Name=horryelectric`). Same solution name on purpose: the service recognises the
+   caller's open hand-off and gives Savannah the payment-only greeting and script.
+4. **On return** (Savannah calls wrap_up → end_call; the controller drops her leg): Set CAD
+   `memberName`, `accountNumber`, `hoRef` → **Queue To Agent**: agent variable `hoAgentEmail`,
+   lookup by **email**, fallback / timeout → **Queue** `Q_Horry_Billing`. The agent's Calls page
+   already shows the payment and confirmation when the call rings back.
+5. Bridge failure → **Queue To Agent** straight away (the agent explains and uses the text link).
+
+Service side: `POST api/agent-desk/handoff` (the button) → `handoffs.json`; Savannah's tools post
+the steps; `GET api/agent-desk/handoff?agent=` feeds the Calls page every 3 s. [CONFIRM]
+Queue To Agent by email in this tenant; the email must match `$STORE.agent.agentEmailId`.

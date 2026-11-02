@@ -92,7 +92,29 @@ interface DeskDto {
     extension: { allowed: boolean; payBy: string; reason: string };
   };
   billingScreen: string;
+  handoff?: HandoffDto | null;
 }
+
+/** Live payment hand-off to Savannah (use case 1). */
+interface HandoffDto {
+  ref: string;
+  status: 'pending' | 'with_ai' | 'paid' | 'returning' | 'done' | 'failed';
+  amount: number;
+  agentName: string;
+  agentEmail: string;
+  memberSep: string;
+  memberName: string;
+  steps: { at: string; step: string; detail: string }[];
+  confirmation: string | null;
+  card: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const HO_LABEL: Record<string, string> = {
+  handoff: 'Hand-off started', transferred: 'Transferred', ai_answered: 'Savannah answered', link_sent: 'Secure link texted',
+  paid: 'Payment approved', declined: 'Card declined', receipt: 'Receipt texted', returning: 'Sending the call back', returned: 'Back with you', cancelled: 'Cancelled',
+};
 
 type TaskLike = {
   interactionId?: string;
@@ -128,6 +150,10 @@ export class HorryMember extends LitElement {
     interactionid: { type: String },
     accountnumber: { type: String },
     agentname: { type: String },
+    /** "desk": the Calls page — keeps showing the member while a hand-off is running, even with no call selected. */
+    mode: { type: String },
+    agentemail: { type: String },
+    handoff: { state: true },
     interactionData: { attribute: false },
     darkmode: darkmodeProperty,
     data: { state: true },
@@ -148,7 +174,13 @@ export class HorryMember extends LitElement {
   interactionid = '';
   accountnumber = '';
   agentname = '';
+  mode = '';
+  agentemail = '';
+  handoff: HandoffDto | null = null;
   interactionData: TaskLike | null = null;
+  private hoTimer: number | undefined;
+  private lastAni = '';
+  private returnedRef = '';
   darkmode = false;
   data: DeskDto | null = null;
   loadError = '';
@@ -221,6 +253,8 @@ export class HorryMember extends LitElement {
       .field { display: grid; gap: 2px; flex: 1 1 120px; }
       .field label { font-size: 11px; color: var(--h-dim); }
       .ok-msg { border-left: 3px solid var(--h-ok); background: var(--h-ok-soft); padding: 8px 10px; border-radius: 0 6px 6px 0; }
+      .ho { border-left: 4px solid var(--h-accent); }
+      .ho.paid, .ho.done { border-left-color: var(--h-ok); }
       table { width: 100%; border-collapse: collapse; font-size: 12px; }
       td { padding: 4px 4px; border-top: 1px solid var(--h-border); vertical-align: top; }
       td.r { text-align: right; font-variant-numeric: tabular-nums; }
@@ -257,6 +291,8 @@ export class HorryMember extends LitElement {
     super.disconnectedCallback();
     window.clearInterval(this.timer);
     this.timer = undefined;
+    window.clearInterval(this.hoTimer);
+    this.hoTimer = undefined;
   }
 
   connectedCallback(): void {
@@ -266,12 +302,19 @@ export class HorryMember extends LitElement {
   }
 
   protected updated(): void {
+    if (this.mode === 'desk' && !this.hoTimer) {
+      void this.pollHandoff();
+      this.hoTimer = window.setInterval(() => void this.pollHandoff(), 3000);
+    }
     const key = this.query();
     if (key === this.key) return;
     this.key = key;
+    if (this.callerAni) this.lastAni = this.callerAni;
     window.clearInterval(this.timer);
     this.timer = undefined;
-    this.data = null;
+    // Calls page: the call leaves the Desktop at the transfer, but the member stays on screen
+    // with the hand-off panel until Savannah sends them back.
+    if (!(!key && this.mode === 'desk' && this.handoff)) this.data = null;
     this.notFound = false;
     this.loadError = '';
     this.result = null;
@@ -280,6 +323,29 @@ export class HorryMember extends LitElement {
     if (!key) return; // no call selected: empty state, no polling
     void this.refresh();
     this.timer = window.setInterval(() => void this.refresh(), 5000);
+  }
+
+  /** Calls page: follow the hand-off for this agent (or this caller) every few seconds. */
+  private async pollHandoff(): Promise<void> {
+    try {
+      const p = new URLSearchParams();
+      if (this.agentemail) p.set('agent', this.agentemail);
+      if (this.lastAni) p.set('ani', this.lastAni);
+      if (![...p.keys()].length) return;
+      const r = await api<{ handoff: HandoffDto | null }>(this.server, `api/agent-desk/handoff?${p}`);
+      const h = r.handoff;
+      this.handoff = h && h.status !== 'failed' && (h.status !== 'done' || Date.now() - Date.parse(h.updatedAt) < 120_000) ? h : null;
+      if (this.handoff && !this.data && !this.key) {
+        this.data = await api<DeskDto>(this.server, `api/agent-desk?sep=${this.handoff.memberSep}`);
+      }
+      // The member is back on this Desktop: close the loop.
+      if (this.handoff && this.key && this.handoff.status === 'returning' && this.returnedRef !== this.handoff.ref) {
+        this.returnedRef = this.handoff.ref;
+        await api(this.server, `api/agent-desk/handoff/${this.handoff.ref}/returned`, { method: 'POST', body: {} });
+      }
+    } catch {
+      /* next poll */
+    }
   }
 
   private async refresh(): Promise<void> {
@@ -332,6 +398,13 @@ export class HorryMember extends LitElement {
   // ---- render ------------------------------------------------------------------------
 
   render() {
+    if (!this.key && this.mode === 'desk' && this.handoff && this.data) {
+      const d = this.data;
+      return html`<div class="wrap">${this.renderHeader(d)} ${this.renderHandoff(this.handoff)} ${this.renderBilling(d)} ${this.renderPayments(d)}</div>`;
+    }
+    if (!this.key && this.mode === 'desk') {
+      return html`<div class="empty"><h2>Calls</h2><p>Waiting for a call. When you answer, the member's account shows here, and it stays while Savannah takes a payment for you.</p></div>`;
+    }
     if (!this.key) {
       return html`<div class="empty">
         <h2>Member account</h2>
@@ -346,7 +419,7 @@ export class HorryMember extends LitElement {
     }
     return html`<div class="wrap">
       ${this.loadError ? html`<div class="err">${this.loadError}</div>` : nothing}
-      ${this.renderHeader(d)} ${this.renderSavannah(d)} ${this.renderBilling(d)} ${this.renderAssistant(d)}
+      ${this.renderHeader(d)} ${this.renderHandoff(this.handoff ?? d.handoff ?? null)} ${this.renderSavannah(d)} ${this.renderBilling(d)} ${this.renderAssistant(d)}
       ${this.renderOutage(d)} ${this.renderUsage(d)} ${this.renderPayments(d)}
     </div>`;
   }
@@ -415,6 +488,44 @@ export class HorryMember extends LitElement {
     </section>`;
   }
 
+  /** Live view of the payment Savannah is taking for this agent (use case 1). */
+  private renderHandoff(h: HandoffDto | null) {
+    if (!h || h.status === 'failed') return nothing;
+    const text: Record<HandoffDto['status'], string> = {
+      pending: 'Savannah is ready. Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.',
+      with_ai: 'Savannah is taking the payment. Your status: awaiting payment — the call comes back to you when she is done.',
+      paid: 'Paid. Savannah is wrapping up and sending the call back to you.',
+      returning: 'On its way back to you — answer when it rings.',
+      done: 'Back with you. The payment is on the account below.',
+      failed: '',
+    };
+    const pill = h.status === 'paid' || h.status === 'done' ? 'ok' : h.status === 'pending' ? '' : 'warn';
+    return html`<section class="card ho ${h.status}" aria-label="Payment hand-off">
+      <div class="row between">
+        <h3>Payment hand-off to Savannah · ${money(h.amount)}</h3>
+        <span class="pill ${pill}">${h.status === 'with_ai' ? 'with Savannah' : h.status.replace('_', ' ')} · ref ${h.ref}</span>
+      </div>
+      <div class=${h.status === 'pending' ? 'note' : h.status === 'done' || h.status === 'paid' ? 'ok-msg' : 'dim'}>${text[h.status]}</div>
+      <ul class="steps">
+        ${h.steps.map((s) => html`<li><span class="t">${fmtClock(s.at)}</span><span><strong>${HO_LABEL[s.step] ?? s.step}</strong><br /><span class="d">${s.detail}</span></span></li>`)}
+      </ul>
+      ${h.status === 'pending'
+        ? html`<div class="row"><button ?disabled=${!!this.busy} @click=${() => void this.cancelHandoff(h.ref)}>Cancel hand-off</button></div>`
+        : nothing}
+    </section>`;
+  }
+
+  private async cancelHandoff(ref: string): Promise<void> {
+    this.busy = 'cancel';
+    try {
+      await api(this.server, `api/agent-desk/handoff/${ref}/cancel`, { method: 'POST', body: {} });
+      this.handoff = null;
+      await this.refresh();
+    } finally {
+      this.busy = '';
+    }
+  }
+
   private renderBilling(d: DeskDto) {
     const b = d.billing;
     if (!b) return html`<section class="card"><h3>Billing</h3><div class="err">Billing details are unavailable right now.</div></section>`;
@@ -454,7 +565,12 @@ export class HorryMember extends LitElement {
         </div>
       </div>
       <div class="row">
-        <button class="primary" ?disabled=${busy || !a.paymentLink.enabled || !amtOk}
+        <button class="primary" ?disabled=${busy || !amtOk || !this.guid || !!(this.handoff ?? d.handoff)}
+          title="Savannah takes the payment and sends the call back to you"
+          @click=${() => void this.act('handoff', 'handoff', { amount: amt, ani: this.callerAni, agentEmail: this.agentemail }).then(() => void this.pollHandoff())}>
+          ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
+        </button>
+        <button ?disabled=${busy || !a.paymentLink.enabled || !amtOk}
           @click=${() => void this.act('link', 'payment-link', { amount: amt, phone: (this.phone ?? a.paymentLink.phone).replace(/\D/g, '') })}>
           ${this.busy === 'link' ? 'Sending…' : 'Text secure pay link'}
         </button>

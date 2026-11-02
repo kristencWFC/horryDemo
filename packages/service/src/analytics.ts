@@ -39,6 +39,8 @@ export interface CallView {
   ai: boolean;
   /** Still happening right now (not just 'a real call' — Kristen read the old Live chip that way, 2026-10-29). */
   inProgress: boolean;
+  /** An agent handed the call to Savannah for a payment and got it back (use case 1). */
+  handoff: boolean;
   contained: boolean; // Savannah finished it, no person needed
   sentiment: 'positive' | 'neutral' | 'negative';
   durationSec: number;
@@ -90,6 +92,7 @@ function fromRow(r: CallRow): CallView {
     topics,
     ai,
     inProgress: !r.endedAt && !stale,
+    handoff: r.journey.some((j) => j.step === 'agent_handoff'),
     contained: ai && !r.escalation,
     sentiment: r.sentiment ?? 'neutral',
     durationSec: r.durationSec ?? Math.max(0, Math.round((end - Date.parse(r.startedAt)) / 1000)),
@@ -207,6 +210,7 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
         sample: true,
         ai: true,
         inProgress: false,
+        handoff: false,
         startedAt: start.toISOString(),
         member: name,
         town,

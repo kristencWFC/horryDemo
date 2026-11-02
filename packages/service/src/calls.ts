@@ -49,6 +49,8 @@ export interface CallRow {
   transcript?: { role: 'agent' | 'user'; text: string }[];
   outageId?: string;
   paymentId?: string;
+  /** Set while an agent has handed this call to Savannah for a payment (handoff.ts). */
+  handoffRef?: string;
   agentLeg?: AgentLeg;
 }
 

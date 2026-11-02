@@ -214,6 +214,7 @@
       <button type="button" data-path="ai" aria-pressed="false">Resolved by Savannah</button>
       <button type="button" data-path="agent" aria-pressed="false">Sent to an agent</button>
       <button type="button" data-path="direct" aria-pressed="false">Agent only (AI off)</button>
+      <button type="button" data-path="handoff" aria-pressed="false">Agent → Savannah (payment)</button>
       <button type="button" id="clearTopic" hidden>Clear topic filter</button>
     </div>
     <div class="tablewrap">
@@ -335,7 +336,7 @@
 
   function renderRows() {
     const rows = data.calls.filter((c) =>
-      (!topic || c.topics.includes(topic)) && (path === 'all' || (path === 'ai' ? c.contained : path === 'agent' ? c.ai && !c.contained : !c.ai)));
+      (!topic || c.topics.includes(topic)) && (path === 'all' || (path === 'handoff' ? c.handoff : path === 'ai' ? c.contained && !c.handoff : path === 'agent' ? c.ai && !c.contained && !c.handoff : !c.ai)));
     $('clearTopic').hidden = !topic;
     $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
@@ -344,7 +345,7 @@
         <td><span class="chan">${CHANNEL[c.channel] || esc(c.channel)}</span></td>
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
         <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</td>
-        <td><span class="path">${!c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
+        <td><span class="path">${c.handoff ? '<span class="dot ag"></span>Agent <span aria-hidden="true">→</span> <span class="dot ai"></span>Savannah (payment) <span aria-hidden="true">→</span> agent' : !c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
         <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained || !c.ai ? '' : '<span class="empty">waiting for summary</span>'}</td>
         <td>${esc(c.sentiment)}</td>
         <td class="num">${mmss(c.durationSec)}</td>

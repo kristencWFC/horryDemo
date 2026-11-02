@@ -100,6 +100,22 @@ const MEMBER_TAB = [
   },
 ];
 
+// Calls page (use case 1, Kristen 2026-11-02): the Member widget on its own nav page so the
+// agent keeps watching the payment hand-off after the call leaves the interaction panel.
+const callsPage = page('horry-calls', 'Calls', 'waveform', {
+  comp: 'horry-member',
+  script: BUNDLE,
+  attributes: { darkmode: '$STORE.app.darkMode', mode: 'desk' },
+  properties: {
+    server: SERVER,
+    ani: '$STORE.agentContact.taskSelected.ani',
+    interactionid: '$STORE.agentContact.taskSelected.interactionId',
+    interactionData: '$STORE.agentContact.taskSelected',
+    agentname: '$STORE.agent.agentName',
+    agentemail: '$STORE.agent.agentEmailId',
+  },
+});
+
 const callReview = page('horry-call-review', 'Customer Review', 'analysis', {
   comp: 'agentx-wc-iframe',
   attributes: { src: `${SERVER}/dashboard.html` },
@@ -142,6 +158,7 @@ for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
     }
     return true;
   });
+  if (persona !== 'supervisor') a.navigation.unshift(structuredClone(callsPage));
   if (persona !== 'agent') a.navigation.unshift(structuredClone(stormOps));
   // Agents work email and chats; the supervisor assigns emails (assign control only off the agent persona).
   if (persona !== 'supervisor') a.navigation.push(structuredClone(webChats()));

@@ -24,6 +24,7 @@ import { spokenEtr } from './outages.js';
 import type { CallStore, CallRow } from './calls.js';
 import type { Sms } from './sms.js';
 import type { Payments, PaymentSession } from './payments.js';
+import type { HandoffStore, Handoff } from './handoff.js';
 
 export interface AgentDeskDeps {
   dataDir: string;
@@ -33,6 +34,7 @@ export interface AgentDeskDeps {
   calls: CallStore;
   sms: Sms;
   payments: Payments;
+  handoffs: HandoffStore;
 }
 
 interface TalkingPoint {
@@ -61,6 +63,7 @@ const EXTENSION_GRACE_DAYS = 10;
 
 const STEP_LABEL: Record<string, string> = {
   identified: 'Identified the member',
+  agent_handoff: 'Handed to Savannah for the payment',
   lookup_miss: 'Lookup missed',
   outage_check: 'Checked for an outage',
   outage_known: 'Confirmed the known outage',
@@ -81,7 +84,7 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): void {
-  const { members, nextgen, outages, calls, sms, payments } = d;
+  const { members, nextgen, outages, calls, sms, payments, handoffs } = d;
   const tz = env.BUSINESS_TIMEZONE;
   // The Storm Console's demo-caller override lives in routes.ts; it persists to
   // settings.json, so read it from there (same defaults as routes.ts).
@@ -219,7 +222,14 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
         note: { enabled: true },
       },
       billingScreen: `billing.html?sep=${m.MemberSep}`,
+      handoff: handoffDto(handoffs.activeByAni(row?.ani || m.CellPhone || '')),
     };
+  }
+
+  function handoffDto(h: Handoff | undefined) {
+    if (!h) return null;
+    const { ref, status, amount, agentName, agentEmail, memberSep, memberName, steps, confirmation, card, createdAt, updatedAt } = h;
+    return { ref, status, amount, agentName, agentEmail, memberSep, memberName, steps, confirmation: confirmation ?? null, card: card ?? null, createdAt, updatedAt };
   }
 
   // ---- reads ------------------------------------------------------------------------
@@ -229,6 +239,11 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     if (!q.guid && !q.ani && !q.sep) return reply.code(400).send({ found: false, error: 'guid, ani or sep required' });
     const { m, row } = await resolve(q);
     if (row && q.guid && !row.endedAt) calls.patch(row, { agentSeenAt: new Date().toISOString() });
+    // The agent's Desktop is showing this call again after Savannah sent it back: close the loop.
+    if (row && q.guid) {
+      const h = handoffs.activeByAni(row.ani);
+      if (h && h.status === 'returning') handoffs.step(h, 'returned', `Back with ${h.agentName}.`, 'done');
+    }
     if (!m) return reply.code(404).send({ found: false, error: 'No member matches this caller', call: row ? { guid: row.guid, ani: row.ani } : null });
     return snapshot(m, row ?? calls.all().find((r) => r.memberSep === m.MemberSep && !q.guid));
   });
@@ -345,6 +360,42 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     if (row) calls.step(row, 'agent_subscribed', `${byAgent(b)} signed up texts to ${phone} for ${o.id}`, 'restoration_signup');
     void nextgen.addNote(m.MemberSep, `${byAgent(b)}: restoration texts for ${o.id} to ${phone}.`, 'AN').catch(() => undefined);
     return { ok: true, message: `Signed up: restoration texts to ${fmtPhone(phone)}. A confirmation text is on its way.` };
+  });
+
+  // ---- payment hand-off (use case 1) -------------------------------------------------
+
+  f.post('/api/agent-desk/handoff', async (req, reply) => {
+    const b = (req.body ?? {}) as ActionBody & { agentEmail?: string };
+    const { m, row } = await actionTarget(b);
+    if (!m) return reply.code(404).send({ error: 'Member not found' });
+    const ani = last10(b.ani || row?.ani || '');
+    if (ani.length !== 10) return reply.code(400).send({ error: 'No caller number on this call, so Savannah could not recognise them after the transfer.' });
+    const fin = await nextgen.financial(m.MemberSep).catch(() => null);
+    const amount = round2(Number(b.amount) || (fin ? (fin.PastDueAmount > 0 ? fin.PastDueAmount : fin.AmountDue) : 0));
+    if (!(amount > 0)) return reply.code(400).send({ error: 'Enter the amount to collect.' });
+    const h = handoffs.create({ guid: row?.guid ?? '', ani, memberSep: m.MemberSep, memberName: displayName(m), agentEmail: String(b.agentEmail ?? '').trim(), agentName: byAgent(b), amount });
+    if (row) { calls.patch(row, { handoffRef: h.ref }); calls.step(row, 'agent_handoff', `${byAgent(b)} handed a ${money(amount)} payment to Savannah (ref ${h.ref})`, 'payment'); }
+    return { ok: true, ref: h.ref, message: `Savannah is ready (ref ${h.ref}). Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.`, handoff: handoffDto(h) };
+  });
+
+  f.get('/api/agent-desk/handoff', async (req) => {
+    const q = req.query as { agent?: string; ani?: string };
+    const h = (q.agent && handoffs.activeForAgent(q.agent)) || (q.ani && handoffs.activeByAni(q.ani)) || undefined;
+    return { handoff: handoffDto(h) };
+  });
+
+  f.post('/api/agent-desk/handoff/:ref/returned', async (req, reply) => {
+    const h = handoffs.get((req.params as { ref: string }).ref);
+    if (!h) return reply.code(404).send({ error: 'Unknown hand-off' });
+    if (h.status !== 'done') handoffs.step(h, 'returned', `Back with ${h.agentName}.`, 'done');
+    return { ok: true, handoff: handoffDto(h) };
+  });
+
+  f.post('/api/agent-desk/handoff/:ref/cancel', async (req, reply) => {
+    const h = handoffs.get((req.params as { ref: string }).ref);
+    if (!h) return reply.code(404).send({ error: 'Unknown hand-off' });
+    handoffs.step(h, 'cancelled', 'Hand-off cancelled by the agent.', 'failed');
+    return { ok: true, message: 'Hand-off cancelled.' };
   });
 
   f.post('/api/agent-desk/note', async (req, reply) => {
