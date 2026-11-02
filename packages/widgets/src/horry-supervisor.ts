@@ -163,6 +163,10 @@ export class HorrySupervisor extends LitElement {
       }
       li label:hover { background: var(--h-soft); }
       li.changed label { background: var(--h-accent-soft); }
+      /* Extra team live on the outage queue: green row, same as the mode cards (Kristen 2026-11-02). */
+      li.extra label { background: var(--h-ok-soft); }
+      li.extra label span:nth-child(2) { font-weight: 600; color: var(--h-ok); }
+      li.changed.extra label { background: var(--h-accent-soft); }
       .counts { font-size: 12px; }
     `,
   ];
@@ -523,11 +527,21 @@ export class HorrySupervisor extends LitElement {
     const adding = [...sel].filter((id) => !now.has(id));
     const removing = [...now].filter((id) => !sel.has(id));
     const last = s.history[s.history.length - 1];
-    return html`<section class="card" aria-label="Outage queue staffing">
-      <div class="row between">
-        <h2>Outage queue staffing</h2>
+    // Storm staffing = extra (non-home) teams live on the queue; the card goes green like the mode cards.
+    const extra = s.teams.filter((t) => t.onQueue && !t.home);
+    const home = s.teams.filter((t) => t.home).map((t) => t.name).join(', ');
+    const state = extra.length
+      ? `Storm staffing: ${extra.map((t) => t.name).join(', ')} added to the outage queue`
+      : `Normal staffing: ${home || 'the home team'} only`;
+    return html`<section class="card mode ${extra.length ? 'on' : ''}" aria-label="Outage queue staffing">
+      <div class="head">
+        <div class="titlerow">
+          <h2>Outage queue staffing</h2>
+          ${extra.length ? html`<span class="pill ok">${extra.length} extra team${extra.length === 1 ? '' : 's'} live</span>` : nothing}
+        </div>
         <span class="pill ${WXCC_CLASS[s.wxcc]}" title=${s.error ?? ''}>${WXCC_LABEL[s.wxcc]}</span>
       </div>
+      <div class="state">${state}</div>
       <div class="dim">
         Tick the teams that should take calls in <strong>${s.queue.name}</strong>. Their agents stay logged in to
         their own team and start getting outage calls as soon as you apply.
@@ -537,14 +551,15 @@ export class HorrySupervisor extends LitElement {
         ${s.teams.map((t) => {
           const checked = sel.has(t.id);
           const changed = checked !== now.has(t.id);
-          return html`<li class=${changed ? 'changed' : ''}>
+          const live = t.onQueue && !t.home;
+          return html`<li class="${changed ? 'changed' : ''} ${live ? 'extra' : ''}">
             <label>
               <input type="checkbox" id=${`team-${t.id}`} .checked=${checked} ?disabled=${!!this.busy} @change=${() => this.toggle(t.id)} />
               <span>${t.name}</span>
               ${t.home
-                ? html`<span class="pill">normal</span>`
-                : t.onQueue
-                  ? html`<span class="pill warn">storm</span>`
+                ? html`<span class="pill">always on</span>`
+                : live
+                  ? html`<span class="pill ok">on the outage queue</span>`
                   : nothing}
             </label>
           </li>`;
