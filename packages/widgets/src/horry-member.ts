@@ -638,6 +638,15 @@ export class HorryMember extends LitElement {
     const busy = !!this.busy;
     const amt = this.amountValue();
     const amtOk = amt > 0;
+    const live = this.handoff ?? d.handoff ?? null;
+    // Say why the hand-off button is off (Kristen 2026-11-02: "greyed out and not accessible").
+    const why = live
+      ? `A hand-off is already running for this member (ref ${live.ref}): cancel it or wait for it to finish.`
+      : !this.callerAni
+        ? "No caller number on this call, so Savannah couldn't recognise them after the transfer."
+        : !this.guid
+          ? "The Desktop hasn't given the call's ID yet: the hand-off will be recorded and you transfer by hand."
+          : '';
     return html`<section class="card" aria-label="Billing assistant">
       <h3>Billing assistant</h3>
       ${this.result ? html`<div class=${this.result.ok ? 'ok-msg' : 'err'} role="status">${this.result.text}</div>` : nothing}
@@ -652,7 +661,7 @@ export class HorryMember extends LitElement {
         </div>
       </div>
       <div class="row">
-        <button class="primary" ?disabled=${busy || !amtOk || !this.guid || !!(this.handoff ?? d.handoff)}
+        <button class="primary" ?disabled=${busy || !amtOk || !this.callerAni || !!live}
           title="Savannah takes the payment and sends the call back to you"
           @click=${() => void this.handPayment(amt)}>
           ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
@@ -667,6 +676,7 @@ export class HorryMember extends LitElement {
             </button>`
           : nothing}
       </div>
+      ${why ? html`<div class="dim" style="font-size:12px">${why}</div>` : nothing}
       <div class="dim" style="font-size:12px">The member enters card details on their own phone. Card numbers never reach this desktop.</div>
       ${a.extension.allowed
         ? html`<div class="row">
