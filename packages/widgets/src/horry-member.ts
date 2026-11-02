@@ -10,7 +10,7 @@
 // outage, what Savannah did on this call, recent payments, talking points. Billing
 // assistant buttons POST api/agent-desk/{payment-link|card-on-file|extension|note}.
 import { LitElement, css, html, nothing, svg } from 'lit';
-import { DEFAULT_SERVER, api, darkmodeProperty, fmtClock, joinUrl } from './common.js';
+import { DEFAULT_SERVER, api, darkmodeProperty, fmtClock, joinUrl, loadDesktopSdk, taskInfo, unbound } from './common.js';
 import { themeStyles } from './theme.js';
 
 interface Journey {
@@ -154,6 +154,7 @@ export class HorryMember extends LitElement {
     mode: { type: String },
     agentemail: { type: String },
     handoff: { state: true },
+    sdkTask: { state: true },
     interactionData: { attribute: false },
     darkmode: darkmodeProperty,
     data: { state: true },
@@ -179,6 +180,9 @@ export class HorryMember extends LitElement {
   handoff: HandoffDto | null = null;
   interactionData: TaskLike | null = null;
   private hoTimer: number | undefined;
+  /** Calls page: the task the Desktop SDK says this agent is on (nav pages get no task bindings). */
+  sdkTask: { interactionId: string; ani: string } | null = null;
+  private sdkWatched = false;
   private lastAni = '';
   private returnedRef = '';
   darkmode = false;
@@ -265,18 +269,58 @@ export class HorryMember extends LitElement {
 
   // ---- inputs ------------------------------------------------------------------------
 
+  private get task(): TaskLike | null {
+    return this.interactionData && typeof this.interactionData === 'object' ? this.interactionData : null;
+  }
+
   private get guid(): string {
-    const t = this.interactionData?.interaction ?? this.interactionData;
-    return String(this.interactionid || this.interactionData?.interactionId || t?.interactionId || '').trim();
+    const t = this.task?.interaction ?? this.task;
+    return (unbound(this.interactionid) || unbound(this.task?.interactionId) || unbound(t?.interactionId) || this.sdkTask?.interactionId || '').trim();
   }
 
   private get callerAni(): string {
-    const t = this.interactionData?.interaction ?? this.interactionData;
-    return String(this.ani || t?.callAssociatedDetails?.ani || t?.ani || '').trim();
+    const t = this.task?.interaction ?? this.task;
+    return (unbound(this.ani) || unbound(t?.callAssociatedDetails?.ani) || unbound(t?.ani) || this.sdkTask?.ani || '').trim();
   }
 
   private get account(): string {
-    return String(this.accountnumber || cadValue(this.interactionData, 'accountNumber') || '').trim();
+    return (unbound(this.accountnumber) || unbound(cadValue(this.task, 'accountNumber')) || '').trim();
+  }
+
+  private get agentEmail(): string {
+    return unbound(this.agentemail);
+  }
+
+  private get agentName(): string {
+    return unbound(this.agentname);
+  }
+
+  /** Calls page: adopt the agent's current task from the SDK and follow assigned / ended events. */
+  private async watchDesktop(): Promise<void> {
+    if (this.sdkWatched) return;
+    this.sdkWatched = true;
+    const desktop = await loadDesktopSdk();
+    if (!desktop) return;
+    const adopt = (msg: unknown) => {
+      const info = taskInfo(msg);
+      if (info.interactionId) this.sdkTask = info;
+    };
+    const drop = (msg: unknown) => {
+      const info = taskInfo(msg);
+      if (!info.interactionId || info.interactionId === this.sdkTask?.interactionId) this.sdkTask = null;
+    };
+    desktop.agentContact.addEventListener('eAgentContactAssigned', adopt);
+    desktop.agentContact.addEventListener('eAgentContact', adopt);
+    desktop.agentContact.addEventListener('eAgentContactEnded', drop);
+    desktop.agentContact.addEventListener('eAgentContactUnassigned', drop);
+    desktop.agentContact.addEventListener('eAgentWrappedUp', drop);
+    try {
+      const tasks = await desktop.actions.getTaskMap();
+      const first = tasks && [...tasks.values()][0];
+      if (first) adopt({ data: first });
+    } catch {
+      /* no active task */
+    }
   }
 
   private query(): string {
@@ -303,6 +347,7 @@ export class HorryMember extends LitElement {
 
   protected updated(): void {
     if (this.mode === 'desk' && !this.hoTimer) {
+      void this.watchDesktop();
       void this.pollHandoff();
       this.hoTimer = window.setInterval(() => void this.pollHandoff(), 3000);
     }
@@ -329,7 +374,7 @@ export class HorryMember extends LitElement {
   private async pollHandoff(): Promise<void> {
     try {
       const p = new URLSearchParams();
-      if (this.agentemail) p.set('agent', this.agentemail);
+      if (this.agentEmail) p.set('agent', this.agentEmail);
       if (this.lastAni) p.set('ani', this.lastAni);
       if (![...p.keys()].length) return;
       const r = await api<{ handoff: HandoffDto | null }>(this.server, `api/agent-desk/handoff?${p}`);
@@ -375,7 +420,7 @@ export class HorryMember extends LitElement {
     try {
       const r = await api<{ ok: boolean; message: string }>(this.server, `api/agent-desk/${path}`, {
         method: 'POST',
-        body: { guid: this.guid || undefined, sep: d.member.memberSep, agent: this.agentname || undefined, ...body },
+        body: { guid: this.guid || undefined, sep: d.member.memberSep, agent: this.agentName || undefined, ...body },
       });
       this.result = { ok: r.ok !== false, text: r.message };
       await this.refresh();
@@ -567,7 +612,7 @@ export class HorryMember extends LitElement {
       <div class="row">
         <button class="primary" ?disabled=${busy || !amtOk || !this.guid || !!(this.handoff ?? d.handoff)}
           title="Savannah takes the payment and sends the call back to you"
-          @click=${() => void this.act('handoff', 'handoff', { amount: amt, ani: this.callerAni, agentEmail: this.agentemail }).then(() => void this.pollHandoff())}>
+          @click=${() => void this.act('handoff', 'handoff', { amount: amt, ani: this.callerAni, agentEmail: this.agentEmail }).then(() => void this.pollHandoff())}>
           ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
         </button>
         <button ?disabled=${busy || !a.paymentLink.enabled || !amtOk}

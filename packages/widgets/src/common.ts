@@ -40,3 +40,54 @@ export function fmtClock(iso: string): string {
   const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return d.toDateString() === new Date().toDateString() ? t : `${d.getMonth() + 1}/${d.getDate()} ${t}`;
 }
+
+/** A layout binding the Desktop did not fill in (nav pages get no task bindings) arrives as the literal text. */
+export const unbound = (v: unknown): string => (typeof v === 'string' && !v.startsWith('$STORE') ? v : '');
+
+export interface DesktopLike {
+  config: { init: (opts?: unknown) => Promise<void> | void };
+  agentContact: { addEventListener: (ev: string, cb: (msg: unknown) => void) => void };
+  actions: { getTaskMap: () => Promise<Map<string, unknown>> };
+}
+
+/** interactionId + caller number from a Desktop task / agentContact event, whatever the nesting. */
+export function taskInfo(msg: unknown): { interactionId: string; ani: string } {
+  const outer = (msg ?? {}) as Record<string, unknown>;
+  const d = (outer.data ?? outer) as Record<string, unknown>;
+  const inter = (d.interaction ?? d) as Record<string, unknown>;
+  const details = (inter.callAssociatedDetails ?? {}) as Record<string, unknown>;
+  return { interactionId: String(d.interactionId ?? inter.interactionId ?? ''), ani: String(details.ani ?? inter.ani ?? d.ani ?? '') };
+}
+
+// One script injection + one config.init for every Horry widget on the page.
+let sdkPromise: Promise<DesktopLike | null> | undefined;
+
+/** The WxCC Desktop JS SDK, or null in a plain-browser preview. */
+export function loadDesktopSdk(): Promise<DesktopLike | null> {
+  sdkPromise ??= (async () => {
+    type W = { Desktop?: DesktopLike; WxccDesktopSDK?: { Desktop?: DesktopLike } };
+    const w = window as unknown as W;
+    const resolve = () => w.WxccDesktopSDK?.Desktop ?? w.Desktop;
+    try {
+      let desktop = resolve();
+      if (!desktop) {
+        await new Promise<void>((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/@wxcc-desktop/sdk@3.0.1/dist/index.js';
+          s.onload = () => res();
+          s.onerror = () => rej(new Error('sdk script load failed'));
+          document.head.appendChild(s);
+        });
+        desktop = resolve();
+      }
+      if (!desktop) throw new Error('SDK loaded but no Desktop export found');
+      await desktop.config.init({ widgetName: 'horry-widgets', widgetProvider: 'wfc' });
+      console.log('HORRY: Desktop SDK ready');
+      return desktop;
+    } catch (err) {
+      console.log('HORRY: Desktop SDK unavailable —', (err as Error).message, '(plain-browser preview?)');
+      return null;
+    }
+  })();
+  return sdkPromise;
+}
