@@ -9,6 +9,7 @@ import { Payments } from './payments.js';
 import { ModeStore } from './mode.js';
 import { StaffingStore } from './staffing.js';
 import { HandoffStore } from './handoff.js';
+import { ReminderStore } from './reminders.js';
 import { wireNotifier } from './notify.js';
 import { wireAgentSummaries } from './agent-summaries.js';
 import { buildServer } from './server.js';
@@ -23,11 +24,12 @@ const payments = new Payments(nextgen);
 const mode = new ModeStore(dataDir);
 const staffing = new StaffingStore(dataDir);
 const handoffs = new HandoffStore(dataDir); // agent → Savannah payment hand-offs (use case 1)
+const reminders = new ReminderStore(dataDir); // payment reminder lists (use case 3)
 wireNotifier(outages, sms);
 wireAgentSummaries(calls);
 
-const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs });
-(await import('./chat.js')).registerChat(app, { dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs }); // web chat (site.html bubble ↔ <horry-chat>)
+const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders });
+(await import('./chat.js')).registerChat(app, { dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders }); // web chat (site.html bubble ↔ <horry-chat>)
 (await import('./agent-desk.js')).registerAgentDeskRoutes(app, { dataDir, members, nextgen, outages, calls, sms, payments, handoffs }); // agent desktop: <horry-member> + billing.html
 (await import('./email.js')).registerEmail(app, { dataDir, members, nextgen, outages }); // email board: <horry-email> (api/emails...)
 await app.listen({ port: env.PORT, host: env.HOST });

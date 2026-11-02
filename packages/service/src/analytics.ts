@@ -18,6 +18,7 @@ export const TOPICS = [
   'Outage report',
   'Outage status',
   'Bill payment',
+  'Payment reminder',
   'Payment extension',
   'High bill',
   'Billing question',
@@ -32,7 +33,9 @@ export interface CallView {
   startedAt: string;
   member: string;
   town: string;
-  channel: 'voice' | 'chat';
+  channel: 'voice' | 'chat' | 'sms';
+  /** Savannah placed the call or the text went out (payment reminders). */
+  outbound: boolean;
   primaryTopic: Topic;
   topics: Topic[];
   /** Savannah took part (false = Storm Mode / AI for all calls was off: straight to an agent). */
@@ -61,6 +64,7 @@ export function topicsFor(tags: string[], reason: string, text: string): Topic[]
   if (reason === 'wires_down' || /wire[s]? down|line down|sparking|downed line/.test(low)) t.add('Wire down / safety');
   if (tags.includes('outage_reported')) t.add('Outage report');
   if (tags.includes('outage_known') || tags.includes('restoration_signup') || /restor|estimate|when will/.test(low)) t.add('Outage status');
+  if (tags.includes('reminder')) t.add('Payment reminder');
   if (tags.includes('payment')) t.add('Bill payment');
   if (tags.includes('payment_extension') || /extension|arrangement/.test(low)) t.add('Payment extension');
   if (/high bill|higher than|usage/.test(low)) t.add('High bill');
@@ -88,6 +92,7 @@ function fromRow(r: CallRow): CallView {
     member: r.memberName ?? 'Unknown caller',
     town: '',
     channel: r.channel,
+    outbound: r.direction === 'outbound',
     primaryTopic: topics[0] ?? 'Other',
     topics,
     ai,
@@ -143,6 +148,7 @@ const AI_TEXT: Record<Topic, string> = {
   'Outage report': 'Member reported power out at the whole house with neighbors also out. Created a new outage report and signed the member up for a restoration text.',
   'Wire down / safety': 'Member reported a line down near the road. Told them to stay at least 35 feet away and sent the call to the outage team as an emergency.',
   'Bill payment': 'Read the balance and due date from the billing system. Member paid with the card on file; gave the confirmation number.',
+  'Payment reminder': 'Savannah called about a past-due balance, confirmed the member and took the payment on the card on file.',
   'Payment extension': 'Member asked for more time to pay. Set up a payment extension in the billing system and read back the new date.',
   'High bill': 'Member said this bill is higher than usual. Compared usage with last year: a colder month and more kWh.',
   'Billing question': 'Answered a question about the bill amount, due date and late fee.',
@@ -154,6 +160,7 @@ const AGENT_LEG: Record<Topic, { code: string; reason: string; actions: string; 
   'Outage status': { code: 'Outage - Status', reason: 'Member wanted more detail on the restoration estimate.', actions: 'Checked the outage map and confirmed crews are on site.', followUp: 'None. Restoration text already set up.' },
   'Outage report': { code: 'Outage - Report', reason: 'Member reported an outage that needed more detail (partial power).', actions: 'Logged a single-location ticket for a service-line check.', followUp: 'Crew to check the service drop.' },
   'Wire down / safety': { code: 'Outage - Wire Down', reason: 'Downed line reported near the road.', actions: 'Created an emergency ticket and dispatched a crew. Repeated the safety instructions.', followUp: 'Crew dispatched. Member will call 911 if anything sparks.' },
+  'Payment reminder': { code: 'Billing - Reminder', reason: 'Member wanted to discuss the past-due balance.', actions: 'Agreed a payment date and noted the account.', followUp: 'None.' },
   'Bill payment': { code: 'Billing - Payment', reason: 'Card on file was declined.', actions: 'Sent the member to secure pay with a new card. Payment approved.', followUp: 'None.' },
   'Payment extension': { code: 'Billing - Payment Arrangement', reason: 'Member needed a longer arrangement than self-service allows.', actions: 'Set a two-part arrangement and noted the account.', followUp: 'Second payment due in two weeks.' },
   'High bill': { code: 'Billing - High Bill Review', reason: 'Member disputed a high bill.', actions: 'Reviewed usage history and explained weather impact. Offered a free energy audit.', followUp: 'Energy Services to call about the audit.' },
@@ -211,6 +218,7 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
         ai: true,
         inProgress: false,
         handoff: false,
+        outbound: false,
         startedAt: start.toISOString(),
         member: name,
         town,
@@ -380,7 +388,7 @@ export function callsCsv(rows: CallRow[], includeSample: boolean, range: Range):
   const time = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: range.tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
   const head = ['Date', 'Time', 'Member', 'Channel', 'Path', 'Why they called', 'Wrap-up code', 'Sentiment', 'Length (min:sec)', 'Restoration text', 'Payment', 'Savannah summary', 'Handed to', 'Agent summary', 'Sample'];
   const lines = viewsFor(rows, includeSample, range).filter((v) => !range.channel || v.channel === range.channel).map((v) => [
-    localDay(v.startedAt, range.tz), time(v.startedAt), v.member, v.channel === 'chat' ? 'Web chat' : 'Phone',
+    localDay(v.startedAt, range.tz), time(v.startedAt), v.member, v.channel === 'chat' ? 'Web chat' : v.channel === 'sms' ? 'Text' : v.outbound ? 'Outbound call' : 'Phone',
     !v.ai ? 'Agent only' : v.contained ? 'Savannah only' : 'Savannah to agent', v.topics.join('; '), v.agentLeg?.wrapUpCode ?? '',
     v.sentiment, Math.floor(v.durationSec / 60) + ':' + String(v.durationSec % 60).padStart(2, '0'),
     v.restorationSignup ? 'yes' : '', v.payment ? 'yes' : '', v.aiSummary, v.escalation ? v.escalation.department.replace('_', ' ') : '',

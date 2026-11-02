@@ -29,7 +29,9 @@ export interface CallRow {
   guid: string;
   ani: string;
   dnis: string;
-  channel: 'voice' | 'chat';
+  channel: 'voice' | 'chat' | 'sms';
+  /** Savannah placed the call / the text went out (payment reminders). */
+  direction?: 'outbound';
   startedAt: string;
   endedAt?: string;
   /** Last time an agent's Member tab showed this call: the only end signal we get for calls that

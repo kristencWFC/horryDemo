@@ -20,6 +20,9 @@ const EnvSchema = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_AGENT_ID: z.string().optional(),
   ELEVENLABS_WEBHOOK_SECRET: z.string().optional(),
+  // Outbound reminder calls (use case 3): the Twilio number attached to Savannah, see scripts/attach-outbound-number.mjs.
+  ELEVENLABS_PHONE_NUMBER_ID: z.string().optional(),
+  OUTBOUND_CALLER_NUMBER: z.string().optional(),
   TOOL_SHARED_SECRET: z.string().optional(),
 
   // NextGen CIS Integration Web API (Meridian / NISC). Unset base = the built-in mock

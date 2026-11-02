@@ -116,6 +116,14 @@ const callsPage = page('horry-calls', 'Calls', 'waveform', {
   },
 });
 
+// Payment reminders (use case 3): supervisor uploads a past-due list, Savannah calls or texts.
+const remindersPage = page('horry-reminders', 'Payment reminders', 'home', {
+  comp: 'horry-reminders',
+  script: BUNDLE,
+  attributes: { darkmode: '$STORE.app.darkMode' },
+  properties: { server: SERVER, supervisor: '$STORE.agent.agentName' },
+});
+
 const callReview = page('horry-call-review', 'Customer Review', 'analysis', {
   comp: 'agentx-wc-iframe',
   attributes: { src: `${SERVER}/dashboard.html` },
@@ -160,6 +168,7 @@ for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
   });
   if (persona !== 'supervisor') a.navigation.unshift(structuredClone(callsPage));
   if (persona !== 'agent') a.navigation.unshift(structuredClone(stormOps));
+  if (persona !== 'agent') a.navigation.splice(1, 0, structuredClone(remindersPage));
   // Agents work email and chats; the supervisor assigns emails (assign control only off the agent persona).
   if (persona !== 'supervisor') a.navigation.push(structuredClone(webChats()));
   a.navigation.push(structuredClone(emailBoard(persona !== 'agent')));

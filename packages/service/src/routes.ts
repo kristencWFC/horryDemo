@@ -21,6 +21,8 @@ import { overview, callDetail, callsCsv } from './analytics.js';
 import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 import type { HandoffStore, Handoff, HandoffStatus } from './handoff.js';
+import { parseReminderCsv, type ReminderStore, type ReminderBatch, type ReminderRow } from './reminders.js';
+import { placeOutboundCall, outboundConfigured } from './outbound.js';
 
 export interface Deps {
   dataDir: string;
@@ -33,6 +35,7 @@ export interface Deps {
   mode: ModeStore;
   staffing: StaffingStore;
   handoffs: HandoffStore;
+  reminders: ReminderStore;
 }
 
 interface Settings {
@@ -48,7 +51,7 @@ const digits = (s: string) => s.replace(/\D/g, '').split('').join(' ');
 const cardBrand = (b: string | null) => (b ? b.charAt(0) + b.slice(1).toLowerCase() : 'card');
 
 export function registerRoutes(f: FastifyInstance, d: Deps): void {
-  const { members, nextgen, outages, calls, sms, payments, mode, handoffs } = d;
+  const { members, nextgen, outages, calls, sms, payments, mode, handoffs, reminders } = d;
   const tz = env.BUSINESS_TIMEZONE;
   const settingsStore = new JsonStore<Settings>(join(d.dataDir, 'settings.json'));
   const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', ...(settingsStore.load() ?? {}) };
@@ -286,6 +289,15 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const row = calls.findRecentByAni(ani);
     const m = (row && rowMember(row)) ?? (await memberByAni(ani));
     const vars = await dynamicVars(row, m);
+    // Use case 3: Savannah placed this call (payment reminder) — the called number is the member.
+    const rem = reminders.callingTo(String(b.called_number ?? ''));
+    if (rem) {
+      const rm = rem.row.memberSep ? members.bySep(rem.row.memberSep) : undefined;
+      const callRow = calls.get(rem.row.callGuid);
+      const rv = await reminderVars(rem.row, rm, callRow);
+      console.log(`HORRY VOICE ${rem.row.callGuid}: initiation → reminder call to ${rem.row.phone}`);
+      return { type: 'conversation_initiation_client_data', dynamic_variables: rv };
+    }
     // Use case 1: an agent handed this caller to Savannah for a payment. Payment-only greeting
     // and playbook; the flow sends the member back to that agent when she hangs up.
     const h = handoffs.activeByAni(ani);
@@ -330,6 +342,8 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       endedAt: row.endedAt ?? (row.channel === 'chat' || row.handoffRef ? undefined : new Date().toISOString()),
     });
     console.log(`HORRY VOICE ${row.guid}: post-call ${p.data.conversation_id} ${transcript.length} turns, sentiment ${row.sentiment}`);
+    const rem = reminders.byCallGuid(row.guid);
+    if (rem) reminders.patchRow(rem.row, { conversationId: p.data.conversation_id, ...reminderOutcome(row, transcript.filter((t) => t.role === 'user').length) });
     return { ok: true };
   });
 
@@ -681,6 +695,126 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
 
   // WxCC flow, after the bridge: the AI's outcome as flat strings for one HTTP node (Crete's
   // /api/intake pattern) — no parsing of BYE headers in Designer. Unknown guid = not escalated.
+  // ---- payment reminders (use case 3) ---------------------------------------------------
+
+  function reminderPlaybook(r: ReminderRow, m: Member | undefined, card: string): string {
+    const name = m?.FirstName || r.name.split(' ')[0] || 'the member';
+    return [
+      `OUTBOUND PAYMENT REMINDER: YOU placed this call to ${r.name || 'the member'}${r.account ? ` (account ending ${r.account.slice(-4)})` : ''}. A past-due balance of ${money(r.amount)}${r.dueDate ? ` was due ${r.dueDate}` : ''}.`,
+      `Your first message asked whether you are speaking with ${name}. If it is not them, ask if ${r.name || 'they'} is available; if not, say you will try again another time, call wrap_up with outcome wrong_person, then end_call. Never discuss the account with anyone else.`,
+      `Once it is ${name}: "I'm calling with a friendly reminder that there's a past-due balance of ${money(r.amount)} on your account. I can take care of that for you right now if you'd like." ${card ? `Card on file: ${card} — offer it first (pay_with_card_on_file, amount ${r.amount.toFixed(2)}).` : 'No card on file: offer the secure text link (send_payment_link, then check_payment_status).'}`,
+      'If they cannot pay today, offer a payment extension (request_payment_extension) or ask when they expect to pay, and call wrap_up with outcome promised_to_pay. If they say they already paid, thank them, call wrap_up with outcome says_paid. If they do not want to talk, apologise for the interruption and end politely (wrap_up outcome declined).',
+      'Keep it short and warm: two or three exchanges. No outage questions, no address check. Do not threaten disconnection; if the account shows a cut-off date, mention it once, gently. Always finish with wrap_up then end_call.',
+    ].join('\n');
+  }
+
+  async function reminderVars(r: ReminderRow, m: Member | undefined, callRow: CallRow | undefined): Promise<Record<string, string>> {
+    const vars = (await dynamicVars(callRow, m)) as Record<string, string>;
+    const fin = m ? await nextgen.financial(m.MemberSep).catch(() => null) : null;
+    const card = fin?.CardProfileExists ? `${cardBrand(m?.CardBrand ?? null)} ending ${digits(fin.Last4CcDigits ?? '')}` : '';
+    const name = m?.FirstName || r.name.split(' ')[0] || '';
+    vars.first_message = `Hi, this is ${ASSISTANT} calling from Horry Electric Cooperative. ${name ? `Am I speaking with ${name}?` : 'May I ask who I am speaking with?'}`;
+    vars.call_playbook = reminderPlaybook(r, m, card);
+    vars.storm_mode = 'false';
+    if (callRow) vars.sip_call_guid = callRow.guid;
+    return vars;
+  }
+
+  function reminderOutcome(row: CallRow, userTurns: number): Partial<ReminderRow> {
+    const paid = row.journey.find((j) => j.step === 'payment');
+    if (paid) return { status: 'paid', outcome: `Paid: ${paid.detail}` };
+    const ext = row.journey.find((j) => j.step === 'extension');
+    if (ext) return { status: 'promised', outcome: `Extension: ${ext.detail}` };
+    const o = (row.outcome ?? '').toLowerCase();
+    if (userTurns === 0) return { status: 'no_answer', outcome: 'No answer' };
+    if (/wrong_person/.test(o)) return { status: 'failed', outcome: 'Wrong person' };
+    if (/promise|later|call back|callback/.test(o)) return { status: 'promised', outcome: row.summary ?? row.outcome ?? 'Promised to pay' };
+    if (/declined|not interested|hung up/.test(o)) return { status: 'declined', outcome: row.summary ?? 'Declined' };
+    return { status: 'completed', outcome: row.summary ?? row.outcome ?? 'Reminded' };
+  }
+
+  async function runBatch(batch: ReminderBatch): Promise<void> {
+    for (const row of batch.rows) {
+      try {
+        const m = (row.account && members.bySep(row.account)) || (await memberByAni(row.phone));
+        if (m) reminders.patchRow(row, { memberSep: m.MemberSep, name: row.name || displayName(m) });
+        const callRow = calls.seed({
+          guid: row.callGuid, ani: row.phone, dnis: last10(env.OUTBOUND_CALLER_NUMBER ?? ''), channel: batch.channel === 'sms' ? 'sms' : 'voice', direction: 'outbound',
+          stormMode: false, memberSep: m?.MemberSep, memberName: m ? displayName(m) : row.name || undefined, tags: ['reminder'],
+        });
+        if (batch.channel === 'sms') {
+          const s = payments.create({ guid: callRow.guid, memberSep: m?.MemberSep ?? row.account, memberName: row.name || (m ? displayName(m) : ''), amount: row.amount, method: 'link', phone: row.phone, initiatedBy: 'agent' });
+          await sms.send(row.phone, `Horry Electric reminder: ${money(row.amount)} is past due on account ending ${(m?.MemberSep ?? row.account).slice(-4)}${row.dueDate ? ` (due ${row.dueDate})` : ''}. Pay securely: ${baseUrl()}/pay.html?s=${s.id} — or call 843-369-2211.`, 'reminder');
+          calls.step(callRow, 'reminder_sent', `Reminder text with a secure pay link for ${money(row.amount)} to ${row.phone}`, 'reminder');
+          calls.patch(callRow, { paymentId: s.id, endedAt: new Date().toISOString() });
+          reminders.patchRow(row, { status: 'sent', paymentId: s.id, outcome: 'Text sent with a secure pay link' });
+          continue;
+        }
+        reminders.patchRow(row, { status: 'calling' });
+        const vars = await reminderVars(row, m, callRow);
+        const res = await placeOutboundCall(row.phone, vars);
+        calls.step(callRow, 'reminder_call', `Savannah called ${row.phone} about ${money(row.amount)} past due`, 'reminder');
+        if (!res.ok) {
+          reminders.patchRow(row, { status: 'failed', outcome: `Call failed: ${res.error}` });
+          calls.patch(callRow, { endedAt: new Date().toISOString(), outcome: 'call failed' });
+          continue;
+        }
+        if (res.simulated) {
+          await new Promise((r) => setTimeout(r, 6000));
+          calls.step(callRow, 'wrapped', 'simulated reminder (no outbound number attached)');
+          calls.patch(callRow, { endedAt: new Date().toISOString(), outcome: 'simulated' });
+          reminders.patchRow(row, { status: 'completed', outcome: 'Simulated call — attach an outbound number to make real calls' });
+          continue;
+        }
+        reminders.patchRow(row, { conversationId: res.conversationId });
+        // Wait for the post-call webhook (reminderOutcome) — or give up after 4 minutes.
+        const until = Date.now() + 4 * 60_000;
+        while (row.status === 'calling' && Date.now() < until) await new Promise((r) => setTimeout(r, 2000));
+        if (row.status === 'calling') {
+          reminders.patchRow(row, { status: 'no_answer', outcome: 'No result from the call' });
+          calls.patch(callRow, { endedAt: new Date().toISOString() });
+        }
+      } catch (err) {
+        reminders.patchRow(row, { status: 'failed', outcome: (err as Error).message });
+      }
+    }
+    reminders.finish(batch);
+  }
+
+  function batchDto(b: ReminderBatch) {
+    // Texted rows: paid once the pay page approves the session.
+    for (const r of b.rows) {
+      if (r.status === 'sent' && r.paymentId) {
+        const s = payments.get(r.paymentId);
+        if (s?.status === 'approved') {
+          reminders.patchRow(r, { status: 'paid', outcome: `Paid ${money(s.amount)} by secure link, confirmation ${s.confirmation}` });
+          const cr = calls.get(r.callGuid);
+          if (cr && !cr.journey.some((j) => j.step === 'payment')) calls.step(cr, 'payment', `${money(s.amount)} approved — ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
+        }
+      }
+    }
+    return b;
+  }
+
+  f.get('/api/reminders', async () => ({ configured: outboundConfigured(), callerNumber: last10(env.OUTBOUND_CALLER_NUMBER ?? ''), demoNumber: last10(settings.demoAni), batches: reminders.all().map(batchDto) }));
+  f.post('/api/reminders/parse', async (req) => parseReminderCsv(String(((req.body ?? {}) as { text?: string }).text ?? '')));
+  f.get('/api/reminders/:id', async (req, reply) => {
+    const b = reminders.get((req.params as { id: string }).id);
+    return b ? batchDto(b) : reply.code(404).send({ error: 'not found' });
+  });
+  f.post('/api/reminders', async (req, reply) => {
+    const b = (req.body ?? {}) as { channel?: string; rows?: Omit<ReminderRow, 'id' | 'status' | 'callGuid' | 'updatedAt'>[]; by?: string };
+    const channel = b.channel === 'sms' ? 'sms' : 'voice';
+    const rows = (b.rows ?? []).map((r) => ({ account: String(r.account ?? '').trim(), name: String(r.name ?? '').trim(), phone: last10(String(r.phone ?? '')), amount: Math.round(Number(r.amount) * 100) / 100, dueDate: String(r.dueDate ?? '').trim() }));
+    if (!rows.length) return reply.code(400).send({ error: 'No rows to send.' });
+    const bad = rows.findIndex((r) => r.phone.length !== 10 || !(r.amount > 0));
+    if (bad >= 0) return reply.code(400).send({ error: `Row ${bad + 1}: check the phone number and amount.` });
+    const batch = reminders.create({ by: String(b.by ?? 'Supervisor').slice(0, 60), channel, rows });
+    console.log(`HORRY REMINDERS ${batch.id}: ${channel} × ${rows.length} by ${batch.by}`);
+    void runBatch(batch);
+    return batch;
+  });
+
   // Payment hand-off flow (EP_KC_Horry_Payment): who handed this caller over, so the flow can
   // bridge to Savannah and afterwards Queue To Agent by email. Unknown caller → found=false.
   f.get('/api/handoff/by-ani/:ani', async (req) => {
@@ -721,6 +855,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     calls.reset();
     members.reset();
     handoffs.reset();
+    reminders.reset();
     return { ok: true, note: 'outages re-seeded, calls cleared, member balances restored' };
   });
 }

@@ -938,6 +938,50 @@
         },
         {
           "nav": {
+            "label": "Payment reminders",
+            "icon": "home",
+            "iconType": "momentum",
+            "navigateTo": "horry-reminders",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-reminders",
+            "widgets": {
+              "main": {
+                "comp": "horry-reminders",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "supervisor": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Payment reminders",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        {
+          "nav": {
             "label": "$I18N.tpw.widgetTitle",
             "icon": "team",
             "iconType": "momentum",
@@ -1590,6 +1634,50 @@
                 },
                 "wrapper": {
                   "title": "AI Operations",
+                  "maximizeAreaName": "app-maximize-area"
+                }
+              }
+            },
+            "layout": {
+              "areas": [
+                [
+                  "main"
+                ]
+              ],
+              "size": {
+                "cols": [
+                  1
+                ],
+                "rows": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        {
+          "nav": {
+            "label": "Payment reminders",
+            "icon": "home",
+            "iconType": "momentum",
+            "navigateTo": "horry-reminders",
+            "align": "top"
+          },
+          "page": {
+            "id": "horry-reminders",
+            "widgets": {
+              "main": {
+                "comp": "horry-reminders",
+                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
+                "attributes": {
+                  "darkmode": "$STORE.app.darkMode"
+                },
+                "properties": {
+                  "server": "https://kcdev2.workflowconcepts.com/horry",
+                  "supervisor": "$STORE.agent.agentName"
+                },
+                "wrapper": {
+                  "title": "Payment reminders",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }
