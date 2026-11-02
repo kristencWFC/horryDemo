@@ -50,6 +50,18 @@ const digits = (s: string) => s.replace(/\D/g, '').split('').join(' ');
 // "VISA" → "Visa", "MASTERCARD" → "Mastercard" (Savannah reads it aloud).
 const cardBrand = (b: string | null) => (b ? b.charAt(0) + b.slice(1).toLowerCase() : 'card');
 
+/** "the credit card on file (Visa ending 4 2 4 2), the e-check on file, or a new card" — only what exists. */
+function payChoices(card: string, echeck: boolean): string {
+  const opts = [card ? `the credit card on file (the ${card})` : '', echeck ? 'the e-check on file' : '', 'a new card'].filter(Boolean);
+  return opts.length > 1 ? `${opts.slice(0, -1).join(', ')}, or ${opts.at(-1)}` : opts[0]!;
+}
+
+/** Lines for get_billing / playbooks: the co-op runs cards through one system and e-checks through another; one question covers both. */
+function payOptions(card: string, echeck: boolean): string {
+  return `Ask how they would like to pay: "Would you like to use ${payChoices(card, echeck)}?" Credit card on file → pay_with_card_on_file. E-check on file → pay_with_echeck_on_file. A new card → send_payment_link (secure link), then check_payment_status.`;
+}
+
+
 export function registerRoutes(f: FastifyInstance, d: Deps): void {
   const { members, nextgen, outages, calls, sms, payments, mode, handoffs, reminders } = d;
   const tz = env.BUSINESS_TIMEZONE;
@@ -123,13 +135,11 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return `${open} How can I help you today?`;
   }
 
-  function handoffPlaybook(h: Handoff, card: string): string {
+  function handoffPlaybook(h: Handoff, card: string, echeck: boolean): string {
     return [
       `PAYMENT HAND-OFF: ${h.agentName}, a member services representative, has already verified this member and handed the call to you ONLY to take a payment of ${money(h.amount)}.`,
       'Do not confirm the address, do not ask about outages, do not ask what they are calling about, and do not offer anything else.',
-      card
-        ? `Card on file: ${card}. On a clear yes, say "One moment while I run that" and call pay_with_card_on_file with amount ${h.amount.toFixed(2)}. If they want a different amount, use that amount.`
-        : `There is no card on file: offer the secure text link (send_payment_link, amount ${h.amount.toFixed(2)}), then call check_payment_status until it is approved.`,
+      `${payOptions(card, echeck)} Amount ${h.amount.toFixed(2)} unless they ask for a different amount. On a clear yes say "One moment while I run that" before the tool call.`,
       `After the payment is approved (or declined twice), offer a text receipt. Then say "I'll send you back to ${h.agentName} now — one moment" and call wrap_up, then end_call.`,
       `If they ask about anything else, say ${h.agentName} will help with that as soon as they are back together, and finish the payment first. If they do not want to pay after all, say that is fine and send them back the same way (wrap_up, then end_call).`,
     ].join('\n');
@@ -304,11 +314,12 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     if (h && m && (h.status === 'pending' || h.status === 'with_ai')) {
       const fin = await nextgen.financial(m.MemberSep).catch(() => null);
       const card = fin?.CardProfileExists ? `${cardBrand(m.CardBrand ?? null)} ending ${digits(fin.Last4CcDigits ?? '')}` : '';
+      const echeck = Boolean(fin?.ChkProfileExists);
       const cell = textNumber(m) || last10(ani);
       vars.first_message =
         `Hi ${m.FirstName}, this is ${ASSISTANT}, Horry Electric's virtual assistant. ${h.agentName} asked me to take care of your payment of ${money(h.amount)}. ` +
-        (card ? `I can put that on the ${card} you have on file — would you like me to?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))} — shall I send it?`);
-      vars.call_playbook = handoffPlaybook(h, card);
+        (card || echeck ? `Would you like to use ${payChoices(card, echeck)}?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))} — shall I send it?`);
+      vars.call_playbook = handoffPlaybook(h, card, echeck);
       if (row) calls.patch(row, { handoffRef: h.ref, memberSep: m.MemberSep, memberName: displayName(m) });
       handoffs.step(h, 'ai_answered', `Savannah has ${m.FirstName} on the line.`, 'with_ai');
       console.log(`HORRY VOICE ${row?.guid ?? 'ANI ' + last10(ani)}: initiation → payment hand-off ${h.ref} for ${h.agentName}`);
@@ -517,6 +528,22 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
   });
 
+  // E-check from the bank account on file (Horry's Milsoft side; Kristen 2026-11-02).
+  tool('pay-with-echeck-on-file', async (row, b) => {
+    const m = rowMember(row);
+    if (!m) return needMember;
+    const amount = Math.round(Number(b.amount) * 100) / 100;
+    if (!(amount > 0)) return { ok: false, next_step: 'Ask for the amount they want to pay.' };
+    const fin = await nextgen.financial(m.MemberSep);
+    if (!fin?.ChkProfileExists) return { ok: false, echeck_on_file: false, next_step: 'There is no bank account on file. Offer the card on file (if any) or the secure text link.' };
+    const s = payments.create({ guid: row.guid, memberSep: m.MemberSep, memberName: displayName(m), amount, method: 'echeck_on_file', phone: last10(row.ani), initiatedBy: 'ai' });
+    calls.patch(row, { paymentId: s.id });
+    await payments.payWithEcheck(s);
+    calls.step(row, 'payment', `${money(amount)} approved — e-check from the bank account on file, confirmation ${s.confirmation}`, 'payment');
+    hoStep(row, 'paid', `${money(amount)} approved by e-check from the bank account on file. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: 'E-check on file' });
+    return { status: 'approved', amount, method: 'e-check from the bank account on file', confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} e-check payment from the bank account on file and read confirmation ${digits(s.confirmation ?? '')}. It will show on the account in one to two business days.` };
+  });
+
   // Text receipt (Kristen 2026-10-29: a caller asked and Savannah had no way to send one).
   tool('send-receipt', async (row, b) => {
     const m = rowMember(row);
@@ -697,12 +724,12 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
   // /api/intake pattern) — no parsing of BYE headers in Designer. Unknown guid = not escalated.
   // ---- payment reminders (use case 3) ---------------------------------------------------
 
-  function reminderPlaybook(r: ReminderRow, m: Member | undefined, card: string): string {
+  function reminderPlaybook(r: ReminderRow, m: Member | undefined, card: string, echeck: boolean): string {
     const name = m?.FirstName || r.name.split(' ')[0] || 'the member';
     return [
       `OUTBOUND PAYMENT REMINDER: YOU placed this call to ${r.name || 'the member'}${r.account ? ` (account ending ${r.account.slice(-4)})` : ''}. A past-due balance of ${money(r.amount)}${r.dueDate ? ` was due ${r.dueDate}` : ''}.`,
       `Your first message asked whether you are speaking with ${name}. If it is not them, ask if ${r.name || 'they'} is available; if not, say you will try again another time, call wrap_up with outcome wrong_person, then end_call. Never discuss the account with anyone else.`,
-      `Once it is ${name}: "I'm calling with a friendly reminder that there's a past-due balance of ${money(r.amount)} on your account. I can take care of that for you right now if you'd like." ${card ? `Card on file: ${card} — offer it first (pay_with_card_on_file, amount ${r.amount.toFixed(2)}).` : 'No card on file: offer the secure text link (send_payment_link, then check_payment_status).'}`,
+      `Once it is ${name}: "I'm calling with a friendly reminder that there's a past-due balance of ${money(r.amount)} on your account. I can take care of that for you right now if you'd like." ${payOptions(card, echeck)} Amount ${r.amount.toFixed(2)}.`,
       'If they cannot pay today, offer a payment extension (request_payment_extension) or ask when they expect to pay, and call wrap_up with outcome promised_to_pay. If they say they already paid, thank them, call wrap_up with outcome says_paid. If they do not want to talk, apologise for the interruption and end politely (wrap_up outcome declined).',
       'Keep it short and warm: two or three exchanges. No outage questions, no address check. Do not threaten disconnection; if the account shows a cut-off date, mention it once, gently. Always finish with wrap_up then end_call.',
     ].join('\n');
@@ -712,9 +739,10 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const vars = (await dynamicVars(callRow, m)) as Record<string, string>;
     const fin = m ? await nextgen.financial(m.MemberSep).catch(() => null) : null;
     const card = fin?.CardProfileExists ? `${cardBrand(m?.CardBrand ?? null)} ending ${digits(fin.Last4CcDigits ?? '')}` : '';
+    const echeck = Boolean(fin?.ChkProfileExists);
     const name = m?.FirstName || r.name.split(' ')[0] || '';
     vars.first_message = `Hi, this is ${ASSISTANT} calling from Horry Electric Cooperative. ${name ? `Am I speaking with ${name}?` : 'May I ask who I am speaking with?'}`;
-    vars.call_playbook = reminderPlaybook(r, m, card);
+    vars.call_playbook = reminderPlaybook(r, m, card, echeck);
     vars.storm_mode = 'false';
     if (callRow) vars.sip_call_guid = callRow.guid;
     return vars;
@@ -881,13 +909,15 @@ function billingSummary(fin: Financial, m: Member, kwh: number, kwhLy: number) {
     last_payment: `${money(fin.LastPayment)} on ${fin.PaymentDate}`,
     extension_allowed: fin.AllowArrangementFlag,
     bank_draft: fin.ChkProfileExists,
+    echeck_on_file: fin.ChkProfileExists ? 'yes — bank account on file (pay_with_echeck_on_file)' : 'none',
     rest_easy_levelized: (fin.BudgetOrLevelizedBillAmount ?? 0) > 0 ? money(fin.BudgetOrLevelizedBillAmount) : 'no',
     card_on_file: fin.CardProfileExists ? `${cardBrand(m.CardBrand)} ending ${digits(fin.Last4CcDigits ?? '')}` : 'none',
     usage_last_30_days_kwh: kwh,
     usage_same_period_last_year_kwh: kwhLy,
     usage_change_vs_last_year: `${pct >= 0 ? 'up' : 'down'} ${Math.abs(pct)} percent`,
+    how_to_pay: payOptions(fin.CardProfileExists ? `${cardBrand(m.CardBrand)} ending ${digits(fin.Last4CcDigits ?? '')}` : '', fin.ChkProfileExists),
     next_step: fin.PastDueAmount > 0
-      ? `Past due ${money(fin.PastDueAmount)}${fin.CutOffDate ? `; cut-off date ${fin.CutOffDate}` : ''}. Explain gently; offer a payment (secure link) or, if extension_allowed, an extension.`
+      ? `Past due ${money(fin.PastDueAmount)}${fin.CutOffDate ? `; cut-off date ${fin.CutOffDate}` : ''}. Explain gently; offer a payment (ask how_to_pay) or, if extension_allowed, an extension.`
       : `Give the amount due and due date in one sentence${fin.ChkProfileExists ? ' (it is set to draft automatically)' : ''}. Offer a payment only if they want to pay.`,
     member_first_name: m.FirstName,
   };

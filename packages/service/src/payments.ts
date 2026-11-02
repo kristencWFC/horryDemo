@@ -19,7 +19,7 @@ export interface PaymentSession {
   memberSep: string;
   memberName: string;
   amount: number;
-  method: 'link' | 'keypad' | 'card_on_file';
+  method: 'link' | 'keypad' | 'card_on_file' | 'echeck_on_file';
   phone: string;
   status: PaymentStatus;
   createdAt: string;
@@ -77,6 +77,24 @@ export class Payments extends EventEmitter {
     } else {
       s.status = 'declined';
     }
+    this.emit('change', s);
+    return s;
+  }
+
+  /**
+   * E-check from the bank account on file. Horry runs e-checks through Milsoft and cards through
+   * Meridian (SEDC) — two systems, one question to the member. The demo has no Milsoft sandbox, so
+   * this validates the amount with the member system and records the draft as approved.
+   */
+  async payWithEcheck(s: PaymentSession): Promise<PaymentSession> {
+    s.attempts += 1;
+    const validate = await this.nextgen.validatePayment(s.memberSep, s.amount, 'EC').catch(() => ({ ErrorString: '' } as { ErrorString?: string }));
+    if (validate.ErrorString) throw new Error(validate.ErrorString);
+    s.cardType = 'E-check';
+    s.last4 = '';
+    s.status = 'approved';
+    s.confirmation = String(100000 + Math.floor(Math.random() * 900000));
+    s.completedAt = new Date().toISOString();
     this.emit('change', s);
     return s;
   }

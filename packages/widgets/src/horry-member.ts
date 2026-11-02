@@ -539,7 +539,7 @@ export class HorryMember extends LitElement {
         <div><dt>Cut-off date</dt><dd class=${b.cutOffDate ? 'bad' : ''}>${b.cutOffDate ?? 'None'}</dd></div>
         <div><dt>Balance</dt><dd>${money(b.currentBalance)}</dd></div>
         <div><dt>Last payment</dt><dd>${money(b.lastPayment)} on ${b.lastPaymentDate}</dd></div>
-        <div><dt>Pay method</dt><dd>${b.bankDraft ? 'Bank draft' : b.cardOnFile ? `${b.cardOnFile.brand} ••${b.cardOnFile.last4} on file` : 'None on file'}</dd></div>
+        <div><dt>On file</dt><dd>${[b.cardOnFile ? `${b.cardOnFile.brand} ••${b.cardOnFile.last4} (card)` : '', b.bankDraft ? 'Bank account (e-check)' : ''].filter(Boolean).join(' · ') || 'None'}</dd></div>
         <div><dt>Budget plan</dt><dd>${b.budgetAmount ? `${money(b.budgetAmount)}/mo` : 'No'}</dd></div>
         <div><dt>Extension</dt><dd>${ext.allowed ? `Allowed to ${ext.payBy}` : ext.reason}</dd></div>
       </dl>

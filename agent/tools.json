@@ -61,6 +61,13 @@
       }
     },
     {
+      "name": "pay_with_echeck_on_file",
+      "description": "Draft the payment from the bank account the member already has on file (get_billing shows echeck_on_file). No account details are needed or spoken. Only call after the caller said a clear yes to the amount AND to paying by e-check.",
+      "params": {
+        "amount": { "type": "number", "description": "Dollar amount, e.g. 142.18", "required": true }
+      }
+    },
+    {
       "name": "send_payment_link",
       "description": "Text the member a secure payment link for a given amount (they pay on their own phone; no card details are ever given on the call). Call after the caller agreed to the amount and the number to text.",
       "params": {

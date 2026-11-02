@@ -148,7 +148,7 @@
       <tbody>
         <tr><td class="num">1</td><td>Agent hands a payment to Savannah</td><td>Savannah is off. Dorothy calls and reaches the billing agent, whose Member tab shows her account with the amount due in red (past due). The agent hands the call to Savannah to take the payment, watches each step on the Member tab, and gets the call back when it's done.</td><td><span class="pill open">to build</span></td></tr>
         <tr><td class="num">2</td><td>Storm</td><td>The supervisor turns Savannah on. Linda calls: Savannah greets her by name, checks the address, asks "I see there is an outage in your area. Is this the reason for your call?", gives the estimate, offers a text or a call when the power is back, and connects her with a person if she asks. Extra teams join outage calls with one click.</td><td><span class="pill done">built</span></td></tr>
-        <tr><td class="num">3</td><td>Payment reminders</td><td>Upload a list of past-due accounts (CSV) and choose voice or text. Savannah calls each member, reminds them of the past-due amount and offers to take the payment on the card on file or by secure link; or a text goes out with a secure pay link. Results land on Customer Review.</td><td><span class="pill open">to build</span></td></tr>
+        <tr><td class="num">3</td><td>Payment reminders</td><td>Upload a list of past-due accounts (CSV) and choose voice or text. Savannah calls each member, reminds them of the past-due amount and offers to take the payment (card on file, e-check on file, or a new card by secure link); or a text goes out with a secure pay link. Results land on Customer Review.</td><td><span class="pill open">to build</span></td></tr>
       </tbody>
     </table></div>
 
@@ -157,7 +157,7 @@
     <ol>
       <li>Savannah is off. Dorothy calls (972) 430-9658 and routes straight to the billing agent. The Member tab pops her account: $194 past due, the due date in red.</li>
       <li>She wants to pay. The agent clicks <strong>Hand payment to Savannah</strong> on the Member tab, then transfers the call to the payment line. The service records the hand-off (call, member, agent, amount) and gives it a 4-digit reference.</li>
-      <li>The payment line reaches Savannah through the WFC AI Controller. She already knows the member and the amount from the hand-off, offers the card on file or texts a secure link, and reports each step back to the Horry service.</li>
+      <li>The payment line reaches Savannah through the WFC AI Controller. She already knows the member and the amount from the hand-off, asks "credit card on file, e-check on file, or a new card?", takes the payment, and reports each step back to the Horry service.</li>
       <li>The Member tab shows those steps as they happen: hand-off started, card offered, payment approved, confirmation number. The agent's state is set to <em>Awaiting payment</em> so no other call lands in the meantime.</li>
       <li>When the payment is done, the WFC AI Controller sends the call back to the contact center on the return line and keys the reference as touch tones. The flow reads the digits, asks the service whose call it is, and routes it to the return queue with a skill that matches the agent's email, so it reaches that agent and no one else.</li>
       <li>The agent rings again with the same member; the Member tab shows the payment and confirmation. The agent finishes the conversation.</li>
@@ -238,7 +238,21 @@
     file or texts a secure link, and only a token and the result come back. Horry's contact center never handles card data,
     so their SAQ D scope doesn't change. For keypad payments in production, a PCI-certified payment service collects the
     digits and returns only the result.</p>
-    <div class="note"><strong>[CONFIRM]</strong> The WxCC recording must pause during any keypad payment.</div>
+    <h3>Two payment systems, one question</h3>
+    <p>Horry takes credit cards through <strong>Meridian (SEDC)</strong> and e-checks through <strong>Milsoft</strong>. The member
+    never needs to know which is which: Savannah (and the agent) ask one question, "Would you like to use the credit card
+    on file, the e-check on file, or a new card?", offering only what the account actually has. Card on file goes to
+    Meridian; e-check on file goes to Milsoft; a new card means the secure text link, so no card number is ever spoken.
+    The same question is asked on a hand-off from an agent and on a reminder call.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Member says</th><th>What happens</th><th>System</th></tr></thead>
+      <tbody>
+        <tr><td>"The card on file"</td><td>Charged against the stored card profile; confirmation read back</td><td>Meridian (SEDC)</td></tr>
+        <tr><td>"The e-check"</td><td>Drafted from the bank account on file; confirmation read back</td><td>Milsoft</td></tr>
+        <tr><td>"A new card"</td><td>Secure link by text; the member types the card on their own phone</td><td>Meridian (SEDC), tokenised</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><strong>[CONFIRM]</strong> Milsoft's e-check API for the demo (the demo records the draft without a Milsoft sandbox). The WxCC recording must pause during any keypad payment.</div>
   </section>
 
   <section>
