@@ -126,7 +126,6 @@ export class HorrySupervisor extends LitElement {
       .summary.off .dot { background: var(--h-off); }
       .summary b { display: block; font-size: 15px; }
       .summary span { font-size: 12.5px; color: var(--h-dim); }
-      .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; align-items: start; }
       .mode { border-left: 4px solid var(--h-border); }
       .mode .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
         margin: -12px -12px 0; padding: 10px 12px; border-radius: 0 8px 0 0; border-bottom: 1px solid var(--h-border); }
@@ -224,7 +223,7 @@ export class HorrySupervisor extends LitElement {
       type Raw = { storm: boolean; aiAll: boolean; aiRouting: boolean } & Omit<ModeDto, 'storm' | 'aiAll' | 'aiRouting'>;
       const m = await api<Raw>(this.server, 'api/mode', {
         method: 'POST',
-        body: which === 'ai' ? { aiAll: on, by: this.by } : { storm: on, by: this.by },
+        body: which === 'ai' ? { aiAll: on, ...(on ? {} : { storm: false }), by: this.by } : { storm: on, by: this.by },
       });
       const tf = (v: boolean) => (v ? 'true' : 'false') as 'true' | 'false';
       this.mode = { ...m, storm: tf(m.storm), aiAll: tf(m.aiAll), aiRouting: tf(m.aiRouting), wxccError: m.wxccError ?? '' };
@@ -317,25 +316,23 @@ export class HorrySupervisor extends LitElement {
 
   render() {
     const storm = this.mode?.storm === 'true';
+    // One switch (Kristen 2026-11-02): Savannah on or off. Outage team staffing only shows while she is on.
+    const on = storm || this.mode?.aiAll === 'true';
     const extras = (this.staffing?.teams ?? []).filter((t) => t.onQueue && !t.home);
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
       ${this.renderSummary(storm)}
-      <div class="modes">
-        ${this.renderAi(storm)}
-        ${this.renderStorm(storm)}
-      </div>
-      <div class="group">Outage queue</div>
-      ${!storm && extras.length && !this.pending
+      ${this.renderAi(storm)}
+      ${!on && extras.length && !this.pending
         ? html`<div class="note">
-            Storm Mode is off, but ${extras.length} extra team${extras.length > 1 ? 's are' : ' is'} still on the outage queue
+            Savannah is off, but ${extras.length} extra team${extras.length > 1 ? 's are' : ' is'} still taking outage calls
             (${extras.map((t) => t.name).join(', ')}).
             <div class="row" style="margin-top:6px">
               <button ?disabled=${!!this.busy} @click=${() => void this.resetStaffing()}>Return to normal staffing</button>
             </div>
           </div>`
         : nothing}
-      ${this.renderStaffing()}
+      ${on || extras.length ? this.renderStaffing() : nothing}
       <div class="group">Demo</div>
       ${this.renderCaller()}
     </div>`;
@@ -421,11 +418,9 @@ export class HorrySupervisor extends LitElement {
     const m = this.mode;
     if (!m) return nothing;
     const aiAll = m.aiAll === 'true';
-    const [head, sub] = storm
-      ? ['Savannah is answering every call: Storm Mode', 'She leads with the outage, confirms the estimate and offers a restoration text.']
-      : aiAll
-        ? ['Savannah is answering every call', 'Everyday greeting: she asks what they need and connects them with an agent when asked.']
-        : ['Calls go straight to agents', 'Savannah is off. Turn on a switch below to have her answer first.'];
+    const [head, sub] = storm || aiAll
+      ? ['Savannah is answering every call', 'She greets members by name, asks about a known outage, handles balances and payments, and connects callers with an agent when they ask.']
+      : ['Calls go straight to agents', 'Savannah is off. Turn her on below to have her answer first.'];
     return html`<div class="summary ${storm || aiAll ? 'on' : 'off'}" role="status">
       <span class="dot"></span>
       <div><b>${head}</b><span>${sub} Last change ${fmtClock(m.updatedAt)} by ${m.updatedBy}.</span></div>
@@ -462,25 +457,25 @@ export class HorrySupervisor extends LitElement {
   private renderAi(storm: boolean) {
     const m = this.mode;
     const aiAll = m?.aiAll === 'true';
-    const state = !m ? 'Loading…' : aiAll ? 'On: Savannah answers every call first' : storm ? 'On via Storm Mode: Savannah is answering every call' : 'Off: calls go straight to agents';
-    return html`<section class="card storm mode ${!m ? '' : aiAll || storm ? 'on' : 'off'}" aria-label="AI agent">
+    const on = aiAll || storm;
+    const state = !m ? 'Loading…' : on ? 'On: Savannah answers every call first' : 'Off: calls go straight to agents';
+    return html`<section class="card storm mode ${!m ? '' : on ? 'on' : 'off'}" aria-label="AI agent">
       <div class="head">
         <div class="titlerow">
-          <h2>AI agent for all calls</h2>
+          <h2>AI agent · Savannah</h2>
           ${m ? html`<span class="pill ${WXCC_CLASS[m.wxcc]}" title=${m.wxccError}>${WXCC_LABEL[m.wxcc]}</span>` : nothing}
         </div>
-        ${this.renderToggle('ai', aiAll, 'AI agent for all calls', !aiAll && storm)}
+        ${this.renderToggle('ai', on, 'AI agent Savannah')}
       </div>
       <div class="state">${state}</div>
       <div class="dim">
-        For busy days, short-staffed days or bill due dates. Savannah greets every caller, asks what they need, handles
-        outages, balances, payments and extensions, and connects them with a person whenever they ask.
+        Storms, busy days, short-staffed days or bill due dates. Savannah greets every caller, asks whether a known
+        outage is why they called, handles outages, balances, payments and extensions, and connects them with a person
+        whenever they ask. While she is on, you can also bring extra teams onto outage calls below.
       </div>
-      ${this.renderConfirm('ai', aiAll, {
-        on: 'Turn the AI agent on for all calls? New calls go to Savannah first, and she connects callers with an agent when needed.',
-        off: storm
-          ? 'Turn off AI for all calls? Storm Mode is still on, so Savannah keeps answering until Storm Mode is turned off.'
-          : 'Turn off AI for all calls? New calls go straight to agents again.',
+      ${this.renderConfirm('ai', on, {
+        on: 'Turn Savannah on? New calls go to her first, and she connects callers with an agent when needed.',
+        off: 'Turn Savannah off? New calls go straight to agents again.',
       })}
       <div style="display:grid;gap:4px">
         <h3>Note for Savannah to mention (optional)</h3>
@@ -498,30 +493,9 @@ export class HorrySupervisor extends LitElement {
     </section>`;
   }
 
-  private renderStorm(storm: boolean) {
-    const m = this.mode;
-    return html`<section class="card storm mode ${!m ? '' : storm ? 'on' : 'off'}" aria-label="Storm Mode">
-      <div class="head">
-        <h2>Storm Mode</h2>
-        ${this.renderToggle('storm', storm, 'Storm Mode')}
-      </div>
-      <div class="state">${m ? (storm ? 'On: Savannah is answering outage calls' : 'Off: normal operations') : 'Loading…'}</div>
-      <div class="dim">
-        Savannah answers every call and leads with the outage: once a member confirms their address, she asks whether
-        the outage in their area is why they called, gives the restoration estimate and offers a text when power is back.
-      </div>
-      ${this.renderConfirm('storm', storm, {
-        on: 'Turn Storm Mode on? New calls go to Savannah first, and she sends people to the outage queue when needed.',
-        off: m?.aiAll === 'true'
-          ? 'Turn Storm Mode off? AI for all calls is still on, so Savannah keeps answering with the everyday greeting.'
-          : 'Turn Storm Mode off? New calls go back to normal routing.',
-      })}
-    </section>`;
-  }
-
   private renderStaffing() {
     const s = this.staffing;
-    if (!s) return html`<section class="card"><h2>Outage queue staffing</h2><div class="dim">Loading teams…</div></section>`;
+    if (!s) return html`<section class="card"><h2>Outage team staffing</h2><div class="dim">Loading teams…</div></section>`;
     const now = this.onQueueNow();
     const sel = this.pending ?? now;
     const adding = [...sel].filter((id) => !now.has(id));
@@ -531,19 +505,19 @@ export class HorrySupervisor extends LitElement {
     const extra = s.teams.filter((t) => t.onQueue && !t.home);
     const home = s.teams.filter((t) => t.home).map((t) => t.name).join(', ');
     const state = extra.length
-      ? `Storm staffing: ${extra.map((t) => t.name).join(', ')} added to the outage queue`
+      ? `Storm staffing: ${extra.map((t) => t.name).join(', ')} also taking outage calls`
       : `Normal staffing: ${home || 'the home team'} only`;
     return html`<section class="card mode ${extra.length ? 'on' : ''}" aria-label="Outage queue staffing">
       <div class="head">
         <div class="titlerow">
-          <h2>Outage queue staffing</h2>
-          ${extra.length ? html`<span class="pill ok">${extra.length} extra team${extra.length === 1 ? '' : 's'} live</span>` : nothing}
+          <h2>Outage team staffing</h2>
+          ${extra.length ? html`<span class="pill ok">${extra.length} extra team${extra.length === 1 ? '' : 's'} on outage calls</span>` : nothing}
         </div>
         <span class="pill ${WXCC_CLASS[s.wxcc]}" title=${s.error ?? ''}>${WXCC_LABEL[s.wxcc]}</span>
       </div>
       <div class="state">${state}</div>
       <div class="dim">
-        Tick the teams that should take calls in <strong>${s.queue.name}</strong>. Their agents stay logged in to
+        Tick the teams that should also take outage calls while Savannah is on. Their agents stay logged in to
         their own team and start getting outage calls as soon as you apply.
       </div>
       ${s.wxcc === 'failed' ? html`<div class="err">WxCC didn't accept the change: ${s.error}</div>` : nothing}
@@ -559,25 +533,25 @@ export class HorrySupervisor extends LitElement {
               ${t.home
                 ? html`<span class="pill">always on</span>`
                 : live
-                  ? html`<span class="pill ok">on the outage queue</span>`
+                  ? html`<span class="pill ok">taking outage calls</span>`
                   : nothing}
             </label>
           </li>`;
         })}
       </ul>
       <div class="counts dim">
-        ${now.size} team${now.size === 1 ? '' : 's'} on the queue now
+        ${now.size} team${now.size === 1 ? '' : 's'} taking outage calls now
         ${adding.length ? html` · adding ${adding.map((id) => this.teamName(id)).join(', ')}` : nothing}
         ${removing.length ? html` · removing ${removing.map((id) => this.teamName(id)).join(', ')}` : nothing}
       </div>
       <div class="row">
         <button class="apply" ?disabled=${!this.pending || sel.size === 0 || !!this.busy} @click=${() => void this.applyStaffing()}>
-          ${this.busy === 'staffing' ? 'Updating queue…' : 'Apply to outage queue'}
+          ${this.busy === 'staffing' ? 'Updating…' : 'Apply'}
         </button>
         ${this.pending ? html`<button @click=${() => (this.pending = null)}>Cancel</button>` : nothing}
         <button ?disabled=${!!this.busy} @click=${() => void this.resetStaffing()}>Return to normal</button>
       </div>
-      ${sel.size === 0 ? html`<div class="err">Keep at least one team on the outage queue.</div>` : nothing}
+      ${sel.size === 0 ? html`<div class="err">Keep at least one team on outage calls.</div>` : nothing}
       ${last
         ? html`<div class="dim">
             Last change ${fmtClock(last.at)} by ${last.by}:

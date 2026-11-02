@@ -80,6 +80,8 @@ interface DeskDto {
     escalation: { department: string; urgency: string; reason: string; summary: string } | null;
     outcome: string | null;
     sentiment: string | null;
+    /** False on calls that went straight to an agent: nothing to show as "what Savannah did". */
+    aiHandled?: boolean;
   } | null;
   payments: Payment[];
   notes: { at: string; type: string; text: string }[];
@@ -177,11 +179,6 @@ export class HorryMember extends LitElement {
       .kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
       .kv dd.bad { color: var(--h-danger); }
       .big { font-size: 18px; }
-      .tp { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-      .tp li { padding: 5px 8px; border-left: 3px solid var(--h-border); background: var(--h-soft); border-radius: 0 6px 6px 0; }
-      .tp li.bad { border-color: var(--h-danger); background: var(--h-danger-soft); }
-      .tp li.warn { border-color: var(--h-warn); background: var(--h-warn-soft); }
-      .tp li.ok { border-color: var(--h-ok); background: var(--h-ok-soft); }
       .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
       .steps li { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; }
       .steps .t { font-size: 11px; color: var(--h-dim); padding-top: 2px; }
@@ -208,6 +205,8 @@ export class HorryMember extends LitElement {
       .badge.amber { border-color: var(--h-warn); background: var(--h-warn-soft); color: var(--h-warn); }
       .badge.green { border-color: var(--h-ok); background: var(--h-ok-soft); color: var(--h-ok); }
       .badge.red { border-color: var(--h-danger); background: var(--h-danger-soft); color: var(--h-danger); }
+      /* The outage badge is the one thing an agent must see at a glance (Kristen 2026-11-02). */
+      .badge.outage { font-size: 14px; font-weight: 700; padding: 6px 14px; border: 2px solid var(--h-danger); background: var(--h-danger); color: #fff; }
       /* Cap the size: the panel can be 1,500 px wide on a big screen (Kristen 2026-10-29). */
       .uchart { width: 100%; max-width: 480px; height: auto; display: block; margin: 4px 0 2px; }
       .restore { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--h-border); display: grid; gap: 6px; }
@@ -347,7 +346,7 @@ export class HorryMember extends LitElement {
     }
     return html`<div class="wrap">
       ${this.loadError ? html`<div class="err">${this.loadError}</div>` : nothing}
-      ${this.renderHeader(d)} ${this.renderSavannah(d)} ${this.renderPoints(d)} ${this.renderBilling(d)} ${this.renderAssistant(d)}
+      ${this.renderHeader(d)} ${this.renderSavannah(d)} ${this.renderBilling(d)} ${this.renderAssistant(d)}
       ${this.renderOutage(d)} ${this.renderUsage(d)} ${this.renderPayments(d)}
     </div>`;
   }
@@ -371,7 +370,7 @@ export class HorryMember extends LitElement {
         ${cell('Email', m.email || '—')}
         ${b
           ? html`${cell('Current balance', money(b.currentBalance), 'big')}
-              ${cell('Amount due', `${money(b.amountDue)} by ${b.dueDate}`)}
+              ${cell('Amount due', `${money(b.amountDue)} by ${b.dueDate}`, b.pastDue > 0 ? 'badc' : '')}
               ${cell('Past due', money(b.pastDue), b.pastDue > 0 ? 'badc' : '')}
               ${cell('Cut-off date', b.cutOffDate ?? 'None', b.cutOffDate ? 'badc' : '')}
               ${cell('Last payment', b.lastPayment ? `${money(b.lastPayment)} on ${b.lastPaymentDate}` : '—')}
@@ -379,11 +378,9 @@ export class HorryMember extends LitElement {
           : cell('Billing', 'Billing system unavailable')}
       </div>
       <div class="cisbadges">
-        ${d.outage ? html`<span class="badge amber">Active outage ${d.outage.id}</span>` : nothing}
-        ${m.lifeSupport ? html`<span class="badge red">Life support</span>` : nothing}
+        ${d.outage ? html`<span class="badge outage">⚠ Active outage ${d.outage.id} · ${d.outage.area}</span>` : nothing}
         ${b?.onCutOffList ? html`<span class="badge red">Disconnect pending</span>` : nothing}
         ${b?.cardOnFile ? html`<span class="badge green">Card on file ${b.cardOnFile.brand} ••${b.cardOnFile.last4}</span>` : nothing}
-        ${b?.bankDraft ? html`<span class="badge green">Bank draft</span>` : nothing}
         ${b?.budgetAmount ? html`<span class="badge green">Budget billing</span>` : nothing}
         ${b?.paperless ? html`<span class="badge">Paperless</span>` : nothing}
         <span class="badge">${m.rate} · meter ${m.meter}</span>
@@ -393,7 +390,7 @@ export class HorryMember extends LitElement {
 
   private renderSavannah(d: DeskDto) {
     const c = d.call;
-    if (!c) return nothing;
+    if (!c || c.aiHandled === false) return nothing;
     const steps = c.journey;
     const esc = c.escalation;
     return html`<section class="card" aria-label="What Savannah did">
@@ -418,16 +415,6 @@ export class HorryMember extends LitElement {
     </section>`;
   }
 
-  private renderPoints(d: DeskDto) {
-    if (!d.talkingPoints.length) return nothing;
-    return html`<section class="card" aria-label="Talking points">
-      <h3>Talking points</h3>
-      <ul class="tp">
-        ${d.talkingPoints.map((t) => html`<li class=${t.tone}>${t.text}</li>`)}
-      </ul>
-    </section>`;
-  }
-
   private renderBilling(d: DeskDto) {
     const b = d.billing;
     if (!b) return html`<section class="card"><h3>Billing</h3><div class="err">Billing details are unavailable right now.</div></section>`;
@@ -436,7 +423,7 @@ export class HorryMember extends LitElement {
       <h3>Billing</h3>
       <dl class="kv">
         <div><dt>Amount due</dt><dd class="big">${money(b.amountDue)}</dd></div>
-        <div><dt>Due date</dt><dd>${b.dueDate}</dd></div>
+        <div><dt>Due date</dt><dd class=${b.pastDue > 0 ? 'bad' : ''}>${b.pastDue > 0 ? `${b.dueDate} · past due` : b.dueDate}</dd></div>
         <div><dt>Past due</dt><dd class=${b.pastDue > 0 ? 'bad' : ''}>${money(b.pastDue)}</dd></div>
         <div><dt>Cut-off date</dt><dd class=${b.cutOffDate ? 'bad' : ''}>${b.cutOffDate ?? 'None'}</dd></div>
         <div><dt>Balance</dt><dd>${money(b.currentBalance)}</dd></div>

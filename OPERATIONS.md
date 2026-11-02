@@ -82,5 +82,5 @@ persist in `data/`; a chat still with Savannah at a restart is ended (her sessio
 
 ## Smoke
 
-`/health` shows which adapters are live. Storm Console → flip Storm Mode (or AI Operations → AI agent for all calls; both set the same variable) → `WxCC: synced`
+`/health` shows which adapters are live. AI Operations → turn Savannah on (the Storm Console flip sets the same variable) → `WxCC: synced`
 (or `not_configured`). Call the DID → Savannah greets by name → console shows the journey.
