@@ -26,6 +26,7 @@ import type { Sms } from './sms.js';
 import type { Payments, PaymentSession } from './payments.js';
 import type { HandoffStore, Handoff } from './handoff.js';
 import type { ModeStore } from './mode.js';
+import type { StaffingStore } from './staffing.js';
 
 export interface AgentDeskDeps {
   dataDir: string;
@@ -37,6 +38,7 @@ export interface AgentDeskDeps {
   payments: Payments;
   handoffs: HandoffStore;
   mode: ModeStore;
+  staffing: StaffingStore;
 }
 
 interface TalkingPoint {
@@ -86,7 +88,7 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): void {
-  const { members, nextgen, outages, calls, sms, payments, handoffs, mode } = d;
+  const { members, nextgen, outages, calls, sms, payments, handoffs, mode, staffing } = d;
   const tz = env.BUSINESS_TIMEZONE;
   // The Storm Console's demo-caller override lives in routes.ts; it persists to
   // settings.json, so read it from there (same defaults as routes.ts).
@@ -379,7 +381,9 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     if (!(amount > 0)) return reply.code(400).send({ error: 'Enter the amount to collect.' });
     const h = handoffs.create({ guid: row?.guid ?? '', ani, memberSep: m.MemberSep, memberName: displayName(m), agentEmail: String(b.agentEmail ?? '').trim(), agentName: byAgent(b), amount });
     if (row) { calls.patch(row, { handoffRef: h.ref }); calls.step(row, 'agent_handoff', `${byAgent(b)} handed a ${money(amount)} payment to Savannah (ref ${h.ref})`, 'payment'); }
-    return { ok: true, ref: h.ref, message: `Savannah is ready (ref ${h.ref}). Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.`, handoff: handoffDto(h) };
+    // The widget transfers the call itself (Desktop blindTransferV2 to the entry point); the message is the manual fallback.
+    const transfer = { entryPointName: env.WXCC_PAYMENT_EP_NAME, entryPointId: await staffing.entryPointId(env.WXCC_PAYMENT_EP_NAME).catch(() => '') };
+    return { ok: true, ref: h.ref, message: `Savannah is ready (ref ${h.ref}). Now transfer the call: Transfer → Entry point → ${transfer.entryPointName}.`, handoff: handoffDto(h), transfer };
   });
 
   f.get('/api/agent-desk/handoff', async (req) => {

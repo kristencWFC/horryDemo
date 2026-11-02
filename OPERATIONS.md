@@ -53,6 +53,7 @@ chosen; webhookSecret = the box's agentTool secret pattern), restart `ivr-contro
 | `TOOL_SHARED_SECRET` | from local `.env` (also baked into the agent's tools) |
 | `FS_AGENT_TOOL_URL` / `FS_AGENT_TOOL_SECRET` | same as home-services (FS `/agent-tool/submit`) |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` | SMS number for restoration texts + payment links (point its inbound webhook at `/horry/webhooks/twilio/sms`) |
+| `WXCC_PAYMENT_EP_ID` (optional) | Entry point id of `EP_KC_Horry_Payment` for the Member tab's automatic transfer (Desktop `blindTransferV2`). Unset = looked up by name through the config API at the first hand-off; if the Service App can't list entry points, paste the id from Control Hub (entry point URL) |
 | `ELEVENLABS_PHONE_NUMBER_ID` / `OUTBOUND_CALLER_NUMBER` | Payment reminder calls (use case 3): the Twilio number attached to Savannah. Once, locally, from a clean shell: `node scripts/attach-outbound-number.mjs +12075315136` prints both lines; put them in the local AND server `.env`. Unset = reminder calls are simulated (texts still go out) |
 | `SMS_OVERRIDE_NUMBER` | optional — every text goes to the presenter. The AI Operations page's **Send demo texts to** field (api/settings `demoSmsTo`) does the same at runtime and wins over this |
 | `WEBEX_ORG_ID`, `WXCC_STORM_VARIABLE_ID`, `WEBEX_CLIENT_ID`, `WEBEX_CLIENT_SECRET`, `WEBEX_REFRESH_TOKEN` | Storm Mode global variable writer (dedicated Service App) |

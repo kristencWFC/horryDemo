@@ -176,6 +176,31 @@ export class StaffingStore extends EventEmitter {
     return this.state(SIM_QUEUE, SIM_TEAMS.map((t) => ({ id: t.id, name: t.name, home: t.home, onQueue: on.has(t.id) })));
   }
 
+  private epCache: { name: string; id: string; at: number } | null = null;
+
+  /** Entry point id by name (for the Desktop's blindTransferV2). '' when WxCC is not configured or not found. */
+  async entryPointId(name: string): Promise<string> {
+    if (env.WXCC_PAYMENT_EP_ID) return env.WXCC_PAYMENT_EP_ID;
+    if (!env.WEBEX_ORG_ID || !env.WEBEX_CLIENT_ID) return '';
+    if (this.epCache && this.epCache.name === name && Date.now() - this.epCache.at < 10 * 60_000) return this.epCache.id;
+    for (const path of ['/v2/entry-point?page=0&pageSize=200', '/entry-point']) {
+      try {
+        const res = await fetch(`${this.base()}${path}`, { headers: await this.headers() });
+        if (!res.ok) continue;
+        const j = (await res.json()) as { data?: unknown[] } | unknown[];
+        const list = (Array.isArray(j) ? j : j.data ?? []) as { id?: string; name?: string }[];
+        const hit = list.find((e) => String(e.name ?? '').toLowerCase() === name.toLowerCase());
+        if (hit?.id) {
+          this.epCache = { name, id: hit.id, at: Date.now() };
+          return hit.id;
+        }
+      } catch (err) {
+        console.log(`HORRY WXCC entry-point lookup ${path}: ${(err as Error).message}`);
+      }
+    }
+    return '';
+  }
+
   private base(): string {
     return `${env.WXCC_API_BASE.replace(/\/$/, '')}/organization/${env.WEBEX_ORG_ID}`;
   }

@@ -157,6 +157,7 @@ export class HorryMember extends LitElement {
     agentemail: { type: String },
     handoff: { state: true },
     sdkTask: { state: true },
+    transferring: { state: true },
     interactionData: { attribute: false },
     darkmode: darkmodeProperty,
     data: { state: true },
@@ -184,6 +185,8 @@ export class HorryMember extends LitElement {
   private hoTimer: number | undefined;
   /** Calls page: the task the Desktop SDK says this agent is on (nav pages get no task bindings). */
   sdkTask: { interactionId: string; ani: string } | null = null;
+  /** The widget asked the Desktop to transfer the call to the payment entry point. */
+  transferring = false;
   private sdkWatched = false;
   private lastAni = '';
   private returnedRef = '';
@@ -539,7 +542,7 @@ export class HorryMember extends LitElement {
   private renderHandoff(h: HandoffDto | null) {
     if (!h || h.status === 'failed') return nothing;
     const text: Record<HandoffDto['status'], string> = {
-      pending: 'Savannah is ready. Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.',
+      pending: this.transferring ? 'Transferring the call to Savannah…' : 'Savannah is ready. Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.',
       with_ai: 'Savannah is taking the payment. Your status: awaiting payment — the call comes back to you when she is done.',
       paid: 'Paid. Savannah is wrapping up and sending the call back to you.',
       returning: 'On its way back to you — answer when it rings.',
@@ -560,6 +563,43 @@ export class HorryMember extends LitElement {
         ? html`<div class="row"><button ?disabled=${!!this.busy} @click=${() => void this.cancelHandoff(h.ref)}>Cancel hand-off</button></div>`
         : nothing}
     </section>`;
+  }
+
+  /** Record the hand-off, then transfer the call to the payment entry point through the Desktop (Kristen 2026-11-02). */
+  private async handPayment(amount: number): Promise<void> {
+    const d = this.data;
+    if (!d) return;
+    this.busy = 'handoff';
+    this.result = null;
+    this.transferring = false;
+    try {
+      const r = await api<{ ok: boolean; message: string; handoff: HandoffDto; transfer?: { entryPointId: string; entryPointName: string } }>(this.server, 'api/agent-desk/handoff', {
+        method: 'POST',
+        body: { guid: this.guid || undefined, sep: d.member.memberSep, agent: this.agentName || undefined, amount, ani: this.callerAni, agentEmail: this.agentEmail },
+      });
+      this.handoff = r.handoff;
+      const ep = r.transfer?.entryPointId ?? '';
+      const guid = this.guid;
+      const desktop = ep && guid ? await loadDesktopSdk() : null;
+      if (desktop?.agentContact.blindTransferV2) {
+        try {
+          await desktop.agentContact.blindTransferV2({ interactionId: guid, data: { to: ep, destinationType: 'entryPoint' } });
+          this.transferring = true;
+          this.result = { ok: true, text: 'Transferring the call to Savannah…' };
+        } catch (err) {
+          const detail = JSON.stringify(err, Object.getOwnPropertyNames(err as object)).slice(0, 200);
+          console.log('HORRY hand-off transfer failed', detail);
+          this.result = { ok: false, text: `The Desktop refused the transfer (${detail}). ${r.message}` };
+        }
+      } else {
+        this.result = { ok: true, text: ep ? r.message : `${r.message} (Automatic transfer needs the entry point id — see OPERATIONS.md.)` };
+      }
+      await this.refresh();
+    } catch (err) {
+      this.result = { ok: false, text: (err as Error).message };
+    } finally {
+      this.busy = '';
+    }
   }
 
   private async cancelHandoff(ref: string): Promise<void> {
@@ -614,7 +654,7 @@ export class HorryMember extends LitElement {
       <div class="row">
         <button class="primary" ?disabled=${busy || !amtOk || !this.guid || !!(this.handoff ?? d.handoff)}
           title="Savannah takes the payment and sends the call back to you"
-          @click=${() => void this.act('handoff', 'handoff', { amount: amt, ani: this.callerAni, agentEmail: this.agentEmail }).then(() => void this.pollHandoff())}>
+          @click=${() => void this.handPayment(amt)}>
           ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
         </button>
         <button class="primary" ?disabled=${busy || !a.paymentLink.enabled || !amtOk}

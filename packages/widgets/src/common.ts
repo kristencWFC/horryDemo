@@ -46,7 +46,11 @@ export const unbound = (v: unknown): string => (typeof v === 'string' && !v.star
 
 export interface DesktopLike {
   config: { init: (opts?: unknown) => Promise<void> | void };
-  agentContact: { addEventListener: (ev: string, cb: (msg: unknown) => void) => void };
+  agentContact: {
+    addEventListener: (ev: string, cb: (msg: unknown) => void) => void;
+    /** Queues, dial numbers and entry points all go through V2 (kc-wiki wxcc-desktop-layouts, 2026-09). */
+    blindTransferV2?: (p: { interactionId: string; data: { to: string; destinationType: string } }) => Promise<unknown>;
+  };
   actions: { getTaskMap: () => Promise<Map<string, unknown>> };
 }
 

@@ -55,6 +55,10 @@ const EnvSchema = z.object({
   // Storm staffing: the outage queue whose team list the supervisor widget edits (same
   // Service App). Unset = simulated teams.
   WXCC_OUTAGE_QUEUE_ID: z.string().optional(),
+  // Payment hand-off (use case 1): the entry point the Member tab transfers the call to. The id is
+  // looked up by name through the config API; set WXCC_PAYMENT_EP_ID to skip the lookup.
+  WXCC_PAYMENT_EP_NAME: z.string().default('EP_KC_Horry_Payment'),
+  WXCC_PAYMENT_EP_ID: z.string().optional(),
   // The demo org is shared: the picker offers only teams whose name starts with this (plus
   // any team already on the queue), so nobody can staff Horry's queue with a colleague's team.
   WXCC_STAFFING_TEAM_PREFIX: z.string().default('KC_Horry'),
