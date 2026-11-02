@@ -112,19 +112,32 @@ export class HorrySupervisor extends LitElement {
       .between { justify-content: space-between; }
       .storm { display: grid; gap: 8px; }
       .group { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--h-muted, inherit); opacity: .8; margin: 6px 2px -4px; }
-      /* At a glance (Kristen 2026-10-29): colour only means "on". One summary line on top, a switch
-         per mode (green when on), a green edge on the active card; every other button stays plain. */
+      /* At a glance (Kristen 2026-11-02): green = Savannah is answering, a light red = she is off.
+         One summary banner on top, the two mode cards side by side, each with a tinted header strip
+         and a switch; every other button stays plain. */
+      :host { --h-off: #b23b3b; --h-off-soft: #fbeeee; --h-off-line: #e6b9b9; }
+      :host([darkmode='true']) { --h-off: #f2a4a4; --h-off-soft: #3a1c1e; --h-off-line: #6b3236; }
       .summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px;
         background: var(--h-soft); border: 1px solid var(--h-border); }
       .summary.on { background: var(--h-ok-soft); border-color: var(--h-ok); }
+      .summary.off { background: var(--h-off-soft); border-color: var(--h-off-line); }
       .summary .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--h-dim); flex: none; }
       .summary.on .dot { background: var(--h-ok); }
+      .summary.off .dot { background: var(--h-off); }
       .summary b { display: block; font-size: 15px; }
       .summary span { font-size: 12.5px; color: var(--h-dim); }
+      .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; align-items: start; }
       .mode { border-left: 4px solid var(--h-border); }
+      .mode .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+        margin: -12px -12px 0; padding: 10px 12px; border-radius: 0 8px 0 0; border-bottom: 1px solid var(--h-border); }
       .mode.on { border-left-color: var(--h-ok); }
+      .mode.on .head { background: var(--h-ok-soft); border-bottom-color: var(--h-ok-soft); }
+      .mode.off { border-left-color: var(--h-off-line); }
+      .mode.off .head { background: var(--h-off-soft); border-bottom-color: var(--h-off-soft); }
       .mode .state { font-size: 13px; color: var(--h-dim); }
       .mode.on .state { color: var(--h-ok); font-weight: 600; }
+      .mode.off .state { color: var(--h-off); font-weight: 600; }
+      .mode.off .switch { color: var(--h-off); }
       .titlerow { display: flex; align-items: center; gap: 10px; }
       .switch { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; padding: 4px 0; cursor: pointer;
         font: inherit; font-size: 13px; font-weight: 600; color: var(--h-dim); }
@@ -304,9 +317,11 @@ export class HorrySupervisor extends LitElement {
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
       ${this.renderSummary(storm)}
-      ${this.renderAi(storm)}
-      <div class="group">Storm</div>
-      ${this.renderStorm(storm)}
+      <div class="modes">
+        ${this.renderAi(storm)}
+        ${this.renderStorm(storm)}
+      </div>
+      <div class="group">Outage queue</div>
       ${!storm && extras.length && !this.pending
         ? html`<div class="note">
             Storm Mode is off, but ${extras.length} extra team${extras.length > 1 ? 's are' : ' is'} still on the outage queue
@@ -407,7 +422,7 @@ export class HorrySupervisor extends LitElement {
       : aiAll
         ? ['Savannah is answering every call', 'Everyday greeting: she asks what they need and connects them with an agent when asked.']
         : ['Calls go straight to agents', 'Savannah is off. Turn on a switch below to have her answer first.'];
-    return html`<div class="summary ${storm || aiAll ? 'on' : ''}" role="status">
+    return html`<div class="summary ${storm || aiAll ? 'on' : 'off'}" role="status">
       <span class="dot"></span>
       <div><b>${head}</b><span>${sub} Last change ${fmtClock(m.updatedAt)} by ${m.updatedBy}.</span></div>
     </div>`;
@@ -443,9 +458,9 @@ export class HorrySupervisor extends LitElement {
   private renderAi(storm: boolean) {
     const m = this.mode;
     const aiAll = m?.aiAll === 'true';
-    const state = !m ? 'Loading…' : aiAll ? 'On: Savannah answers every call first' : storm ? 'Off, but Storm Mode has Savannah answering' : 'Off';
-    return html`<section class="card storm mode ${aiAll ? 'on' : ''}" aria-label="AI agent">
-      <div class="row between">
+    const state = !m ? 'Loading…' : aiAll ? 'On: Savannah answers every call first' : storm ? 'On via Storm Mode: Savannah is answering every call' : 'Off: calls go straight to agents';
+    return html`<section class="card storm mode ${!m ? '' : aiAll || storm ? 'on' : 'off'}" aria-label="AI agent">
+      <div class="head">
         <div class="titlerow">
           <h2>AI agent for all calls</h2>
           ${m ? html`<span class="pill ${WXCC_CLASS[m.wxcc]}" title=${m.wxccError}>${WXCC_LABEL[m.wxcc]}</span>` : nothing}
@@ -481,12 +496,12 @@ export class HorrySupervisor extends LitElement {
 
   private renderStorm(storm: boolean) {
     const m = this.mode;
-    return html`<section class="card storm mode ${storm ? 'on' : ''}" aria-label="Storm Mode">
-      <div class="row between">
+    return html`<section class="card storm mode ${!m ? '' : storm ? 'on' : 'off'}" aria-label="Storm Mode">
+      <div class="head">
         <h2>Storm Mode</h2>
         ${this.renderToggle('storm', storm, 'Storm Mode')}
       </div>
-      <div class="state">${m ? (storm ? 'On: Savannah is answering outage calls' : 'Off') : 'Loading…'}</div>
+      <div class="state">${m ? (storm ? 'On: Savannah is answering outage calls' : 'Off: normal operations') : 'Loading…'}</div>
       <div class="dim">
         Savannah answers every call and leads with the outage: once a member confirms their address, she asks whether
         the outage in their area is why they called, gives the restoration estimate and offers a text when power is back.
