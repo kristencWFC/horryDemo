@@ -573,26 +573,41 @@ export class HorryMember extends LitElement {
     this.result = null;
     this.transferring = false;
     try {
-      const r = await api<{ ok: boolean; message: string; handoff: HandoffDto; transfer?: { entryPointId: string; entryPointName: string } }>(this.server, 'api/agent-desk/handoff', {
+      const r = await api<{ ok: boolean; message: string; handoff: HandoffDto; transfer?: { entryPointId: string; entryPointName: string; dialNumber: string } }>(this.server, 'api/agent-desk/handoff', {
         method: 'POST',
         body: { guid: this.guid || undefined, sep: d.member.memberSep, agent: this.agentName || undefined, amount, ani: this.callerAni, agentEmail: this.agentEmail },
       });
       this.handoff = r.handoff;
       const ep = r.transfer?.entryPointId ?? '';
+      const dn = r.transfer?.dialNumber ?? '';
       const guid = this.guid;
-      const desktop = ep && guid ? await loadDesktopSdk() : null;
+      const desktop = (ep || dn) && guid ? await loadDesktopSdk() : null;
       if (desktop?.agentContact.blindTransferV2) {
-        try {
-          await desktop.agentContact.blindTransferV2({ interactionId: guid, data: { to: ep, destinationType: 'entryPoint' } });
-          this.transferring = true;
-          this.result = { ok: true, text: 'Transferring the call to Savannah…' };
-        } catch (err) {
-          const detail = JSON.stringify(err, Object.getOwnPropertyNames(err as object)).slice(0, 200);
-          console.log('HORRY hand-off transfer failed', detail);
-          this.result = { ok: false, text: `The Desktop refused the transfer (${detail}). ${r.message}` };
+        // The Desktop accepts an entry point three ways; try them in order and log each refusal
+        // to the service (the agent's console is invisible to us — kc-wiki, 2026-09).
+        const attempts: { to: string; destinationType: string }[] = [
+          ...(dn ? [{ to: dn, destinationType: 'entrypointDialNumber' }] : []),
+          ...(ep ? [{ to: ep, destinationType: 'entryPoint' }] : []),
+          ...(dn ? [{ to: dn, destinationType: 'dialNumber' }] : []),
+        ];
+        const errors: string[] = [];
+        for (const data of attempts) {
+          try {
+            await desktop.agentContact.blindTransferV2({ interactionId: guid, data });
+            this.transferring = true;
+            this.result = { ok: true, text: 'Transferring the call to Savannah…' };
+            void api(this.server, 'api/agent-desk/diag', { method: 'POST', body: { ref: r.handoff.ref, ok: true, interactionId: guid, data } }).catch(() => undefined);
+            break;
+          } catch (err) {
+            const e = err as { message?: string; id?: string; details?: unknown };
+            const detail = `${data.destinationType}: ${e.id ?? ''} ${e.message ?? ''} ${JSON.stringify(e.details ?? '')}`.trim().slice(0, 240);
+            errors.push(detail);
+            void api(this.server, 'api/agent-desk/diag', { method: 'POST', body: { ref: r.handoff.ref, ok: false, interactionId: guid, data, error: JSON.stringify(err, Object.getOwnPropertyNames(err as object)).slice(0, 500) } }).catch(() => undefined);
+          }
         }
+        if (!this.transferring) this.result = { ok: false, text: `The Desktop refused the transfer (${errors.join(' | ')}). ${r.message}` };
       } else {
-        this.result = { ok: true, text: ep ? r.message : `${r.message} (Automatic transfer needs the entry point id — see OPERATIONS.md.)` };
+        this.result = { ok: true, text: r.message };
       }
       await this.refresh();
     } catch (err) {

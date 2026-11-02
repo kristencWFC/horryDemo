@@ -383,8 +383,15 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     const h = handoffs.create({ guid: row?.guid ?? '', ani, memberSep: m.MemberSep, memberName: displayName(m), agentEmail: String(b.agentEmail ?? '').trim(), agentName: byAgent(b), amount });
     if (row) { calls.patch(row, { handoffRef: h.ref }); calls.step(row, 'agent_handoff', `${byAgent(b)} handed a ${money(amount)} payment to Savannah (ref ${h.ref})`, 'payment'); }
     // The widget transfers the call itself (Desktop blindTransferV2 to the entry point); the message is the manual fallback.
-    const transfer = { entryPointName: env.WXCC_PAYMENT_EP_NAME, entryPointId: await staffing.entryPointId(env.WXCC_PAYMENT_EP_NAME).catch(() => '') };
+    const transfer = { entryPointName: env.WXCC_PAYMENT_EP_NAME, entryPointId: await staffing.entryPointId(env.WXCC_PAYMENT_EP_NAME).catch(() => ''), dialNumber: env.WXCC_PAYMENT_EP_DN };
+    console.log(`HORRY HANDOFF ${h.ref}: transfer target ${JSON.stringify(transfer)}`);
     return { ok: true, ref: h.ref, message: `Savannah is ready (ref ${h.ref}). Now transfer the call: Transfer → Entry point → ${transfer.entryPointName}.`, handoff: handoffDto(h), transfer };
+  });
+
+  // The agent's browser console is invisible to us: the widget posts transfer attempts here.
+  f.post('/api/agent-desk/diag', async (req) => {
+    console.log(`HORRY DESKTOP DIAG ${JSON.stringify(req.body ?? {}).slice(0, 600)}`);
+    return { ok: true };
   });
 
   f.get('/api/agent-desk/handoff', async (req) => {

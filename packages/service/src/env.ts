@@ -59,6 +59,7 @@ const EnvSchema = z.object({
   // looked up by name through the config API; set WXCC_PAYMENT_EP_ID to skip the lookup.
   WXCC_PAYMENT_EP_NAME: z.string().default('EP_KC_Horry_Payment'),
   WXCC_PAYMENT_EP_ID: z.string().optional(),
+  WXCC_PAYMENT_EP_DN: z.string().default('9729038486'),
   // The demo org is shared: the picker offers only teams whose name starts with this (plus
   // any team already on the queue), so nobody can staff Horry's queue with a colleague's team.
   WXCC_STAFFING_TEAM_PREFIX: z.string().default('KC_Horry'),
