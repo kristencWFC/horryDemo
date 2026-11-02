@@ -559,7 +559,7 @@ export class HorryMember extends LitElement {
       <ul class="steps">
         ${h.steps.map((s) => html`<li><span class="t">${fmtClock(s.at)}</span><span><strong>${HO_LABEL[s.step] ?? s.step}</strong><br /><span class="d">${s.detail}</span></span></li>`)}
       </ul>
-      ${h.status === 'pending'
+      ${h.status !== 'done'
         ? html`<div class="row"><button ?disabled=${!!this.busy} @click=${() => void this.cancelHandoff(h.ref)}>Cancel hand-off</button></div>`
         : nothing}
     </section>`;
