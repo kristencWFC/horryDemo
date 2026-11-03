@@ -462,12 +462,12 @@ export class HorryMember extends LitElement {
       return html`<div class="wrap">${this.renderHeader(d)} ${this.renderHandoff(this.handoff)} ${this.renderPayments(d)}</div>`;
     }
     if (!this.key && this.mode === 'desk') {
-      return html`<div class="empty"><h2>Calls</h2><p>Waiting for a call. When you answer, the member's account shows here, and it stays while Savannah takes a payment for you.</p></div>`;
+      return html`<div class="empty"><h2>Calls</h2><p>Waiting for a call.</p></div>`;
     }
     if (!this.key) {
       return html`<div class="empty">
         <h2>Member account</h2>
-        <p>Select a call to see the member's account, billing and what Savannah already did.</p>
+        <p>Select a call.</p>
       </div>`;
     }
     const d = this.data;
@@ -706,7 +706,7 @@ export class HorryMember extends LitElement {
               ${this.busy === 'ext' ? 'Requesting…' : 'Grant payment extension'}
             </button>
           </div>
-          <div class="dim" style="font-size:12px">${a.extension.reason}</div>`
+`
         : nothing}
       <div class="field">
         <label for="note">Account note</label>
@@ -744,7 +744,6 @@ export class HorryMember extends LitElement {
           ${this.busy === 'restore' ? 'Signing up…' : sub ? 'Update number' : 'Sign up for restoration texts'}
         </button>
       </div>
-      <div class="dim" style="font-size:12px">They get a confirmation now, a text if the estimate changes, and one when power is back.</div>
     </div>`;
   }
 
