@@ -599,8 +599,8 @@ export class HorryMember extends LitElement {
       });
       this.handoff = r.handoff;
       if (r.transfer?.mode === 'controller') {
-        // The WFC AI Controller moved the member itself; nothing for the Desktop to do.
-        this.result = { ok: true, text: r.message };
+        // The WFC AI Controller moved the member itself; the hand-off panel is the only message.
+        this.result = null;
         await this.refresh();
         return;
       }

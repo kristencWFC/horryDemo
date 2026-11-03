@@ -144,7 +144,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       `PAYMENT HAND-OFF: ${h.agentName}, a member services representative, has already verified this member and handed the call to you ONLY to take a payment of ${spokenMoney(h.amount)}.`,
       'Do not confirm the address, do not ask about outages, do not ask what they are calling about, and do not offer anything else.',
       `${payOptions(card, echeck)} Amount ${h.amount.toFixed(2)} unless they ask for a different amount. On a clear yes say "One moment while I run that" before the tool call.`,
-      `After the payment is approved (or declined twice), offer a text receipt. Then say "I'll send you back to ${h.agentName} now — one moment" and call wrap_up, then end_call.`,
+      `After the payment is approved (or declined twice), offer a text receipt. Then say "I'll send you back to ${h.agentName} now. One moment." and call wrap_up, then end_call.`,
       `If they ask about anything else, say ${h.agentName} will help with that as soon as they are back together, and finish the payment first. If they do not want to pay after all, say that is fine and send them back the same way (wrap_up, then end_call).`,
     ].join('\n');
   }
@@ -323,7 +323,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       const cell = textNumber(m) || last10(ani);
       vars.first_message =
         `Hi ${m.FirstName}, this is ${ASSISTANT}, Horry Electric's virtual assistant. ${h.agentName} asked me to take care of your payment of ${spokenMoney(h.amount)}. ` +
-        (card || echeck ? `Would you like to use ${payChoices(card, echeck)}?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))} — shall I send it?`);
+        (card || echeck ? `Would you like to use ${payChoices(card, echeck)}?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))}. Shall I send it?`);
       vars.call_playbook = handoffPlaybook(h, card, echeck);
       if (row) calls.patch(row, { handoffRef: h.ref, memberSep: m.MemberSep, memberName: displayName(m) });
       handoffs.step(h, 'ai_answered', `Savannah has ${m.FirstName} on the line.`, 'with_ai');
@@ -573,15 +573,21 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
   });
 
   tool('check-payment-status', async (row) => {
-    const s = (row.paymentId && payments.get(row.paymentId)) || payments.latestFor(row.guid);
+    let s = (row.paymentId && payments.get(row.paymentId)) || payments.latestFor(row.guid);
     if (!s) return { status: 'none', next_step: 'No payment has been started. Offer a secure payment link.' };
+    // Wait here (up to 15 s) instead of making Savannah narrate "still processing" between
+    // calls (first hand-off test, 2026-11-03: four filler lines while the member typed a card).
+    for (let i = 0; i < 15 && s.status !== 'approved' && s.status !== 'declined' && s.status !== 'expired'; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      s = (row.paymentId && payments.get(row.paymentId)) || payments.latestFor(row.guid) || s;
+    }
     if (s.status === 'approved') {
       if (!row.journey.some((j) => j.step === 'payment')) calls.step(row, 'payment', `${money(s.amount)} approved — ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
       hoStep(row, 'paid', `${money(s.amount)} approved on ${cardBrand(s.cardType ?? null)} ending ${s.last4}. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4}` });
       return { status: 'approved', amount: s.amount, card: `${s.cardType} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${spokenMoney(s.amount)} payment on the ${s.cardType} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
     }
     if (s.status === 'declined') return { status: 'declined', attempts: s.attempts, next_step: s.attempts >= 2 ? 'Declined twice: offer a representative (escalate department billing, reason payment_declined).' : 'The card was declined. They can try another card from the same link.' };
-    return { status: s.status, next_step: s.status === 'expired' ? 'The link expired. Offer to send a new one.' : 'Still waiting — chat briefly (do they see the text?) and check again in a few seconds.' };
+    return { status: s.status, next_step: s.status === 'expired' ? 'The link expired. Offer to send a new one.' : 'Not paid yet. Do NOT say "processing" or "one moment". Ask once, "Let me know when you have finished on the link," then stay silent until they answer, then call check_payment_status again.' };
   });
 
   tool('escalate', async (row, b) => {
