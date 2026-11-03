@@ -68,6 +68,18 @@
       }
     },
     {
+      "name": "pay_with_new_card",
+      "description": "Charge a new credit card the member read to you by voice. Collect, one at a time: card number, expiration month and year, security code, billing ZIP. Only call after you have all four and the caller agreed to the amount. Returns approved (with confirmation), declined, or needs_correction with which item to ask again.",
+      "params": {
+        "amount": { "type": "number", "description": "Dollar amount, e.g. 142.18", "required": true },
+        "card_number": { "type": "string", "description": "Card number as spoken, digits only (13 to 19 digits)", "required": true },
+        "exp_month": { "type": "number", "description": "Expiration month, 1 to 12", "required": true },
+        "exp_year": { "type": "number", "description": "Expiration year, four digits (e.g. 2028)", "required": true },
+        "security_code": { "type": "string", "description": "3- or 4-digit security code from the back of the card", "required": true },
+        "zip": { "type": "string", "description": "5-digit billing ZIP code", "required": true }
+      }
+    },
+    {
       "name": "send_payment_link",
       "description": "Text the member a secure payment link for a given amount (they pay on their own phone; no card details are ever given on the call). Call after the caller agreed to the amount and the number to text.",
       "params": {

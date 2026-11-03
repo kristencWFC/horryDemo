@@ -14,7 +14,8 @@ import { spokenEtr } from './outages.js';
 import type { CallStore, CallRow } from './calls.js';
 import type { Sms } from './sms.js';
 import { twilioSignatureOk } from './sms.js';
-import type { Payments } from './payments.js';
+import type { Payments, SpokenCard } from './payments.js';
+import { spokenCardProblem } from './payments.js';
 import type { ModeStore } from './mode.js';
 import type { StaffingStore } from './staffing.js';
 import { overview, callDetail, callsCsv } from './analytics.js';
@@ -56,13 +57,17 @@ const cardBrand = (b: string | null) => (b ? b.charAt(0) + b.slice(1).toLowerCas
 
 /** "the credit card on file (Visa ending 4 2 4 2), the e-check on file, or a new card" — only what exists. */
 function payChoices(card: string, echeck: boolean): string {
-  const opts = [card ? `the credit card on file (the ${card})` : '', echeck ? 'the e-check on file' : '', 'a new card'].filter(Boolean);
+  const opts = [card ? `the credit card on file (the ${card})` : '', echeck ? 'the ACH e-check on file' : '', 'a new credit card'].filter(Boolean);
   return opts.length > 1 ? `${opts.slice(0, -1).join(', ')}, or ${opts.at(-1)}` : opts[0]!;
 }
 
+/** How Savannah takes a new card by voice (Kristen 2026-11-03): the whole point is that the agent never hears it. */
+const NEW_CARD_SCRIPT =
+  'A new credit card → take it by voice, one item at a time, waiting for each answer: the card number, then the expiration month and year, then the security code on the back, then the billing ZIP code. Repeat back ONLY the last four digits of the card number ("ending 4 2 4 2") and nothing else; never repeat the full number or the security code. Then say "One moment while I run that" and call pay_with_new_card. Offer the secure text link (send_payment_link) only if they would rather not say the number.';
+
 /** Lines for get_billing / playbooks: the co-op runs cards through one system and e-checks through another; one question covers both. */
 function payOptions(card: string, echeck: boolean): string {
-  return `Ask how they would like to pay: "Would you like to use ${payChoices(card, echeck)}?" Credit card on file → pay_with_card_on_file. E-check on file → pay_with_echeck_on_file. A new card → send_payment_link (secure link), then check_payment_status.`;
+  return `Ask how they would like to pay: "Would you like to use ${payChoices(card, echeck)}?" Credit card on file → pay_with_card_on_file. ACH e-check on file → pay_with_echeck_on_file. ${NEW_CARD_SCRIPT}`;
 }
 
 
@@ -528,11 +533,50 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     if (s.status !== 'approved') {
       calls.step(row, 'payment_declined', `${money(amount)} card on file declined`);
       hoStep(row, 'declined', `${money(amount)} on the card on file was declined.`);
-      return { status: 'declined', next_step: 'The card on file was declined. Offer the secure text link to use a different card.' };
+      return { status: 'declined', next_step: 'The card on file was declined. Offer to take a different card now (pay_with_new_card) or the ACH e-check on file if there is one.' };
     }
     calls.step(row, 'payment', `${money(amount)} approved — card on file ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
     hoStep(row, 'paid', `${money(amount)} approved on ${cardBrand(s.cardType ?? null)} ending ${s.last4}. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4}` });
     return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${spokenMoney(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
+  });
+
+  // A new card read to Savannah by voice (Kristen 2026-11-03): the details never reach the
+  // agent, the desktop or this log. Only the last four digits are kept.
+  tool('pay-with-new-card', async (row, b) => {
+    const m = rowMember(row);
+    if (!m) return needMember;
+    const amount = Math.round(Number(b.amount) * 100) / 100;
+    if (!(amount > 0)) return { ok: false, next_step: 'Ask for the amount they want to pay.' };
+    const card: SpokenCard = {
+      number: String(b.card_number ?? '').replace(/\D/g, ''),
+      expMonth: Number(b.exp_month),
+      expYear: Number(b.exp_year),
+      cvc: String(b.security_code ?? '').replace(/\D/g, ''),
+      zip: String(b.zip ?? '').replace(/\D/g, ''),
+    };
+    const problem = spokenCardProblem(card);
+    if (problem) {
+      const ask: Record<string, string> = {
+        card_number_invalid: 'That card number does not check out. Ask them to read the card number again, one group at a time.',
+        expiration_invalid: 'Ask for the expiration month and year again (two-digit month, four-digit year).',
+        card_expired: 'Tell them that card appears to have expired and ask if they have another card, or offer the card on file / e-check.',
+        security_code_invalid: 'Ask for the three- or four-digit security code on the back of the card again.',
+        zip_invalid: 'Ask for the five-digit billing ZIP code again.',
+      };
+      return { status: 'needs_correction', problem, next_step: ask[problem] ?? 'Ask for the card details again.' };
+    }
+    const s = payments.create({ guid: row.guid, memberSep: m.MemberSep, memberName: displayName(m), amount, method: 'new_card', phone: last10(row.ani), initiatedBy: 'ai' });
+    calls.patch(row, { paymentId: s.id });
+    await payments.payWithNewCard(s, card);
+    const label = `new ${cardBrand(s.cardType ?? null)} ending ${s.last4}`;
+    if (s.status !== 'approved') {
+      calls.step(row, 'payment_declined', `${money(amount)} declined on a ${label}`);
+      hoStep(row, 'declined', `${money(amount)} was declined on the ${label}.`);
+      return { status: 'declined', attempts: s.attempts, next_step: s.attempts >= 2 ? 'Declined twice: offer the card on file or e-check if there is one, otherwise a representative (escalate department billing, reason payment_declined).' : 'Tell them the card was declined and ask if they have another card to try.' };
+    }
+    calls.step(row, 'payment', `${money(amount)} approved — ${label} (given to Savannah by voice), confirmation ${s.confirmation}`, 'payment');
+    hoStep(row, 'paid', `${money(amount)} approved on a ${label}. Card details were given to Savannah only. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4} (new card)` });
+    return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${spokenMoney(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')} digit by digit. Then offer a text receipt.` };
   });
 
   // E-check from the bank account on file (Horry's Milsoft side; Kristen 2026-11-02).

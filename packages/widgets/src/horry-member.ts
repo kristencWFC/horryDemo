@@ -138,7 +138,7 @@ const fmtPhone = (p: string | null | undefined) => {
 const signed = (n: number) => `${n > 0 ? '+' : ''}${n}%`;
 const PAY_LABEL = { pending: 'waiting', approved: 'paid', declined: 'declined', expired: 'expired' } as const;
 const PAY_CLASS = { pending: 'warn', approved: 'ok', declined: 'bad', expired: '' } as const;
-const METHOD = { link: 'Text link', keypad: 'Keypad', card_on_file: 'Card on file' } as const;
+const METHOD = { link: 'Text link', keypad: 'Keypad', card_on_file: 'Card on file', echeck_on_file: 'E-check on file', new_card: 'New card · given to Savannah' } as const;
 
 /** Read a CAD variable from the Desktop's task object (value may be wrapped). */
 function cadValue(task: TaskLike | null | undefined, name: string): string {
@@ -270,6 +270,7 @@ export class HorryMember extends LitElement {
       .hobox { border: 1px solid var(--h-border); border-left: 4px solid var(--h-accent); border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: grid; gap: 8px; }
       .hobox.paid, .hobox.done { border-left-color: var(--h-ok); }
       .hobox h3 { margin: 0; }
+      .paidline { background: var(--h-ok-soft, #e6f4ea); color: var(--h-ok); border-radius: 4px; padding: 8px 10px; font-size: 14px; }
       table { width: 100%; border-collapse: collapse; font-size: 12px; }
       td { padding: 4px 4px; border-top: 1px solid var(--h-border); vertical-align: top; }
       td.r { text-align: right; font-variant-numeric: tabular-nums; }
@@ -576,6 +577,9 @@ export class HorryMember extends LitElement {
         <span class="pill ${pill}">${h.status === 'with_ai' ? 'with Savannah' : h.status === 'done' ? (paid ? 'paid' : 'back') : h.status.replace('_', ' ')} · ref ${h.ref}</span>
       </div>
       <div class=${h.status === 'pending' ? 'note' : h.status === 'done' || h.status === 'paid' ? 'ok-msg' : 'dim'}>${text[h.status]}</div>
+      ${h.confirmation
+        ? html`<div class="paidline"><strong>Payment completed</strong> · ${money(h.amount)} · ${h.card ?? ''} · confirmation ${h.confirmation}</div>`
+        : nothing}
       <ul class="steps">
         ${h.steps.map((s) => html`<li><span class="t">${fmtClock(s.at)}</span><span><strong>${HO_LABEL[s.step] ?? s.step}</strong><br /><span class="d">${s.detail}</span></span></li>`)}
       </ul>

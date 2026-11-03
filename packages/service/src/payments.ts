@@ -19,7 +19,7 @@ export interface PaymentSession {
   memberSep: string;
   memberName: string;
   amount: number;
-  method: 'link' | 'keypad' | 'card_on_file' | 'echeck_on_file';
+  method: 'link' | 'keypad' | 'card_on_file' | 'echeck_on_file' | 'new_card';
   phone: string;
   status: PaymentStatus;
   createdAt: string;
@@ -30,6 +30,53 @@ export interface PaymentSession {
   sedcTrackingId?: string;
   attempts: number;
   initiatedBy: 'ai' | 'agent';
+}
+
+/** A card the member read to Savannah. Lives only for the duration of one tool call; never stored or logged. */
+export interface SpokenCard {
+  number: string;
+  expMonth: number;
+  expYear: number;
+  cvc: string;
+  zip: string;
+}
+
+export function luhnOk(number: string): boolean {
+  const d = number.replace(/\D/g, '');
+  if (d.length < 13 || d.length > 19) return false;
+  let sum = 0;
+  let dbl = false;
+  for (let i = d.length - 1; i >= 0; i--) {
+    let n = Number(d[i]);
+    if (dbl) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    dbl = !dbl;
+  }
+  return sum % 10 === 0;
+}
+
+export function cardBrandOf(number: string): string {
+  const d = number.replace(/\D/g, '');
+  if (/^4/.test(d)) return 'Visa';
+  if (/^(5[1-5]|2[2-7])/.test(d)) return 'Mastercard';
+  if (/^3[47]/.test(d)) return 'American Express';
+  if (/^6(011|5)/.test(d)) return 'Discover';
+  return 'Card';
+}
+
+/** Why a spoken card cannot be charged, or '' when it can (demo gateway rules: Luhn, expiry, the declined test card). */
+export function spokenCardProblem(c: SpokenCard, now = new Date()): string {
+  const d = c.number.replace(/\D/g, '');
+  if (!luhnOk(d)) return 'card_number_invalid';
+  if (!(c.expMonth >= 1 && c.expMonth <= 12)) return 'expiration_invalid';
+  const year = c.expYear < 100 ? 2000 + c.expYear : c.expYear;
+  if (year < now.getFullYear() || (year === now.getFullYear() && c.expMonth < now.getMonth() + 1)) return 'card_expired';
+  if (!/^\d{3,4}$/.test(c.cvc.replace(/\D/g, ''))) return 'security_code_invalid';
+  if (!/^\d{5}$/.test(c.zip.replace(/\D/g, ''))) return 'zip_invalid';
+  return '';
 }
 
 export class Payments extends EventEmitter {
@@ -95,6 +142,31 @@ export class Payments extends EventEmitter {
     s.status = 'approved';
     s.confirmation = String(100000 + Math.floor(Math.random() * 900000));
     s.completedAt = new Date().toISOString();
+    this.emit('change', s);
+    return s;
+  }
+
+  /**
+   * A new card the member read to Savannah by voice (use case 1, Kristen 2026-11-03): the
+   * details go from the member's phone to the AI and into the gateway, never to the agent's
+   * desktop, the agent's ear or this service's logs. Demo gateway: Luhn + expiry; the Stripe
+   * test number 4000 0000 0000 0002 declines, everything else valid approves. Production:
+   * tokenise with the Meridian gateway and saleWithToken, as `complete()` does for the page.
+   */
+  async payWithNewCard(s: PaymentSession, card: SpokenCard): Promise<PaymentSession> {
+    s.attempts += 1;
+    const digitsOnly = card.number.replace(/\D/g, '');
+    s.last4 = digitsOnly.slice(-4);
+    s.cardType = cardBrandOf(digitsOnly);
+    const validate = await this.nextgen.validatePayment(s.memberSep, s.amount, 'CC').catch(() => ({ ErrorString: '' } as { ErrorString?: string }));
+    if (validate.ErrorString) throw new Error(validate.ErrorString);
+    if (spokenCardProblem(card) || digitsOnly === '4000000000000002') {
+      s.status = 'declined';
+    } else {
+      s.status = 'approved';
+      s.confirmation = String(100000 + Math.floor(Math.random() * 900000));
+      s.completedAt = new Date().toISOString();
+    }
     this.emit('change', s);
     return s;
   }

@@ -150,7 +150,10 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     return { allowed: true, payBy: cisDate(addDays(base, EXTENSION_GRACE_DAYS)), reason: `Allowed up to ${EXTENSION_GRACE_DAYS} days past the ${fin.CutOffDate ? 'cut-off' : 'due'} date.` };
   }
 
-  async function snapshot(m: Member, row: CallRow | undefined) {
+  async function snapshot(m: Member, row: CallRow | undefined, callerAni = '') {
+    // The hand-off and the controller key on the number the call came FROM (the Desktop's
+    // ANI), not the member's number on file — on a demo call those differ (Kristen 2026-11-03).
+    const ani = last10(callerAni) || row?.ani || m.CellPhone || '';
     const fin = await nextgen.financial(m.MemberSep).catch(() => null);
     const o = outages.forMember(m);
     const sub = o ? outages.subsFor(o.id).find((s) => s.memberSep === m.MemberSep && s.status === 'waiting') : undefined;
@@ -244,9 +247,9 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
       billingScreen: `billing.html?sep=${m.MemberSep}`,
       /** Savannah is answering calls: show the outage banner and card (Kristen 2026-11-02). */
       aiOn: mode.aiRouting(),
-      handoff: handoffDto(handoffs.recentByAni(row?.ani || m.CellPhone || '')),
+      handoff: handoffDto(handoffs.recentByAni(ani)),
       /** This call is bridged through the WFC AI Controller, so the hand-off button can move it itself. null = controller not configured. */
-      agentFirst: agentFirst.enabled ? Boolean(agentFirst.activeByAni(row?.ani || m.CellPhone || '')) : null,
+      agentFirst: agentFirst.enabled ? Boolean(agentFirst.activeByAni(ani)) : null,
     };
   }
 
@@ -270,7 +273,7 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
       if (h && h.status === 'returning') handoffs.step(h, 'returned', `Back with ${h.agentName}.`, 'done');
     }
     if (!m) return reply.code(404).send({ found: false, error: 'No member matches this caller', call: row ? { guid: row.guid, ani: row.ani } : null });
-    return snapshot(m, row ?? calls.all().find((r) => r.memberSep === m.MemberSep && !q.guid));
+    return snapshot(m, row ?? calls.all().find((r) => r.memberSep === m.MemberSep && !q.guid), q.ani ?? '');
   });
 
   f.get('/api/agent-desk/account', async (req, reply) => {
