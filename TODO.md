@@ -5,6 +5,8 @@ Nick confirming).
 
 ## STATE (handoff)
 
+2026-11-03 — **Use case 1 redesign in review** (Kristen): the entry-point transfer dropped the call live and the return path (wrap-up → Queue To Agent) is not acceptable; a WxCC conference can't keep the agent from hearing the payment. New design = WFC AI Controller in the middle of every agent-first call (Live Translate shape: bridge 1122 `X-Solution-Name: HorryAgentFirst` → re-entry into WxCC as the member → A↔B bridge; hand-off parks the agent leg and sends the member leg to Savannah on 1151, re-bridge when she hangs up). Design page docs/payment-handoff-design.html (artifact DGoHXGencotbUhuqEcHKC7) awaiting Kristen's approval before any build. Member tab: the separate Billing card is gone (it repeated the account strip); On file / Budget plan / Extension now sit at the right of the strip; Amount due says "· past due".
+
 2026-11-02 (late) — Member tab: outage banner + card only while Savannah is on (DTO aiOn); all action buttons navy (button.primary = --h-navy); Calls page adopts the task via the Desktop SDK (nav pages get literal $STORE bindings).
 
 2026-11-02 (late) — **Two payment systems** (Kristen): cards = Meridian (SEDC), e-checks = Milsoft. Savannah always asks "credit card on file, e-check on file, or a new card?" (get_billing how_to_pay; new tool pay_with_echeck_on_file = recorded draft, no Milsoft sandbox); same question on hand-offs and reminder calls; overview page v19 §5.

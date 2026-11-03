@@ -450,7 +450,7 @@ export class HorryMember extends LitElement {
   render() {
     if (!this.key && this.mode === 'desk' && this.handoff && this.data) {
       const d = this.data;
-      return html`<div class="wrap">${this.renderHeader(d)} ${this.renderHandoff(this.handoff)} ${this.renderBilling(d)} ${this.renderPayments(d)}</div>`;
+      return html`<div class="wrap">${this.renderHeader(d)} ${this.renderHandoff(this.handoff)} ${this.renderPayments(d)}</div>`;
     }
     if (!this.key && this.mode === 'desk') {
       return html`<div class="empty"><h2>Calls</h2><p>Waiting for a call. When you answer, the member's account shows here, and it stays while Savannah takes a payment for you.</p></div>`;
@@ -469,7 +469,7 @@ export class HorryMember extends LitElement {
     }
     return html`<div class="wrap">
       ${this.loadError ? html`<div class="err">${this.loadError}</div>` : nothing}
-      ${this.renderHeader(d)} ${this.renderHandoff(this.handoff ?? d.handoff ?? null)} ${this.renderSavannah(d)} ${this.renderBilling(d)} ${this.renderAssistant(d)}
+      ${this.renderHeader(d)} ${this.renderHandoff(this.handoff ?? d.handoff ?? null)} ${this.renderSavannah(d)} ${this.renderAssistant(d)}
       ${d.aiOn === false ? nothing : this.renderOutage(d)} ${this.renderUsage(d)} ${this.renderPayments(d)}
     </div>`;
   }
@@ -478,6 +478,9 @@ export class HorryMember extends LitElement {
   private renderHeader(d: DeskDto) {
     const m = d.member;
     const b = d.billing;
+    const ext = d.actions.extension;
+    // Kristen 2026-11-03: the separate Billing card repeated this strip, so it's gone; its
+    // three extra facts (on file, budget plan, extension) live here on the right instead.
     const cell = (label: string, value: unknown, cls = '') => html`<div class="cell"><span>${label}</span><b class=${cls}>${value}</b></div>`;
     return html`<section class="cis" aria-label="Member account">
       <div class="cisbar">
@@ -493,11 +496,14 @@ export class HorryMember extends LitElement {
         ${cell('Email', m.email || '—')}
         ${b
           ? html`${cell('Current balance', money(b.currentBalance), 'big')}
-              ${cell('Amount due', `${money(b.amountDue)} by ${b.dueDate}`, b.pastDue > 0 ? 'badc' : '')}
+              ${cell('Amount due', `${money(b.amountDue)} by ${b.dueDate}${b.pastDue > 0 ? ' · past due' : ''}`, b.pastDue > 0 ? 'badc' : '')}
               ${cell('Past due', money(b.pastDue), b.pastDue > 0 ? 'badc' : '')}
               ${cell('Cut-off date', b.cutOffDate ?? 'None', b.cutOffDate ? 'badc' : '')}
               ${cell('Last payment', b.lastPayment ? `${money(b.lastPayment)} on ${b.lastPaymentDate}` : '—')}
-              ${cell('Bill date', b.billDate || '—')}`
+              ${cell('Bill date', b.billDate || '—')}
+              ${cell('On file', [b.cardOnFile ? `${b.cardOnFile.brand} ••${b.cardOnFile.last4} (card)` : '', b.bankDraft ? 'Bank account (e-check)' : ''].filter(Boolean).join(' · ') || 'None')}
+              ${cell('Budget plan', b.budgetAmount ? `${money(b.budgetAmount)}/mo` : 'No')}
+              ${cell('Extension', ext.allowed ? `Allowed to ${ext.payBy}` : ext.reason, ext.allowed ? 'good' : '')}`
           : cell('Billing', 'Billing system unavailable')}
       </div>
       <div class="cisbadges">
@@ -626,26 +632,6 @@ export class HorryMember extends LitElement {
     } finally {
       this.busy = '';
     }
-  }
-
-  private renderBilling(d: DeskDto) {
-    const b = d.billing;
-    if (!b) return html`<section class="card"><h3>Billing</h3><div class="err">Billing details are unavailable right now.</div></section>`;
-    const ext = d.actions.extension;
-    return html`<section class="card" aria-label="Billing">
-      <h3>Billing</h3>
-      <dl class="kv">
-        <div><dt>Amount due</dt><dd class="big">${money(b.amountDue)}</dd></div>
-        <div><dt>Due date</dt><dd class=${b.pastDue > 0 ? 'bad' : ''}>${b.pastDue > 0 ? `${b.dueDate} · past due` : b.dueDate}</dd></div>
-        <div><dt>Past due</dt><dd class=${b.pastDue > 0 ? 'bad' : ''}>${money(b.pastDue)}</dd></div>
-        <div><dt>Cut-off date</dt><dd class=${b.cutOffDate ? 'bad' : ''}>${b.cutOffDate ?? 'None'}</dd></div>
-        <div><dt>Balance</dt><dd>${money(b.currentBalance)}</dd></div>
-        <div><dt>Last payment</dt><dd>${money(b.lastPayment)} on ${b.lastPaymentDate}</dd></div>
-        <div><dt>On file</dt><dd>${[b.cardOnFile ? `${b.cardOnFile.brand} ••${b.cardOnFile.last4} (card)` : '', b.bankDraft ? 'Bank account (e-check)' : ''].filter(Boolean).join(' · ') || 'None'}</dd></div>
-        <div><dt>Budget plan</dt><dd>${b.budgetAmount ? `${money(b.budgetAmount)}/mo` : 'No'}</dd></div>
-        <div><dt>Extension</dt><dd>${ext.allowed ? `Allowed to ${ext.payBy}` : ext.reason}</dd></div>
-      </dl>
-    </section>`;
   }
 
   private renderAssistant(d: DeskDto) {
