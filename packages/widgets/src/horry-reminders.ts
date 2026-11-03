@@ -58,6 +58,17 @@ export class HorryReminders extends LitElement {
     themeStyles,
     css`
       .wrap { display: grid; gap: 12px; }
+      /* KPI tiles across the top (Kristen 2026-11-03: "fancier, with KPI cards"). */
+      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+      .tile { background: var(--h-bg); border: 1px solid var(--h-border); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; border-top: 3px solid var(--h-navy); }
+      .tile .k { font-size: 12px; color: var(--h-dim); }
+      .tile .v { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; }
+      .tile .n { font-size: 12px; color: var(--h-dim); }
+      .tile.good { border-top-color: var(--h-ok); }
+      .tile.good .v { color: var(--h-ok); }
+      .tile.warn { border-top-color: var(--h-warn); }
+      .split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--h-border); margin-top: 6px; }
+      .split i { display: block; height: 100%; }
       .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
       .between { justify-content: space-between; }
       .group { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--h-muted, inherit); opacity: .8; margin: 6px 2px -4px; }
@@ -172,10 +183,33 @@ export class HorryReminders extends LitElement {
     const l = this.list;
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
+      ${this.renderKpis(l)}
       ${this.renderNew(l)}
       <div class="group">Sent lists</div>
       ${l && l.batches.length ? l.batches.map((b) => this.renderBatch(b)) : html`<div class="card dim">Nothing sent yet.</div>`}
     </div>`;
+  }
+
+  /** Totals across every list sent: reminded, reached, paid (count, %, dollars), promised, still owed. */
+  private renderKpis(l: ListDto | null) {
+    const rows = (l?.batches ?? []).flatMap((b) => b.rows.map((r) => ({ ...r, channel: b.channel })));
+    const calls = rows.filter((r) => r.channel === 'voice');
+    const texts = rows.filter((r) => r.channel === 'sms');
+    const reached = calls.filter((r) => ['paid', 'promised', 'completed', 'declined'].includes(r.status)).length;
+    const paid = rows.filter((r) => r.status === 'paid');
+    const promised = rows.filter((r) => r.status === 'promised');
+    const collected = paid.reduce((n, r) => n + (Number(r.amount) || 0), 0);
+    const owed = rows.filter((r) => r.status !== 'paid').reduce((n, r) => n + (Number(r.amount) || 0), 0);
+    const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '—');
+    const inFlight = rows.filter((r) => r.status === 'queued' || r.status === 'calling').length;
+    return html`<section class="tiles" aria-label="Reminder results">
+      <div class="tile"><span class="k">Members reminded</span><span class="v">${rows.length}</span><span class="n">${calls.length} call${calls.length === 1 ? '' : 's'} · ${texts.length} text${texts.length === 1 ? '' : 's'}${inFlight ? ` · ${inFlight} in progress` : ''}</span></div>
+      <div class="tile"><span class="k">Calls answered</span><span class="v">${reached}</span><span class="n">${pct(reached, calls.length)} of calls placed</span></div>
+      <div class="tile good"><span class="k">Payments completed</span><span class="v">${paid.length}</span><span class="n">${pct(paid.length, rows.length)} of members reminded</span>
+        <div class="split"><i style="width:${rows.length ? Math.round((paid.length / rows.length) * 100) : 0}%;background:var(--h-ok)"></i></div></div>
+      <div class="tile good"><span class="k">Collected</span><span class="v">${money(collected)}</span><span class="n">${money(owed)} still past due</span></div>
+      <div class="tile ${promised.length ? 'warn' : ''}"><span class="k">Promised to pay</span><span class="v">${promised.length}</span><span class="n">${money(promised.reduce((n, r) => n + (Number(r.amount) || 0), 0))} promised</span></div>
+    </section>`;
   }
 
   private renderNew(l: ListDto | null) {
@@ -185,10 +219,6 @@ export class HorryReminders extends LitElement {
       <div class="row between">
         <h2>Payment reminders</h2>
         ${l ? html`<span class="pill ${l.configured ? 'ok' : ''}">${l.configured ? `calls from ${fmtPhone(l.callerNumber)}` : 'calls simulated — no outbound number attached'}</span>` : nothing}
-      </div>
-      <div class="dim">
-        Upload the past-due list from the billing system (columns: account, name, phone, amount, due date). Check it,
-        choose how to remind them, and send. Savannah calls each member one at a time, or a secure pay link goes by text.
       </div>
       ${!d
         ? html`<div class="row">
