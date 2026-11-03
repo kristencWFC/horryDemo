@@ -155,6 +155,13 @@
     <h3>Use case 1 in detail: the payment hand-off</h3>
     <p>The member never reads a card number to a person, the agent keeps the call, and the call never leaves Webex
     Contact Center.</p>
+    <div class="note"><strong>Set-up before the call (2 minutes).</strong> Open the Storm Console
+    (<code>kcdev2.workflowconcepts.com/horry/</code>) → <strong>02 · Demo caller</strong>: put the presenter's
+    10-digit phone in <em>Presenter phone</em>, choose <em>Skipper, Dorothy</em> under <em>Plays the member</em>, Save.
+    That one setting makes both Savannah and the agent desktop treat your phone as Dorothy (no card on file,
+    $194 past due, cut-off 11/04). Then on the AI Operations page make sure <strong>AI agent · Savannah</strong>
+    is <em>off</em>, log in as the billing agent on the Desktop and open the <strong>Calls</strong> page.
+    Switch the dropdown to another member between calls to play Marcus or Linda; Reset demo data leaves it alone.</div>
     <ol>
       <li>Savannah is off. Dorothy calls (972) 430-9658 and routes straight to the billing agent. The Member tab pops her account: $194 past due, the due date in red.</li>
       <li>She wants to pay. The agent clicks <strong>Hand payment to Savannah</strong>, then transfers the call: Transfer → Entry point → <code>EP_KC_Horry_Payment</code>. The service has recorded the hand-off (member, agent, amount) under a 4-digit reference keyed to the caller's number.</li>
