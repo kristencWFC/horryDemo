@@ -233,7 +233,7 @@ export class HorryMember extends LitElement {
       .cisbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px;
         background: var(--h-navy); color: var(--h-bg); font-size: 13px; }
       .cisbar button { font-size: 12px; padding: 3px 10px; background: var(--h-bg); color: var(--h-text); }
-      .cisgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1px; background: var(--h-border); }
+      .cisgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 1px; background: var(--h-border); }
       .cisgrid .cell { background: var(--h-bg); padding: 7px 10px; display: grid; gap: 2px; align-content: start; }
       .cisgrid .cell span { font-size: 11px; color: var(--h-dim); }
       .cisgrid .cell b { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
@@ -479,8 +479,8 @@ export class HorryMember extends LitElement {
     const m = d.member;
     const b = d.billing;
     const ext = d.actions.extension;
-    // Kristen 2026-11-03: the separate Billing card repeated this strip, so it's gone; its
-    // three extra facts (on file, budget plan, extension) live here on the right instead.
+    // Kristen 2026-11-03: the separate Billing card repeated this strip, so it's gone; one
+    // row only, ending with the extension (card/bank on file stay as badges below).
     const cell = (label: string, value: unknown, cls = '') => html`<div class="cell"><span>${label}</span><b class=${cls}>${value}</b></div>`;
     return html`<section class="cis" aria-label="Member account">
       <div class="cisbar">
@@ -495,14 +495,12 @@ export class HorryMember extends LitElement {
         ${cell('Primary phone', fmtPhone(m.cellPhone || m.homePhone))}
         ${cell('Email', m.email || '—')}
         ${b
-          ? html`${cell('Current balance', money(b.currentBalance), 'big')}
+          ? html`${cell('Current charges', money(b.currentBalance), 'big')}
               ${cell('Amount due', `${money(b.amountDue)} by ${b.dueDate}${b.pastDue > 0 ? ' · past due' : ''}`, b.pastDue > 0 ? 'badc' : '')}
               ${cell('Past due', money(b.pastDue), b.pastDue > 0 ? 'badc' : '')}
               ${cell('Cut-off date', b.cutOffDate ?? 'None', b.cutOffDate ? 'badc' : '')}
               ${cell('Last payment', b.lastPayment ? `${money(b.lastPayment)} on ${b.lastPaymentDate}` : '—')}
               ${cell('Bill date', b.billDate || '—')}
-              ${cell('On file', [b.cardOnFile ? `${b.cardOnFile.brand} ••${b.cardOnFile.last4} (card)` : '', b.bankDraft ? 'Bank account (e-check)' : ''].filter(Boolean).join(' · ') || 'None')}
-              ${cell('Budget plan', b.budgetAmount ? `${money(b.budgetAmount)}/mo` : 'No')}
               ${cell('Extension', ext.allowed ? `Allowed to ${ext.payBy}` : ext.reason, ext.allowed ? 'good' : '')}`
           : cell('Billing', 'Billing system unavailable')}
       </div>

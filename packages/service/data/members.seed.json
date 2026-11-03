@@ -31,7 +31,7 @@
       "CellPhone": "8435550118", "Telephone": "8435550119", "EmailAddr": null,
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124677302", "Location": "74315051000",
       "SubStation": 3, "Circuit": 1, "PrioritySvc": 0,
-      "CurrentBalance": 174.99, "AmountDue": 368.99, "PastDueAmount": 194.00, "DueDate": "10/28/26", "CutOffDate": "11/04/26",
+      "CurrentBalance": 174.99, "AmountDue": 368.99, "PastDueAmount": 194.00, "DueDate": "10/28/26", "CutOffDate": "11/10/26",
       "LastPayment": 50.00, "PaymentDate": "09/30/26", "BillDate": "10/07/26", "OnCutOffList": true,
       "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
       "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": false,
