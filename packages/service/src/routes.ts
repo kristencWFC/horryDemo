@@ -847,8 +847,8 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return batch;
   });
 
-  // Re-entry flow (KC_Assist_2, 207-888-6051, shared with Live Translate): is this leg the WFC
-  // AI Controller bringing a Horry member back in? found=true → Queue Contact Q_Horry_Billing.
+  // Optional guard in the main flow (the re-entry lands on 972-430-9658): is this leg the WFC AI
+  // Controller bringing a member back in? found=true → Queue Q_Horry_Billing before any Savannah check.
   f.get('/api/agent-first/by-ani/:ani', async (req) => {
     const ani = (req.params as { ani: string }).ani;
     const c = agentFirst?.activeByAni(ani);
