@@ -33,8 +33,8 @@
       "SubStation": 3, "Circuit": 1, "PrioritySvc": 0,
       "CurrentBalance": 174.99, "AmountDue": 368.99, "PastDueAmount": 194.00, "DueDate": "10/28/26", "CutOffDate": "11/10/26",
       "LastPayment": 50.00, "PaymentDate": "09/30/26", "BillDate": "10/07/26", "OnCutOffList": true,
-      "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
-      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": false,
+      "AllowArrangementFlag": true, "CardProfileExists": true, "Last4CcDigits": "4242", "CardBrand": "VISA",
+      "BankDraft": true, "LevelizedBillAmount": 0, "Paperless": false,
       "KwhLast30": 1640, "KwhPriorMonth": 1320, "KwhSameMonthLastYear": 1290
     },
     {
@@ -46,7 +46,7 @@
       "CurrentBalance": 211.07, "AmountDue": 211.07, "PastDueAmount": 0, "DueDate": "11/18/26", "CutOffDate": null,
       "LastPayment": 188.12, "PaymentDate": "10/15/26", "BillDate": "10/27/26", "OnCutOffList": false,
       "AllowArrangementFlag": false, "CardProfileExists": true, "Last4CcDigits": "1881", "CardBrand": "MASTERCARD",
-      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": true,
+      "BankDraft": true, "LevelizedBillAmount": 0, "Paperless": true,
       "KwhLast30": 1450, "KwhPriorMonth": 1410, "KwhSameMonthLastYear": 1500
     },
     {
@@ -69,8 +69,8 @@
       "SubStation": 9, "Circuit": 3, "PrioritySvc": 0,
       "CurrentBalance": 287.56, "AmountDue": 287.56, "PastDueAmount": 0, "DueDate": "11/16/26", "CutOffDate": null,
       "LastPayment": 164.20, "PaymentDate": "10/14/26", "BillDate": "10/25/26", "OnCutOffList": false,
-      "AllowArrangementFlag": true, "CardProfileExists": false, "Last4CcDigits": null, "CardBrand": null,
-      "BankDraft": false, "LevelizedBillAmount": 0, "Paperless": false,
+      "AllowArrangementFlag": true, "CardProfileExists": true, "Last4CcDigits": "0005", "CardBrand": "AMEX",
+      "BankDraft": true, "LevelizedBillAmount": 0, "Paperless": false,
       "KwhLast30": 2210, "KwhPriorMonth": 1380, "KwhSameMonthLastYear": 1460
     }
   ]
