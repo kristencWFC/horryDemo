@@ -46,6 +46,8 @@ export interface AgentFirstCall {
   handoffRef?: string;
   /** Who asked for the member back: the agent (Cancel) or the service (wrap-up / post-call / her leg ended). */
   recallWhy?: 'agent' | 'auto';
+  /** Savannah's SIP leg, learned from A's CHANNEL_BRIDGE while handing off. */
+  savannahLeg?: string;
   endedAt?: number;
   endedBy?: string;
 }
@@ -143,11 +145,21 @@ export class AgentFirstBridge extends EventEmitter {
       if (mine && mine.state !== 'ended') {
         console.log(`${this.tag(mine)}: ${name} on ${uuid === mine.a ? 'A' : uuid === mine.b ? 'B' : 'other leg ' + uuid.slice(0, 8)} phase=${ev['variable_horry_phase'] ?? ''} cause=${ev['Hangup-Cause'] ?? ''} disp=${ev['variable_originate_disposition'] ?? ''}`);
       }
-      // Savannah's leg ended, or A fell out of its bridge with her, but A did not park on its own:
-      // pull A to the return extension ourselves (first live test 2026-11-03: silence, no park).
-      if ((name === 'CHANNEL_UNBRIDGE' && mine && uuid === mine.a) || (name === 'CHANNEL_HANGUP' && mine && uuid !== mine.a && uuid !== mine.b)) {
-        if (mine.state === 'with_savannah') this.timer(mine, 'unbridged', 1500, () => void this.recall(mine.ani, 'auto'));
-        return;
+      const other = ev['Other-Leg-Unique-ID'] ?? '';
+      if (mine && mine.state === 'with_savannah') {
+        // A bridging to anything but B while handing off = Savannah's leg. (The first unbridge
+        // after the hand-off is A leaving the AGENT — second live test 2026-11-03 recalled on it.)
+        if (name === 'CHANNEL_BRIDGE' && uuid === mine.a && other && other !== mine.b) {
+          mine.savannahLeg = other;
+          return;
+        }
+        // Her leg ended, or A fell out of its bridge with her, and A did not park on its own:
+        // pull A to the return extension ourselves (first live test: silence, no park).
+        const herLegGone = mine.savannahLeg && ((name === 'CHANNEL_UNBRIDGE' && uuid === mine.a && other === mine.savannahLeg) || (name === 'CHANNEL_HANGUP' && uuid === mine.savannahLeg));
+        if (herLegGone) {
+          this.timer(mine, 'unbridged', 1500, () => void this.recall(mine.ani, 'auto'));
+          return;
+        }
       }
       if (name === 'CHANNEL_PARK') {
         if (ev['variable_horry_solution'] !== SOLUTION) return;
@@ -247,6 +259,7 @@ export class AgentFirstBridge extends EventEmitter {
     c.savannahAt = Date.now();
     c.holdStarted = false;
     c.recallWhy = undefined;
+    c.savannahLeg = undefined;
     c.state = 'with_savannah';
     const r = await esl.api(`uuid_transfer ${c.a} ${this.opts.savannahExtension} XML public`);
     if (r.startsWith('-ERR')) {
@@ -295,9 +308,10 @@ export class AgentFirstBridge extends EventEmitter {
     const phase = ev['variable_horry_phase'] ?? '';
     const disposition = ev['variable_originate_disposition'] ?? '';
     const heldMs = Date.now() - (c.savannahAt ?? Date.now());
-    const answered = disposition === 'SUCCESS' || heldMs > 8000;
+    const answered = Boolean(c.savannahLeg) || disposition === 'SUCCESS' || heldMs > 8000;
     const reason: ReturnInfo['reason'] = phase === 'return' && c.recallWhy !== 'auto' ? 'recalled' : answered ? 'savannah_hungup' : 'not_answered';
     c.recallWhy = undefined;
+    c.savannahLeg = undefined;
     await esl.api(`uuid_break ${c.b} all`).catch(() => undefined);
     const bridged = await esl.api(`uuid_bridge ${c.a} ${c.b}`);
     if (bridged.startsWith('-ERR')) {

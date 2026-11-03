@@ -136,7 +136,14 @@ describe('AgentFirstBridge', () => {
     await memberArrives(esl);
     const c = bridge.activeByAni('8435550118')!;
     await bridge.handoff('8435550118', '5555');
-    // Her leg hangs up (Other-Leg = A), A never parks on its own.
+    // A leaves the AGENT's bridge first (that is the hand-off itself): must NOT recall.
+    esl.emit('event', { 'Event-Name': 'CHANNEL_UNBRIDGE', 'Unique-ID': A, 'Other-Leg-Unique-ID': c.b });
+    await new Promise((r) => setTimeout(r, 1700));
+    expect(esl.cmds.some((x) => x.includes('horry_return'))).toBe(false);
+    // A bridges to Savannah's leg, then her leg hangs up; A never parks on its own.
+    esl.emit('event', { 'Event-Name': 'CHANNEL_BRIDGE', 'Unique-ID': A, 'Other-Leg-Unique-ID': 'savannah-leg', variable_horry_phase: 'savannah' });
+    await tick();
+    expect(c.savannahLeg).toBe('savannah-leg');
     esl.emit('event', { 'Event-Name': 'CHANNEL_HANGUP', 'Unique-ID': 'savannah-leg', 'Other-Leg-Unique-ID': A, 'Hangup-Cause': 'NORMAL_CLEARING' });
     await new Promise((r) => setTimeout(r, 1700));
     expect(esl.cmds.at(-1)).toBe(`uuid_transfer ${A} horry_return XML public`);
