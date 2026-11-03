@@ -663,16 +663,8 @@ export class HorryMember extends LitElement {
     // While Savannah has the member the hand-off IS the billing assistant: the steps show
     // here and the buttons go away until she is done (Kristen 2026-11-03).
     const live = h && h.status !== 'done' && h.status !== 'failed' ? h : null;
-    // Say why the hand-off button is off (Kristen 2026-11-02: "greyed out and not accessible").
-    const why = !this.callerAni
-        ? "No caller number on this call, so Savannah couldn't recognise them after the transfer."
-        : d.agentFirst === true
-          ? 'Savannah takes the member while you hold; they come back to you on this same call.'
-          : d.agentFirst === false
-            ? "This call didn't come through the WFC AI Controller, so the hand-off is recorded and you transfer by hand."
-            : !this.guid
-              ? "The Desktop hasn't given the call's ID yet: the hand-off will be recorded and you transfer by hand."
-              : '';
+    // No explanatory lines under the buttons (Kristen 2026-11-03): the button's tooltip says why it is off.
+    const offWhy = !this.callerAni ? 'No caller number on this call' : !amtOk ? 'Nothing is due' : '';
     return html`<section class="card" aria-label="Billing assistant">
       <h3>Billing assistant</h3>
       ${this.result && !live ? html`<div class=${this.result.ok ? 'ok-msg' : 'err'} role="status">${this.result.text}</div>` : nothing}
@@ -689,7 +681,7 @@ export class HorryMember extends LitElement {
       </div>
       <div class="row">
         <button class="primary" ?disabled=${busy || !amtOk || !this.callerAni}
-          title="Savannah takes the payment and sends the call back to you"
+          title=${offWhy || 'Savannah takes the payment while you hold; the member comes back to you on this call'}
           @click=${() => void this.handPayment(amt)}>
           ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
         </button>
@@ -703,8 +695,7 @@ export class HorryMember extends LitElement {
             </button>`
           : nothing}
       </div>
-      ${why ? html`<div class="dim" style="font-size:12px">${why}</div>` : nothing}
-      <div class="dim" style="font-size:12px">The member enters card details on their own phone. Card numbers never reach this desktop.</div>`}
+`}
       ${a.extension.allowed
         ? html`<div class="row">
             <div class="field" style="flex:0 1 120px">
@@ -716,7 +707,7 @@ export class HorryMember extends LitElement {
             </button>
           </div>
           <div class="dim" style="font-size:12px">${a.extension.reason}</div>`
-        : html`<div class="dim" style="font-size:12px">Payment extension: ${a.extension.reason}</div>`}
+        : nothing}
       <div class="field">
         <label for="note">Account note</label>
         <textarea id="note" placeholder="e.g. Member asked about budget billing; mailed brochure." .value=${this.noteText} @input=${(e: Event) => (this.noteText = (e.target as HTMLTextAreaElement).value)}></textarea>
