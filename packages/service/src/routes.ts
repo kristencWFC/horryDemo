@@ -328,7 +328,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       const cell = textNumber(m) || last10(ani);
       vars.first_message =
         `Hi ${m.FirstName}, this is ${ASSISTANT}, Horry Electric's virtual assistant. ${h.agentName} asked me to take care of your payment of ${spokenMoney(h.amount)}. ` +
-        (card || echeck ? `Would you like to use ${payChoices(card, echeck)}?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))}. Shall I send it?`);
+        (card || echeck ? `Would you like to use ${payChoices(card, echeck)}?` : 'I can take a credit card for that right now. Would you like to go ahead?');
       vars.call_playbook = handoffPlaybook(h, card, echeck);
       if (row) calls.patch(row, { handoffRef: h.ref, memberSep: m.MemberSep, memberName: displayName(m) });
       handoffs.step(h, 'ai_answered', `Savannah has ${m.FirstName} on the line.`, 'with_ai');

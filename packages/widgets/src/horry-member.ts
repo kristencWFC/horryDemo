@@ -580,6 +580,9 @@ export class HorryMember extends LitElement {
       ${h.confirmation
         ? html`<div class="paidline"><strong>Payment completed</strong> · ${money(h.amount)} · ${h.card ?? ''} · confirmation ${h.confirmation}</div>`
         : nothing}
+      ${h.confirmation && h.status === 'done' && !h.steps.some((s) => s.step === 'receipt')
+        ? html`<div class="row"><button class="primary" ?disabled=${!!this.busy} @click=${() => void this.act('receipt', 'receipt', { phone: (this.phone ?? this.data?.actions.paymentLink.phone ?? '').replace(/\D/g, ''), ani: this.callerAni })}>${this.busy === 'receipt' ? 'Sending…' : 'Text receipt'}</button></div>`
+        : nothing}
       <ul class="steps">
         ${h.steps.map((s) => html`<li><span class="t">${fmtClock(s.at)}</span><span><strong>${HO_LABEL[s.step] ?? s.step}</strong><br /><span class="d">${s.detail}</span></span></li>`)}
       </ul>

@@ -70,6 +70,7 @@ const EXTENSION_GRACE_DAYS = 10;
 const STEP_LABEL: Record<string, string> = {
   identified: 'Identified the member',
   agent_handoff: 'Handed to Savannah for the payment',
+  agent_receipt: 'Receipt texted',
   lookup_miss: 'Lookup missed',
   outage_check: 'Checked for an outage',
   outage_known: 'Confirmed the known outage',
@@ -311,6 +312,24 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     return { m, row };
   }
   const byAgent = (b: ActionBody) => (b.agent ? String(b.agent).slice(0, 60) : 'Agent');
+
+  // Text a receipt for the payment Savannah (or the agent) just took (Kristen 2026-11-03).
+  f.post('/api/agent-desk/receipt', async (req, reply) => {
+    const b = (req.body ?? {}) as ActionBody;
+    const { m, row } = await actionTarget(b);
+    if (!m) return reply.code(404).send({ error: 'Member not found' });
+    const p = payments.all().find((x) => x.memberSep === m.MemberSep && x.status === 'approved');
+    if (!p) return reply.code(400).send({ error: 'There is no completed payment to send a receipt for.' });
+    const phone = last10(b.phone) || textablePhone(m, row);
+    if (phone.length !== 10) return reply.code(400).send({ error: 'Enter the 10-digit mobile number for the text.' });
+    const card = p.last4 ? `${p.cardType ?? 'card'} ending ${p.last4}` : p.method === 'echeck_on_file' ? 'e-check' : 'your card';
+    await sms.send(phone, `Horry Electric receipt: payment of ${money(p.amount)} received on ${card} for account ending ${m.MemberSep.slice(-4)}. Confirmation ${p.confirmation ?? ''}. Thank you, ${m.FirstName}!`, 'receipt');
+    if (row) calls.step(row, 'agent_receipt', `${byAgent(b)} texted a receipt for ${money(p.amount)} to ${phone}`);
+    const h = handoffs.recentByAni(last10(b.ani || row?.ani || ''));
+    if (h) handoffs.step(h, 'receipt', `Receipt for ${money(p.amount)} texted to ${phone} by ${byAgent(b)}.`);
+    console.log(`HORRY DESK ${row?.guid ?? '-'}: receipt ${money(p.amount)} → ${phone} (${byAgent(b)})`);
+    return { ok: true, message: `Receipt for ${money(p.amount)} texted to ${fmtPhone(phone)}.` };
+  });
 
   f.post('/api/agent-desk/payment-link', async (req, reply) => {
     const b = (req.body ?? {}) as ActionBody;
