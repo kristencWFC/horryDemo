@@ -1,0 +1,234 @@
+<title>Payment Hand-off Design</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* WFC document look (wfc-design skill): one 960px column, numbered sections, hairline tables, mono pills. */
+  :root {
+    --bg: #f6f5f0; --fg: #1b2230; --muted: #5d6679; --line: #c8ccd6; --panel: #ffffff;
+    --accent: #b4540c; --accent-soft: #fbe8d6; --report: #2d5a99; --report-soft: #e2ebf7;
+    --ok: #1f7a3d; --hold: #8a5a00; --bad: #b42318;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141820; --fg: #e5e8ee; --muted: #9ba4b6; --line: #384052; --panel: #1c2230;
+      --accent: #e98c3c; --accent-soft: #3a2615; --report: #7aa6e6; --report-soft: #1d2a40;
+      --ok: #5cc98a; --hold: #e0b04a; --bad: #f08a80; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141820; --fg: #e5e8ee; --muted: #9ba4b6; --line: #384052; --panel: #1c2230;
+    --accent: #e98c3c; --accent-soft: #3a2615; --report: #7aa6e6; --report-soft: #1d2a40;
+    --ok: #5cc98a; --hold: #e0b04a; --bad: #f08a80; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width: 960px; margin: 0 auto; display: grid; gap: 40px; }
+  header { display: grid; gap: 10px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 2rem; font-weight: 600; line-height: 1.15; margin: 0; text-wrap: balance; }
+  h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 16px 0 6px; }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  .lede { font-size: 1.1rem; max-width: 62ch; }
+  section { display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr); }
+  a { color: var(--report); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  ul, ol { padding-left: 22px; margin: 0; display: grid; gap: 6px; max-width: 72ch; }
+  .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 4px 4px 0; max-width: 72ch; margin-top: 8px; }
+  .pill { display: inline-block; font-family: var(--mono); font-size: 0.72rem; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .pill.done { border-color: var(--ok); color: var(--ok); } .pill.todo { border-color: var(--accent); color: var(--accent); }
+  .pill.open { border-color: var(--report); color: var(--report); }
+  .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; padding: 8px; }
+  .sheet svg { display: block; width: 100%; min-width: 760px; height: auto; }
+  button { font: inherit; font-size: 0.85rem; padding: 6px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--fg); cursor: pointer; }
+  button:hover { border-color: var(--fg); } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .stepbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 0; }
+  .caption { min-height: 4.5em; margin: 8px 0 0; max-width: 72ch; }
+  .caption .eyebrow { display: block; margin-bottom: 2px; }
+  .node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  .node.on rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .node .t { fill: var(--fg); font: 600 14px var(--sans); }
+  .node .s { fill: var(--muted); font: 400 11px var(--mono); }
+  .edge { fill: none; stroke: var(--muted); stroke-width: 1.6; }
+  .edge.on { stroke: var(--accent); stroke-width: 2.8; stroke-dasharray: 8 6; animation: flow .7s linear infinite; }
+  .edge.held { stroke: var(--hold); stroke-width: 2.8; stroke-dasharray: 2 6; }
+  .elabel { fill: var(--muted); font: 400 11px var(--mono); }
+  .arrowhead { fill: var(--muted); }
+  @keyframes flow { to { stroke-dashoffset: -14; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · use case 1 · Kristen Christopher · 2026-11-03 · for approval</div>
+    <h1>Payment Hand-off Design</h1>
+    <p class="lede">The live agent hands Dorothy to Savannah for the payment and never hears it. The WFC AI Controller sits in
+    the middle of every agent-first call, the same way it did for Live Translate: it owns Dorothy's leg and the agent's leg
+    separately, so it can hold one and send the other to Savannah, then put them back together. The agent's Desktop task
+    never ends.</p>
+    <div class="note">Internal build plan, not for the client. Step through section 1, then approve or change the pieces in
+    section 2. Nothing is built until you say go.</div>
+  </header>
+
+  <section>
+    <h2>1. The picture</h2>
+    <p>Pick a situation, then step through it. Orange = active this step; amber dotted = a leg on hold.</p>
+    <div class="controls" id="scenarios" role="group" aria-label="Situations"></div>
+    <div class="sheet">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="Dorothy reaches the WxCC flow, which bridges to the WFC AI Controller; the controller dials back into WxCC as Dorothy to reach the live agent, and can send Dorothy's leg to Savannah while the agent's leg waits; the Horry service records the hand-off and shows live steps on the agent's Member tab">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <path class="edge" id="e-mem-wxcc" d="M142 200 L178 200" marker-end="url(#ah)"/>
+        <path class="edge" id="e-wxcc-fs" d="M332 200 L368 200" marker-end="url(#ah)"/>
+        <text class="elabel" x="300" y="245">bridge 1122 + headers</text>
+        <path class="edge" id="e-fs-ep" d="M562 200 L598 200" marker-end="url(#ah)"/>
+        <text class="elabel" x="520" y="245">dials back in as Dorothy</text>
+        <path class="edge" id="e-ep-agent" d="M772 200 L808 200" marker-end="url(#ah)"/>
+        <text class="elabel" x="760" y="245">queue</text>
+        <path class="edge" id="e-fs-sav" d="M420 168 L420 130 L265 130 L265 94" marker-end="url(#ah)" marker-start="url(#ah)"/>
+        <text class="elabel" x="285" y="124">leg A ↔ Savannah</text>
+        <path class="edge" id="e-svc-fs" d="M685 94 L685 130 L500 130 L500 168" marker-end="url(#ah)"/>
+        <text class="elabel" x="505" y="124">hold the agent, send Dorothy</text>
+        <path class="edge" id="e-sav-svc" d="M352 60 L598 60" marker-end="url(#ah)"/>
+        <text class="elabel" x="410" y="52">tools report each step</text>
+        <path class="edge" id="e-agent-svc" d="M895 168 L895 60 L772 60" marker-end="url(#ah)" marker-start="url(#ah)"/>
+        <text class="elabel" x="800" y="110">button · live steps</text>
+        <path class="edge" id="e-ab" d="M400 232 L400 262 L530 262 L530 232" marker-end="url(#ah)" marker-start="url(#ah)"/>
+        <text class="elabel" x="415" y="278">A ↔ B bridged</text>
+
+        <g class="node" id="n-sav"><rect x="180" y="30" width="170" height="62" rx="6"/><text class="t" x="196" y="56">Savannah</text><text class="s" x="196" y="76">WFC AI Agent · 1151</text></g>
+        <g class="node" id="n-svc"><rect x="600" y="30" width="170" height="62" rx="6"/><text class="t" x="616" y="56">Horry service</text><text class="s" x="616" y="76">kcdev2 · hand-off record</text></g>
+        <g class="node" id="n-mem"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Dorothy</text><text class="s" x="36" y="216">calls in</text></g>
+        <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">EP_KC_Horry</text></g>
+        <g class="node" id="n-fs"><rect x="370" y="170" width="190" height="62" rx="6"/><text class="t" x="386" y="196">WFC AI Controller</text><text class="s" x="386" y="216">leg A (Dorothy) · leg B (agent)</text></g>
+        <g class="node" id="n-ep"><rect x="600" y="170" width="170" height="62" rx="6"/><text class="t" x="616" y="196">Re-entry EP</text><text class="s" x="616" y="216">→ Q_Horry_Billing</text></g>
+        <g class="node" id="n-agent"><rect x="810" y="170" width="170" height="62" rx="6"/><text class="t" x="826" y="196">Live agent</text><text class="s" x="826" y="216">Desktop · Member tab</text></g>
+      </svg>
+    </div>
+    <p class="caption" id="caption" aria-live="polite"></p>
+    <div class="stepbar">
+      <button id="back" type="button">Back</button>
+      <button id="next" type="button">Next step</button>
+      <button id="play" type="button">Play</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. What changes, who does it, in build order</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Piece</th><th>Change</th><th>Who</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Middleware (<code>live-translate</code> repo, runs beside the controller on the FS box)</td><td>New solution <code>HorryAgentFirst</code>: answer and park leg A, dial the re-entry entry point with Dorothy's number as leg B, bridge A↔B (all existing code). New: <code>POST /api/handoff</code> (shared secret) → park B with an announcement + hold music, send A to Savannah on 1151 with <code>X-Solution-Name</code>/<code>X-Call-GUID</code>, <code>park_after_bridge</code> so A comes back when she hangs up, then re-bridge A↔B. It posts <em>transferred</em>, <em>returned</em> and <em>failed</em> to the Horry service.</td><td>Claude writes · Kristen deploys on the FS box</td><td class="num">~3 h</td></tr>
+        <tr><td class="num">2</td><td>freeSWITCH dialplan</td><td>Route <code>X-Solution-Name: HorryAgentFirst</code> on 1122 to the middleware (next to <code>LiveTranslate</code>), plus one extension that bridges a leg to Savannah with the headers.</td><td>Claude writes · Kristen deploys</td><td class="num">in #1</td></tr>
+        <tr><td class="num">3</td><td>Re-entry entry point</td><td>A number the controller can dial through CUBE whose flow queues to <code>Q_Horry_Billing</code>. Fastest: reuse Live Translate's re-entry (+1 207-888-6051, flow <code>KC_Translate_2</code>) and point its queue at <code>Q_Horry_Billing</code> for the demo. Clean: a new DID + CUBE dial-peer + <code>EP_KC_Horry_Agent</code>.</td><td>Kristen (Control Hub, CUBE)</td><td class="num">30 min – 2 h</td></tr>
+        <tr><td class="num">4</td><td><code>KC_Horry_Electric</code> flow</td><td>Savannah-off branch: instead of Queue, Bridge Transfer to 1122 with headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID = {{sGUID}}</code>. On the Bridge's failure path, Queue to <code>Q_Horry_Billing</code> as today, so a controller problem still reaches an agent.</td><td>Kristen (Designer)</td><td class="num">20 min</td></tr>
+        <tr><td class="num">5</td><td>Horry service + Member tab</td><td><code>.env</code>: controller URL + secret. The hand-off POST calls the controller instead of returning transfer targets; a status endpoint receives the middleware's steps; the button no longer touches the Desktop SDK. The button only shows on agent-first calls (a storm call that Savannah escalated didn't come through the middleware, so there's nothing to hold).</td><td>Claude</td><td class="num">~1 h</td></tr>
+        <tr><td class="num">6</td><td>Savannah</td><td>No change: the hand-off greeting is already keyed by the caller's number, and leg A carries Dorothy's.</td><td>—</td><td class="num">0</td></tr>
+        <tr><td class="num">7</td><td>Joint test</td><td>Test A (normal call through the middleware, Member tab pops), test B (hand-off, agent hears hold, Dorothy pays, re-bridge), and the failure path (Savannah unreachable → immediate re-bridge).</td><td>Both</td><td class="num">1 h</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:8px"><code>EP_KC_Horry_Payment</code> (972-903-8486) and its DNIS branch are no longer used. Leave them; nothing dials them.</p>
+  </section>
+
+  <section>
+    <h2>3. What doesn't change</h2>
+    <ul>
+      <li>Savannah on (storm): the flow bridges to 1122 with <code>horryelectric</code> as today; the ivr-controller handles it; escalation returns by BYE headers. Untouched.</li>
+      <li>Payment reminders (use case 3), web chat, email, Customer Review: untouched. The dashboard already shows the path "Agent → Savannah (payment) → agent".</li>
+      <li>Member tab lookup: by caller number. Live Translate proved the re-entry leg presents the original number, so Dorothy pops exactly as she did tonight.</li>
+      <li>Demo caller setting: same one place (AI Operations → Demo caller).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. Decisions to confirm</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Question</th><th>Recommendation</th><th>Who</th></tr></thead>
+      <tbody>
+        <tr><td>Re-entry number: reuse Live Translate's 207-888-6051 or a new DID?</td><td>Reuse for tomorrow; new DID after the demo. Reuse means <code>KC_Translate_2</code> queues to <code>Q_Horry_Billing</code> until it's switched back.</td><td>Kristen</td></tr>
+        <tr><td>What the agent hears while Savannah works</td><td>"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done." then hold music. Agent-facing, so it can be plain.</td><td>Kristen</td></tr>
+        <tr><td>Every Savannah-off call goes through the middleware</td><td>Yes: that's what makes the hand-off possible mid-call, and a normal billing call looks identical to the agent. Bridge failure falls back to the queue.</td><td>Kristen</td></tr>
+        <tr><td>Where the middleware runs</td><td>On the FS box next to the ivr-controller (it needs ESL on :8021), reachable from kcdev2 over HTTPS for the hand-off call. <strong>[CONFIRM]</strong> it's still deployed there from Live Translate.</td><td>Kristen</td></tr>
+        <tr><td>If Savannah is unreachable or drops without wrapping up</td><td>Re-bridge within 10 s, post a <em>failed</em> step; the Member tab says "Savannah couldn't take the payment — send the secure pay link instead."</td><td>agreed?</td></tr>
+        <tr><td>Fallback for tomorrow if the joint test isn't clean by tonight</td><td>The conference version (button does consult → conference on 972-903-8486; that branch becomes REST → Bridge → Disconnect). Agent hears Savannah; the production answer is this page.</td><td>Kristen</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+  const scenarios = [
+    { name: 'Payment hand-off', steps: [
+      { nodes: ['mem', 'wxcc'], edges: ['e-mem-wxcc'], text: 'Dorothy calls (972) 430-9658. Savannah is off, so the flow takes the agent-first branch: Bridge Transfer to 1122 with X-Solution-Name = HorryAgentFirst and X-Call-GUID. Same activity as the Savannah branch, different solution name.' },
+      { nodes: ['wxcc', 'fs'], edges: ['e-wxcc-fs'], text: 'The WFC AI Controller answers Dorothy (leg A), reads the headers, and parks her with ringback while it fetches the agent.' },
+      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: "The controller dials back into WxCC on the re-entry entry point, presenting Dorothy's own number (leg B). That flow queues to Q_Horry_Billing. The agent answers and the Member tab pops Dorothy from the caller ID, exactly as it did tonight." },
+      { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Legs A and B are bridged. Dorothy and the agent talk; the controller is invisible. Every Savannah-off call takes this path, so a normal billing call looks and sounds identical.' },
+      { nodes: ['agent', 'svc'], edges: ['e-agent-svc'], text: 'Dorothy wants to pay. The agent clicks Hand payment to Savannah. The Horry service records the hand-off (ref, GUID, agent, member, $194) and tells the controller: hand this caller to Savannah.' },
+      { nodes: ['svc', 'fs', 'agent'], edges: ['e-svc-fs'], held: ['e-ep-agent'], text: "The controller parks leg B. The agent hears \"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done,\" then hold music. The agent's task stays live; nothing on the Desktop changes." },
+      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "The controller sends leg A to Savannah (1151, X-Call-GUID as today). Her webhook sees the open hand-off for Dorothy's number and opens with the payment greeting: \"Dorothy, the agent asked me to take care of your payment of $194. Would you like to use the card on file, the e-check on file, or a new card?\"" },
+      { nodes: ['sav', 'svc', 'agent'], edges: ['e-sav-svc', 'e-agent-svc'], held: ['e-ep-agent'], text: 'Savannah takes the payment. Each tool posts a step, and the Member tab shows them live: Savannah answered · e-check drafted · confirmation 482913. The agent sees every step and hears none of it.' },
+      { nodes: ['sav', 'fs'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Savannah says \"I'll put you back with the agent now\" and hangs up her side. Leg A returns to park; the controller stops the hold music and bridges A and B again." },
+      { nodes: ['mem', 'fs', 'agent', 'svc'], edges: ['e-ab'], text: "Dorothy and the agent are talking again: same task, no wrap-up, no re-queue. The Member tab says \"Back with you\" with the confirmation. Customer Review shows the path Agent → Savannah (payment) → agent." }
+    ]},
+    { name: 'Savannah unreachable', steps: [
+      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is sent to Savannah, but she doesn't answer within 10 seconds, or she drops without a wrap-up." },
+      { nodes: ['fs', 'agent', 'svc'], edges: ['e-ab', 'e-svc-fs'], text: 'The controller re-bridges A and B at once and posts a failed step. The agent hears Dorothy again and the Member tab says "Savannah couldn\'t take the payment — send the secure pay link instead."' }
+    ]},
+    { name: 'Normal billing call (no hand-off)', steps: [
+      { nodes: ['mem', 'wxcc', 'fs'], edges: ['e-mem-wxcc', 'e-wxcc-fs'], text: 'David calls with a question about his bill. Savannah is off: the flow bridges to the controller as in every agent-first call.' },
+      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: 'The controller fetches the agent through the re-entry entry point, presenting David\'s number. The Member tab pops David.' },
+      { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Bridged. The agent answers the question and the call ends normally. The controller was never noticed, and the Hand payment button simply wasn\'t pressed.' }
+    ]}
+  ];
+
+  let sc = 0, st = 0, timer = null;
+  const box = document.getElementById('scenarios');
+  scenarios.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = s.name;
+    b.addEventListener('click', () => { stop(); sc = i; st = 0; render(); });
+    box.appendChild(b);
+  });
+
+  function render() {
+    const s = scenarios[sc], step = s.steps[st];
+    [...box.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === sc)));
+    document.querySelectorAll('.node').forEach(n => n.classList.toggle('on', step.nodes.includes(n.id.slice(2))));
+    document.querySelectorAll('.edge').forEach(e => {
+      e.classList.toggle('on', step.edges.includes(e.id));
+      e.classList.toggle('held', (step.held ?? []).includes(e.id));
+    });
+    const cap = document.getElementById('caption');
+    cap.innerHTML = '';
+    const eb = document.createElement('span');
+    eb.className = 'eyebrow'; eb.textContent = 'Step ' + (st + 1) + ' of ' + s.steps.length;
+    cap.append(eb, document.createTextNode(step.text));
+    document.getElementById('back').disabled = st === 0;
+    document.getElementById('next').disabled = st === s.steps.length - 1;
+  }
+  function stop() { clearInterval(timer); timer = null; document.getElementById('play').textContent = 'Play'; }
+  document.getElementById('back').addEventListener('click', () => { stop(); if (st > 0) { st--; render(); } });
+  document.getElementById('next').addEventListener('click', () => { stop(); if (st < scenarios[sc].steps.length - 1) { st++; render(); } });
+  document.getElementById('play').addEventListener('click', () => {
+    if (timer) return stop();
+    if (st === scenarios[sc].steps.length - 1) st = 0;
+    render();
+    document.getElementById('play').textContent = 'Pause';
+    timer = setInterval(() => {
+      if (st >= scenarios[sc].steps.length - 1) return stop();
+      st++; render();
+    }, 3600);
+  });
+  render();
+</script>
