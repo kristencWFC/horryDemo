@@ -5,8 +5,8 @@
   next to the LiveTranslate intercept, then `fs_cli -x reloadxml`. Kristen applies it
   (Claude never touches servers).
 
-  The WxCC flow KC_Horry_Electric, Savannah-off branch, Bridge Transfers the call to 1122
-  (CUBE dial-peer 1122) with
+  A member dials 972-903-8486 (EP_KC_Horry_Payment); that branch of KC_Horry_Electric Bridge
+  Transfers the call to 1122 (CUBE dial-peer 1122) with
       X-Solution-Name: HorryAgentFirst
       X-Call-GUID:     {{sGUID}}
   Only HorryAgentFirst-tagged calls are taken here; every other solution on 1122 (including
@@ -15,8 +15,9 @@
   What happens:
     horry_agent_first_1122  answer, remember the GUID, park. The Horry service (ESL on
                             127.0.0.1:8021, systemd horry-demo) sees CHANNEL_PARK, dials
-                            back into WxCC as the member (gateway cube, +12078886051 →
-                            KC_Assist_2 → Q_Horry_Billing) and uuid_bridges the two legs.
+                            back into WxCC as the member (gateway cube, CUBE dial-peers
+                            1145/1146 → +19724309658 EP_KC_Horry → Q_Horry_Billing) and
+                            uuid_bridges the two legs.
     horry_savannah          the service uuid_transfers the member here on "Hand payment to
                             Savannah": bridge to Savannah's SIP number with the GUID, then
                             park again so the service can bridge the agent back.

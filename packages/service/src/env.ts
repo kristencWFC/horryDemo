@@ -50,8 +50,8 @@ const EnvSchema = z.object({
   FS_ESL_HOST: z.string().default('127.0.0.1'),
   FS_ESL_PORT: z.coerce.number().default(8021),
   FS_ESL_PASSWORD: z.string().default('ClueCon'),
-  /** The re-entry into WxCC as the member: gateway cube → KC_Assist_2 (207-888-6051), shared with Live Translate. */
-  FS_REENTRY_DIAL: z.string().default('sofia/gateway/cube/+12078886051'),
+  /** The re-entry into WxCC as the member: gateway cube (CUBE dial-peers 1145/1146) → EP_KC_Horry 972-430-9658, whose flow queues to the agent. */
+  FS_REENTRY_DIAL: z.string().default('sofia/gateway/cube/+19724309658'),
   FS_ORIGINATE_TIMEOUT_S: z.coerce.number().default(45),
   /** What the AGENT hears while Savannah has the member: announcement WAV ('' = none) then looping music. */
   FS_HOLD_ANNOUNCE: z.string().optional(),

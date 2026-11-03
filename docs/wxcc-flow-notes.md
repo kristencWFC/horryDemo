@@ -62,44 +62,41 @@ webex-service-app-auth).
 
 ## Agent-first calls through the WFC AI Controller (use case 1 as approved, 2026-11-03)
 
-Design page: `docs/payment-handoff-design.html`. Every Savannah-off call is bridged to freeSWITCH
-and comes back into WxCC as the member on a second leg, so the service can later send the member
-to Savannah while the agent holds — on the agent's own task, no re-queue, agent never hears the
-payment. Two flows change; the dialplan file is `deploy/freeswitch/dialplan-horry-agent-first.xml`.
+Design page: `docs/payment-handoff-design.html`. A member who dials the **agent-first line
+972-903-8486** is bridged to freeSWITCH and comes back into WxCC as themselves on the demo line
+972-430-9658, which queues to the agent as on any normal call. The service can then send the
+member to Savannah while the agent holds — on the agent's own task, no re-queue, agent never
+hears the payment. Kristen chose Horry's own numbers over the Live Translate re-entry so the
+demos stay independent (CUBE dial-peers **1145/1146**, copies of 1141/1142, created 2026-11-03).
+Dialplan file: `deploy/freeswitch/dialplan-horry-agent-first.xml`.
 
-### A. `KC_Horry_Electric` — the Savannah-off branch (step 4 "otherwise" above)
+### A. `KC_Horry_Electric` — the `9729038486` DNIS branch (EP_KC_Horry_Payment)
 
-Replace **Queue `Q_Horry_Billing`** with:
+Replace the old REST → Bridge → Queue To Agent with:
 
 1. **BridgeTransfer** → DN **1122**, timeout 10 s, headers `X-Solution-Name` = `HorryAgentFirst`,
-   `X-Call-GUID` = `{{GUID}}` (same activity as step 5, different solution name).
-2. The Bridge's **success** output (the controller hung up, i.e. the member and agent finished
-   through us) → **Disconnect**.
-3. The Bridge's **failure** output (controller down / no re-entry) → the old **Queue**
-   `Q_Horry_Billing`, so nobody is stranded. The service hangs the leg up itself when its re-entry
-   originate fails, which lands here too.
+   `X-Call-GUID` = `{{GUID}}` (same activity as the Savannah path's step 5, different solution name).
+2. The Bridge's **success** output (the controller hung up: the member and agent finished through
+   us, or the member hung up) → **Disconnect**.
+3. The Bridge's **failure** output (controller down, or its re-entry originate failed — the service
+   hangs the leg up itself in that case) → **Queue Contact `Q_Horry_Billing`**, so nobody is stranded.
 
-### B. The shared re-entry flow — `KC_AI_Demo_Dialer_Assist_Translate_WhileYouWait`, branch `sDNIS = 2078886051`
+### B. `KC_Horry_Electric` — the main path (972-430-9658): no change
 
-Today: **Queue Contact → `Q_KC_Telephony`** (Agent Live Assist and Live Translate re-enter here).
-Add, before that Queue Contact:
-
-1. **HTTP Request** `GET https://kcdev2.workflowconcepts.com/horry/api/agent-first/by-ani/{{NewPhoneContact.ANI}}`,
-   timeout 5 s. Output mapping (strings): `$.found` → `horryFound`, `$.member_name` →
-   `memberName`, `$.account_number` → `accountNumber`.
-2. **Case** `horryFound`: `true` → **Queue Contact `Q_Horry_Billing`**; otherwise → the existing
-   **Queue Contact `Q_KC_Telephony`**. (HTTP failure → the existing queue as well.)
-
-The leg carries the member's own number as ANI (the controller sets it), so the Member tab pops
-from caller ID exactly as before. *Short on time:* re-point the existing Queue Contact to
-`Q_Horry_Billing` for the demo and switch it back after — Live Translate is then Horry-only
-until you do.
+The re-entry leg arrives on the demo line with the member's number as ANI and takes step 4
+"otherwise" → **Queue `Q_Horry_Billing`** exactly like a normal-day call; the Member tab pops from
+caller ID. Savannah must be **off** during use case 1 — with her on, step 4 would send the
+re-entry leg to her. Optional guard (recommended once the basics work): before the
+`Global_StormMode` Case, **HTTP Request** `GET https://kcdev2.workflowconcepts.com/horry/api/agent-first/by-ani/{{NewPhoneContact.ANI}}`
+(timeout 5 s; `$.found` → `horryAgentFirst`, `$.member_name` → `memberName`, `$.account_number` →
+`accountNumber`) and **Case** `horryAgentFirst` = `true` → **Queue `Q_Horry_Billing`** directly.
+The service answers `found=true` only for a leg it originated itself.
 
 ### C. Nothing else
 
-`EP_KC_Horry_Payment` / `9729038486` and its DNIS branch (below) are no longer dialled by anything.
 Savannah's bridge from the controller carries `X-Solution-Name=horryelectric` and the GUID, so the
-initiation webhook recognises the open hand-off by the member's number as before.
+initiation webhook recognises the open hand-off by the member's number as before. Queue To Agent
+and `/api/handoff/by-ani` (below) are no longer used by anything.
 
 ### Service side
 

@@ -1,14 +1,15 @@
 // Agent-first calls through the WFC AI Controller (use case 1 redesign, Kristen 2026-11-03).
 //
-// When Savannah is off, the WxCC flow bridges every call to freeSWITCH 1122 with
-// X-Solution-Name: HorryAgentFirst instead of queueing it. The dialplan intercept
+// A member who calls 972-903-8486 (EP_KC_Horry_Payment) is bridged by that flow to freeSWITCH
+// 1122 with X-Solution-Name: HorryAgentFirst. The dialplan intercept
 // (deploy/freeswitch/dialplan-horry-agent-first.xml) answers that leg (A) and parks it; this
 // module, on the event socket of the same VM, then:
 //
-//   1. originates leg B back into WxCC (gateway cube → KC_Assist_2, 207-888-6051) presenting
-//      the member's own number, so the re-entry flow queues it to Q_Horry_Billing and the
-//      agent's Desktop pops the member; then uuid_bridge A B. The member hears WxCC's own
-//      queue treatment on B, never us.
+//   1. originates leg B back into WxCC (gateway cube, CUBE dial-peers 1145/1146 → EP_KC_Horry
+//      972-430-9658) presenting the member's own number, so the main flow queues it to
+//      Q_Horry_Billing and the agent's Desktop pops the member; then uuid_bridge A B. The
+//      member hears WxCC's own queue treatment on B, never us. (Kristen 2026-11-03: Horry's
+//      own numbers, not the Live Translate re-entry, so demos stay separate.)
 //   2. on "Hand payment to Savannah": uuid_transfer A → dialplan ext `horry_savannah`, which
 //      bridges A to Savannah's SIP number with the call GUID. B falls out of the bridge and
 //      parks (park_after_bridge); we play the agent an announcement + hold music on it. The
@@ -64,7 +65,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_HOLD_ANNOUNCE = join(here, '..', 'public', 'audio', 'savannah-hold.wav');
 
 export const defaultOptions = (): AgentFirstOptions => ({
-  reentryDial: 'sofia/gateway/cube/+12078886051',
+  reentryDial: 'sofia/gateway/cube/+19724309658',
   originateTimeoutS: 45,
   savannahExtension: 'horry_savannah',
   returnExtension: 'horry_return',
@@ -162,10 +163,19 @@ export class AgentFirstBridge extends EventEmitter {
   private async newCall(a: string, ev: EslEvent): Promise<void> {
     const esl = this.esl;
     if (!esl) return;
+    // Loop guard: if the re-entry number's flow ever bridged to 1122 as HorryAgentFirst too, our
+    // own leg B would show up here as a new member within seconds. Refuse it rather than dial again.
+    const ani = last10(ev['Caller-Caller-ID-Number'] ?? '');
+    const dup = ani ? this.all().find((x) => x.ani === ani && x.state === 'connecting' && Date.now() - x.startedAt < 90_000) : undefined;
+    if (dup) {
+      console.log(`HORRY AGENT-FIRST ${ani}: a second 1122 leg arrived while the first is still connecting — the re-entry flow is bridging instead of queueing. Hanging it up.`);
+      await esl.api(`uuid_kill ${a}`).catch(() => undefined);
+      return;
+    }
     const c: AgentFirstCall = {
       a,
       b: randomUUID(),
-      ani: last10(ev['Caller-Caller-ID-Number'] ?? ''),
+      ani,
       name: (ev['Caller-Caller-ID-Name'] ?? '').replace(/[{},'"\\]/g, '').trim(),
       guid: ev['variable_horry_guid'] || ev['variable_sip_h_X-Call-GUID'] || '',
       state: 'connecting',

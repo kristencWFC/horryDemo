@@ -57,8 +57,23 @@ describe('AgentFirstBridge', () => {
     expect(originate).toContain('origination_caller_id_number=+18435550118');
     expect(originate).toContain('horry_role=agent');
     expect(originate).toContain('park_after_bridge=true');
-    expect(originate).toContain('sofia/gateway/cube/+12078886051 &park()');
+    expect(originate).toContain('sofia/gateway/cube/+19724309658 &park()');
     expect(esl.cmds.at(-1)).toBe(`uuid_bridge ${A} ${c!.b}`);
+  });
+
+  it('refuses a second 1122 leg from the same member while the first is still connecting (loop guard)', async () => {
+    const { esl, bridge } = setup();
+    let release: (v: string) => void = () => undefined;
+    esl.bgapi = (cmd: string) => {
+      esl.cmds.push(cmd);
+      return new Promise<string>((r) => (release = r)); // originate still in flight
+    };
+    await memberArrives(esl);
+    esl.park('aaaaaaaa-0000-0000-0000-000000000002', { variable_horry_solution: 'HorryAgentFirst', 'Caller-Caller-ID-Number': '+18435550118' });
+    await tick();
+    expect(bridge.all()).toHaveLength(1);
+    expect(esl.cmds.at(-1)).toBe('uuid_kill aaaaaaaa-0000-0000-0000-000000000002');
+    release('+OK');
   });
 
   it('ignores parks that are not ours', async () => {
