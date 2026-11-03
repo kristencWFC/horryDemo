@@ -27,6 +27,7 @@ import type { Payments, PaymentSession } from './payments.js';
 import type { HandoffStore, Handoff } from './handoff.js';
 import type { ModeStore } from './mode.js';
 import type { StaffingStore } from './staffing.js';
+import type { AgentFirstBridge, ReturnInfo, AgentFirstCall } from './agent-first.js';
 
 export interface AgentDeskDeps {
   dataDir: string;
@@ -39,6 +40,7 @@ export interface AgentDeskDeps {
   handoffs: HandoffStore;
   mode: ModeStore;
   staffing: StaffingStore;
+  agentFirst: AgentFirstBridge;
 }
 
 interface TalkingPoint {
@@ -88,7 +90,21 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): void {
-  const { members, nextgen, outages, calls, sms, payments, handoffs, mode, staffing } = d;
+  const { members, nextgen, outages, calls, sms, payments, handoffs, mode, staffing, agentFirst } = d;
+
+  // The controller tells us when the member is back with the agent (or never reached Savannah).
+  agentFirst.on('returned', ({ call, answered, reason }: ReturnInfo) => {
+    const h = (call.handoffRef && handoffs.get(call.handoffRef)) || handoffs.activeByAni(call.ani);
+    if (!h || h.status === 'done' || h.status === 'failed') return;
+    if (reason === 'recalled') handoffs.step(h, 'recalled', `${h.agentName} took the member back from Savannah.`, 'done');
+    else if (!answered) handoffs.step(h, 'failed', "Savannah couldn't be reached. The member is back with you — send the secure pay link instead.", 'done');
+    else if (h.status === 'paid' || h.status === 'returning') handoffs.step(h, 'returned', `Back with ${h.agentName}.`, 'done');
+    else handoffs.step(h, 'returned', `Savannah's side ended before the payment was finished. Back with ${h.agentName}.`, 'done');
+  });
+  agentFirst.on('ended', (call: AgentFirstCall) => {
+    const h = (call.handoffRef && handoffs.get(call.handoffRef)) || undefined;
+    if (h && h.status !== 'done' && h.status !== 'failed') handoffs.step(h, 'failed', 'The call ended during the hand-off.', 'failed');
+  });
   const tz = env.BUSINESS_TIMEZONE;
   // The Storm Console's demo-caller override lives in routes.ts; it persists to
   // settings.json, so read it from there (same defaults as routes.ts).
@@ -229,6 +245,8 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
       /** Savannah is answering calls: show the outage banner and card (Kristen 2026-11-02). */
       aiOn: mode.aiRouting(),
       handoff: handoffDto(handoffs.activeByAni(row?.ani || m.CellPhone || '')),
+      /** This call is bridged through the WFC AI Controller, so the hand-off button can move it itself. null = controller not configured. */
+      agentFirst: agentFirst.enabled ? Boolean(agentFirst.activeByAni(row?.ani || m.CellPhone || '')) : null,
     };
   }
 
@@ -382,8 +400,19 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
     if (!(amount > 0)) return reply.code(400).send({ error: 'Enter the amount to collect.' });
     const h = handoffs.create({ guid: row?.guid ?? '', ani, memberSep: m.MemberSep, memberName: displayName(m), agentEmail: String(b.agentEmail ?? '').trim(), agentName: byAgent(b), amount });
     if (row) { calls.patch(row, { handoffRef: h.ref }); calls.step(row, 'agent_handoff', `${byAgent(b)} handed a ${money(amount)} payment to Savannah (ref ${h.ref})`, 'payment'); }
-    // The widget transfers the call itself (Desktop blindTransferV2 to the entry point); the message is the manual fallback.
-    const transfer = { entryPointName: env.WXCC_PAYMENT_EP_NAME, entryPointId: await staffing.entryPointId(env.WXCC_PAYMENT_EP_NAME).catch(() => ''), dialNumber: env.WXCC_PAYMENT_EP_DN };
+    // Agent-first call through the WFC AI Controller: the service moves the member to Savannah
+    // itself and holds the agent (Kristen 2026-11-03). Otherwise the agent transfers by hand.
+    if (agentFirst.enabled && agentFirst.activeByAni(ani)) {
+      try {
+        await agentFirst.handoff(ani, h.ref);
+        handoffs.step(h, 'transferred', `${m.FirstName} is with Savannah now. You're on hold until she's done; every step shows here.`);
+        return { ok: true, ref: h.ref, message: `Savannah has ${m.FirstName} (ref ${h.ref}). You're on hold until the payment is done.`, handoff: handoffDto(h), transfer: { mode: 'controller' } };
+      } catch (err) {
+        handoffs.step(h, 'failed', (err as Error).message, 'failed');
+        return reply.code(409).send({ error: (err as Error).message });
+      }
+    }
+    const transfer = { mode: 'manual', entryPointName: env.WXCC_PAYMENT_EP_NAME, entryPointId: await staffing.entryPointId(env.WXCC_PAYMENT_EP_NAME).catch(() => ''), dialNumber: env.WXCC_PAYMENT_EP_DN };
     console.log(`HORRY HANDOFF ${h.ref}: transfer target ${JSON.stringify(transfer)}`);
     return { ok: true, ref: h.ref, message: `Savannah is ready (ref ${h.ref}). Now transfer the call: Transfer → Entry point → ${transfer.entryPointName}.`, handoff: handoffDto(h), transfer };
   });
@@ -410,6 +439,11 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
   f.post('/api/agent-desk/handoff/:ref/cancel', async (req, reply) => {
     const h = handoffs.get((req.params as { ref: string }).ref);
     if (!h) return reply.code(404).send({ error: 'Unknown hand-off' });
+    // Member with Savannah through the controller: pull them back; the 'returned' event closes the record.
+    if (await agentFirst.recall(h.ani).catch(() => false)) {
+      handoffs.step(h, 'cancelled', 'Hand-off cancelled by the agent — bringing the member back.');
+      return { ok: true, message: 'Bringing the member back to you.' };
+    }
     handoffs.step(h, 'cancelled', 'Hand-off cancelled by the agent.', 'failed');
     return { ok: true, message: 'Hand-off cancelled.' };
   });

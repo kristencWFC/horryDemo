@@ -95,6 +95,8 @@ interface DeskDto {
   handoff?: HandoffDto | null;
   /** False = Savannah is off, calls go straight to agents: no outage banner or card. */
   aiOn?: boolean;
+  /** True = this call runs through the WFC AI Controller, so the hand-off button moves it itself; null = controller not configured. */
+  agentFirst?: boolean | null;
 }
 
 /** Live payment hand-off to Savannah (use case 1). */
@@ -116,6 +118,7 @@ interface HandoffDto {
 const HO_LABEL: Record<string, string> = {
   handoff: 'Hand-off started', transferred: 'Transferred', ai_answered: 'Savannah answered', link_sent: 'Secure link texted',
   paid: 'Payment approved', declined: 'Card declined', receipt: 'Receipt texted', returning: 'Sending the call back', returned: 'Back with you', cancelled: 'Cancelled',
+  recalled: 'Back with you', failed: "Savannah couldn't take it", superseded: 'Superseded',
 };
 
 type TaskLike = {
@@ -545,12 +548,20 @@ export class HorryMember extends LitElement {
   /** Live view of the payment Savannah is taking for this agent (use case 1). */
   private renderHandoff(h: HandoffDto | null) {
     if (!h || h.status === 'failed') return nothing;
+    // Through the WFC AI Controller the member leaves and returns on the agent's own task;
+    // the manual path (no controller) still ends with the call ringing back.
+    const ctl = this.data?.agentFirst === true || h.steps.some((s) => s.step === 'transferred' && /on hold/.test(s.detail));
+    const paid = h.steps.some((s) => s.step === 'paid');
     const text: Record<HandoffDto['status'], string> = {
-      pending: this.transferring ? 'Transferring the call to Savannah…' : 'Savannah is ready. Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.',
-      with_ai: 'Savannah is taking the payment. Your status: awaiting payment — the call comes back to you when she is done.',
-      paid: 'Paid. Savannah is wrapping up and sending the call back to you.',
-      returning: 'On its way back to you — answer when it rings.',
-      done: 'Back with you. The payment is on the account below.',
+      pending: ctl
+        ? "Savannah is picking the member up now. You're on hold until she's done; every step shows here."
+        : this.transferring
+          ? 'Transferring the call to Savannah…'
+          : 'Savannah is ready. Now transfer the call: Transfer → Entry point → EP_KC_Horry_Payment.',
+      with_ai: ctl ? "Savannah is taking the payment. You're on hold; the member comes back to you the moment she's done." : 'Savannah is taking the payment. Your status: awaiting payment — the call comes back to you when she is done.',
+      paid: ctl ? 'Paid. Savannah is wrapping up; the member is coming back to you.' : 'Paid. Savannah is wrapping up and sending the call back to you.',
+      returning: ctl ? 'Coming back to you now.' : 'On its way back to you — answer when it rings.',
+      done: paid ? 'Back with you. The payment is on the account below.' : 'Back with you. The payment was not completed — send the secure pay link instead.',
       failed: '',
     };
     const pill = h.status === 'paid' || h.status === 'done' ? 'ok' : h.status === 'pending' ? '' : 'warn';
@@ -577,11 +588,17 @@ export class HorryMember extends LitElement {
     this.result = null;
     this.transferring = false;
     try {
-      const r = await api<{ ok: boolean; message: string; handoff: HandoffDto; transfer?: { entryPointId: string; entryPointName: string; dialNumber: string } }>(this.server, 'api/agent-desk/handoff', {
+      const r = await api<{ ok: boolean; message: string; handoff: HandoffDto; transfer?: { mode?: string; entryPointId?: string; entryPointName?: string; dialNumber?: string } }>(this.server, 'api/agent-desk/handoff', {
         method: 'POST',
         body: { guid: this.guid || undefined, sep: d.member.memberSep, agent: this.agentName || undefined, amount, ani: this.callerAni, agentEmail: this.agentEmail },
       });
       this.handoff = r.handoff;
+      if (r.transfer?.mode === 'controller') {
+        // The WFC AI Controller moved the member itself; nothing for the Desktop to do.
+        this.result = { ok: true, text: r.message };
+        await this.refresh();
+        return;
+      }
       const ep = r.transfer?.entryPointId ?? '';
       const dn = r.transfer?.dialNumber ?? '';
       const guid = this.guid;
@@ -643,9 +660,13 @@ export class HorryMember extends LitElement {
       ? `A hand-off is already running for this member (ref ${live.ref}): cancel it or wait for it to finish.`
       : !this.callerAni
         ? "No caller number on this call, so Savannah couldn't recognise them after the transfer."
-        : !this.guid
-          ? "The Desktop hasn't given the call's ID yet: the hand-off will be recorded and you transfer by hand."
-          : '';
+        : d.agentFirst === true
+          ? 'Savannah takes the member while you hold; they come back to you on this same call.'
+          : d.agentFirst === false
+            ? "This call didn't come through the WFC AI Controller, so the hand-off is recorded and you transfer by hand."
+            : !this.guid
+              ? "The Desktop hasn't given the call's ID yet: the hand-off will be recorded and you transfer by hand."
+              : '';
     return html`<section class="card" aria-label="Billing assistant">
       <h3>Billing assistant</h3>
       ${this.result ? html`<div class=${this.result.ok ? 'ok-msg' : 'err'} role="status">${this.result.text}</div>` : nothing}

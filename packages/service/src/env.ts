@@ -43,6 +43,20 @@ const EnvSchema = z.object({
   FS_AGENT_TOOL_URL: z.string().optional(),
   FS_AGENT_TOOL_SECRET: z.string().optional(),
 
+  // Agent-first calls through the WFC AI Controller (use case 1, src/agent-first.ts): the
+  // service drives freeSWITCH over its event socket on the same VM. Unset = the hand-off
+  // button only records the hand-off and the agent transfers by hand.
+  FS_ESL_ENABLED: z.enum(['true', 'false', '1', '0']).default('false').transform((v) => v === 'true' || v === '1'),
+  FS_ESL_HOST: z.string().default('127.0.0.1'),
+  FS_ESL_PORT: z.coerce.number().default(8021),
+  FS_ESL_PASSWORD: z.string().default('ClueCon'),
+  /** The re-entry into WxCC as the member: gateway cube → KC_Assist_2 (207-888-6051), shared with Live Translate. */
+  FS_REENTRY_DIAL: z.string().default('sofia/gateway/cube/+12078886051'),
+  FS_ORIGINATE_TIMEOUT_S: z.coerce.number().default(45),
+  /** What the AGENT hears while Savannah has the member: announcement WAV ('' = none) then looping music. */
+  FS_HOLD_ANNOUNCE: z.string().optional(),
+  FS_HOLD_MUSIC: z.string().default('/usr/share/freeswitch/sounds/ivr/onholdmusic.wav'),
+
   // Storm Mode = a WxCC Global Variable the flow reads. The middleware writes its
   // defaultValue through the Config API with a Service App token. Unset = local flag only.
   WXCC_API_BASE: z.string().default('https://api.wxcc-us1.cisco.com'),

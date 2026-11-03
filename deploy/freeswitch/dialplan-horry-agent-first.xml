@@ -1,0 +1,73 @@
+<!--
+  Horry Electric demo - agent-first calls through the WFC AI Controller (use case 1).
+  Source of truth for the server copy. Install in
+  /etc/freeswitch/dialplan/public/ivr_menu.xml ABOVE the ivr_handler (socket) extension,
+  next to the LiveTranslate intercept, then `fs_cli -x reloadxml`. Kristen applies it
+  (Claude never touches servers).
+
+  The WxCC flow KC_Horry_Electric, Savannah-off branch, Bridge Transfers the call to 1122
+  (CUBE dial-peer 1122) with
+      X-Solution-Name: HorryAgentFirst
+      X-Call-GUID:     {{sGUID}}
+  Only HorryAgentFirst-tagged calls are taken here; every other solution on 1122 (including
+  horryelectric, the Savannah-on path) falls through to the IVR controller untouched.
+
+  What happens:
+    horry_agent_first_1122  answer, remember the GUID, park. The Horry service (ESL on
+                            127.0.0.1:8021, systemd horry-demo) sees CHANNEL_PARK, dials
+                            back into WxCC as the member (gateway cube, +12078886051 →
+                            KC_Assist_2 → Q_Horry_Billing) and uuid_bridges the two legs.
+    horry_savannah          the service uuid_transfers the member here on "Hand payment to
+                            Savannah": bridge to Savannah's SIP number with the GUID, then
+                            park again so the service can bridge the agent back.
+    horry_return            same, without Savannah: the agent cancelled the hand-off.
+
+  Channel vars:
+    park_after_bridge=true    when the member leaves the bridge for Savannah (and when
+                              Savannah hangs up), the leg parks instead of hanging up
+    hangup_after_bridge=false same reason; teardown is the service's job (uuid_kill)
+    continue_on_fail=true     Savannah not answering must not hang the member up
+    playback_terminators=none the member's DTMF must never cut anything short
+-->
+<include>
+  <extension name="horry_agent_first_1122">
+    <condition field="destination_number" expression="^1122$"/>
+    <condition field="${sip_h_X-Solution-Name}" expression="^HorryAgentFirst$">
+      <action application="answer"/>
+      <action application="set" data="horry_solution=HorryAgentFirst"/>
+      <action application="set" data="horry_role=caller"/>
+      <action application="set" data="horry_guid=${sip_h_X-Call-GUID}"/>
+      <action application="set" data="park_after_bridge=true"/>
+      <action application="set" data="hangup_after_bridge=false"/>
+      <action application="set" data="continue_on_fail=true"/>
+      <action application="set" data="playback_terminators=none"/>
+      <action application="log" data="INFO horry_agent_first: member ${caller_id_number} guid ${horry_guid} parked for the Horry service"/>
+      <action application="park"/>
+    </condition>
+  </extension>
+
+  <!-- The member goes to Savannah. Her trunk is allow-listed to this VM's IP (no digest). -->
+  <extension name="horry_savannah">
+    <condition field="destination_number" expression="^horry_savannah$">
+      <action application="set" data="horry_phase=savannah"/>
+      <action application="set" data="park_after_bridge=true"/>
+      <action application="set" data="hangup_after_bridge=false"/>
+      <action application="set" data="continue_on_fail=true"/>
+      <action application="set" data="call_timeout=20"/>
+      <action application="export" data="nolocal:sip_h_X-Call-GUID=${horry_guid}"/>
+      <action application="export" data="nolocal:sip_h_X-Solution-Name=horryelectric"/>
+      <action application="log" data="INFO horry_agent_first: ${caller_id_number} → Savannah (guid ${horry_guid})"/>
+      <action application="bridge" data="sofia/external/1151@sip.rtc.elevenlabs.io;transport=tcp"/>
+      <action application="log" data="INFO horry_agent_first: Savannah leg ended (${originate_disposition} / ${bridge_hangup_cause}) — parking for the service"/>
+      <action application="park"/>
+    </condition>
+  </extension>
+
+  <!-- Cancel hand-off: the service moves the member here, and the park brings the agent back. -->
+  <extension name="horry_return">
+    <condition field="destination_number" expression="^horry_return$">
+      <action application="set" data="horry_phase=return"/>
+      <action application="park"/>
+    </condition>
+  </extension>
+</include>

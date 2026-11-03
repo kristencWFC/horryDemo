@@ -21,6 +21,7 @@ import { overview, callDetail, callsCsv } from './analytics.js';
 import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 import type { HandoffStore, Handoff, HandoffStatus } from './handoff.js';
+import type { AgentFirstBridge } from './agent-first.js';
 import { parseReminderCsv, type ReminderStore, type ReminderBatch, type ReminderRow } from './reminders.js';
 import { placeOutboundCall, outboundConfigured } from './outbound.js';
 
@@ -36,6 +37,8 @@ export interface Deps {
   staffing: StaffingStore;
   handoffs: HandoffStore;
   reminders: ReminderStore;
+  /** Agent-first calls through the WFC AI Controller (use case 1); absent in chat.ts. */
+  agentFirst?: AgentFirstBridge;
 }
 
 interface Settings {
@@ -63,7 +66,7 @@ function payOptions(card: string, echeck: boolean): string {
 
 
 export function registerRoutes(f: FastifyInstance, d: Deps): void {
-  const { members, nextgen, outages, calls, sms, payments, mode, handoffs, reminders } = d;
+  const { members, nextgen, outages, calls, sms, payments, mode, handoffs, reminders, agentFirst } = d;
   const tz = env.BUSINESS_TIMEZONE;
   const settingsStore = new JsonStore<Settings>(join(d.dataDir, 'settings.json'));
   const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', ...(settingsStore.load() ?? {}) };
@@ -193,6 +196,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     wxcc: wxccConfigured(),
     staffing: staffingConfigured(),
     fsRelay: fsRelayConfigured(),
+    agentFirst: agentFirst?.status() ?? { enabled: false },
     storm: mode.get().storm,
     aiAll: mode.get().aiAll,
   }));
@@ -841,6 +845,16 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     console.log(`HORRY REMINDERS ${batch.id}: ${channel} × ${rows.length} by ${batch.by}`);
     void runBatch(batch);
     return batch;
+  });
+
+  // Re-entry flow (KC_Assist_2, 207-888-6051, shared with Live Translate): is this leg the WFC
+  // AI Controller bringing a Horry member back in? found=true → Queue Contact Q_Horry_Billing.
+  f.get('/api/agent-first/by-ani/:ani', async (req) => {
+    const ani = (req.params as { ani: string }).ani;
+    const c = agentFirst?.activeByAni(ani);
+    const m = c ? await memberByAni(c.ani) : undefined;
+    console.log(`HORRY AGENT-FIRST by-ani ${last10(ani)} → ${c ? `yes (${c.state})` : 'no'}`);
+    return { found: c ? 'true' : 'false', member_name: m ? displayName(m) : c?.name ?? '', account_number: m?.MemberSep ?? '', queue: c ? 'Q_Horry_Billing' : '' };
   });
 
   // Payment hand-off flow (EP_KC_Horry_Payment): who handed this caller over, so the flow can

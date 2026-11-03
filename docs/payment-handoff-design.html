@@ -70,14 +70,15 @@
 
 <main>
   <header>
-    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · use case 1 · Kristen Christopher · 2026-11-03 · for approval</div>
+    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · use case 1 · Kristen Christopher · 2026-11-03 · approved · building</div>
     <h1>Payment Hand-off Design</h1>
     <p class="lede">The live agent hands Dorothy to Savannah for the payment and never hears it. The WFC AI Controller sits in
     the middle of every agent-first call, the same way it did for Live Translate: it owns Dorothy's leg and the agent's leg
     separately, so it can hold one and send the other to Savannah, then put them back together. The agent's Desktop task
     never ends.</p>
-    <div class="note">Internal build plan, not for the client. Step through section 1, then approve or change the pieces in
-    section 2. Nothing is built until you say go.</div>
+    <div class="note">Internal build plan, not for the client. Approved by Kristen 2026-11-03 with two changes: Dorothy hears
+    WxCC's own queue treatment, not a parked ringback (step 2), and the Live Translate re-entry set-up is reused rather than a
+    new number. Section 5 lists every hop by number; section 6 is the set-up order.</div>
   </header>
 
   <section>
@@ -93,13 +94,13 @@
         <path class="edge" id="e-wxcc-fs" d="M332 200 L368 200" marker-end="url(#ah)"/>
         <text class="elabel" x="300" y="245">bridge 1122 + headers</text>
         <path class="edge" id="e-fs-ep" d="M562 200 L598 200" marker-end="url(#ah)"/>
-        <text class="elabel" x="520" y="245">dials back in as Dorothy</text>
+        <text class="elabel" x="520" y="245">dials 207-888-6051 as Dorothy</text>
         <path class="edge" id="e-ep-agent" d="M772 200 L808 200" marker-end="url(#ah)"/>
-        <text class="elabel" x="760" y="245">queue</text>
+        <text class="elabel" x="760" y="245">Q_Horry_Billing</text>
         <path class="edge" id="e-fs-sav" d="M420 168 L420 130 L265 130 L265 94" marker-end="url(#ah)" marker-start="url(#ah)"/>
-        <text class="elabel" x="285" y="124">leg A ↔ Savannah</text>
+        <text class="elabel" x="285" y="124">leg A ↔ Savannah (SIP 1151)</text>
         <path class="edge" id="e-svc-fs" d="M685 94 L685 130 L500 130 L500 168" marker-end="url(#ah)"/>
-        <text class="elabel" x="505" y="124">hold the agent, send Dorothy</text>
+        <text class="elabel" x="505" y="124">ESL: hold the agent, send Dorothy</text>
         <path class="edge" id="e-sav-svc" d="M352 60 L598 60" marker-end="url(#ah)"/>
         <text class="elabel" x="410" y="52">tools report each step</text>
         <path class="edge" id="e-agent-svc" d="M895 168 L895 60 L772 60" marker-end="url(#ah)" marker-start="url(#ah)"/>
@@ -108,11 +109,11 @@
         <text class="elabel" x="415" y="278">A ↔ B bridged</text>
 
         <g class="node" id="n-sav"><rect x="180" y="30" width="170" height="62" rx="6"/><text class="t" x="196" y="56">Savannah</text><text class="s" x="196" y="76">WFC AI Agent · 1151</text></g>
-        <g class="node" id="n-svc"><rect x="600" y="30" width="170" height="62" rx="6"/><text class="t" x="616" y="56">Horry service</text><text class="s" x="616" y="76">kcdev2 · hand-off record</text></g>
-        <g class="node" id="n-mem"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Dorothy</text><text class="s" x="36" y="216">calls in</text></g>
+        <g class="node" id="n-svc"><rect x="600" y="30" width="170" height="62" rx="6"/><text class="t" x="616" y="56">Horry service</text><text class="s" x="616" y="76">kc-dev-2 · ESL + hand-off</text></g>
+        <g class="node" id="n-mem"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Dorothy</text><text class="s" x="36" y="216">972-430-9658</text></g>
         <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">EP_KC_Horry</text></g>
         <g class="node" id="n-fs"><rect x="370" y="170" width="190" height="62" rx="6"/><text class="t" x="386" y="196">WFC AI Controller</text><text class="s" x="386" y="216">leg A (Dorothy) · leg B (agent)</text></g>
-        <g class="node" id="n-ep"><rect x="600" y="170" width="170" height="62" rx="6"/><text class="t" x="616" y="196">Re-entry EP</text><text class="s" x="616" y="216">→ Q_Horry_Billing</text></g>
+        <g class="node" id="n-ep"><rect x="600" y="170" width="170" height="62" rx="6"/><text class="t" x="616" y="196">Re-entry EP</text><text class="s" x="616" y="216">KC_Assist_2 · shared flow</text></g>
         <g class="node" id="n-agent"><rect x="810" y="170" width="170" height="62" rx="6"/><text class="t" x="826" y="196">Live agent</text><text class="s" x="826" y="216">Desktop · Member tab</text></g>
       </svg>
     </div>
@@ -126,16 +127,20 @@
 
   <section>
     <h2>2. What changes, who does it, in build order</h2>
+    <p>freeSWITCH and its event socket run on <strong>kc-dev-2, the same VM as the Horry service</strong>, so the service
+    drives freeSWITCH directly over ESL (127.0.0.1:8021) with the ~150-line client copied from Live Translate.
+    <strong>The live-translate middleware is not touched.</strong></p>
     <div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Piece</th><th>Change</th><th>Who</th><th>Time</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>Middleware (<code>live-translate</code> repo, runs beside the controller on the FS box)</td><td>New solution <code>HorryAgentFirst</code>: answer and park leg A, dial the re-entry entry point with Dorothy's number as leg B, bridge A↔B (all existing code). New: <code>POST /api/handoff</code> (shared secret) → park B with an announcement + hold music, send A to Savannah on 1151 with <code>X-Solution-Name</code>/<code>X-Call-GUID</code>, <code>park_after_bridge</code> so A comes back when she hangs up, then re-bridge A↔B. It posts <em>transferred</em>, <em>returned</em> and <em>failed</em> to the Horry service.</td><td>Claude writes · Kristen deploys on the FS box</td><td class="num">~3 h</td></tr>
-        <tr><td class="num">2</td><td>freeSWITCH dialplan</td><td>Route <code>X-Solution-Name: HorryAgentFirst</code> on 1122 to the middleware (next to <code>LiveTranslate</code>), plus one extension that bridges a leg to Savannah with the headers.</td><td>Claude writes · Kristen deploys</td><td class="num">in #1</td></tr>
-        <tr><td class="num">3</td><td>Re-entry entry point</td><td>A number the controller can dial through CUBE whose flow queues to <code>Q_Horry_Billing</code>. Fastest: reuse Live Translate's re-entry (+1 207-888-6051, flow <code>KC_Translate_2</code>) and point its queue at <code>Q_Horry_Billing</code> for the demo. Clean: a new DID + CUBE dial-peer + <code>EP_KC_Horry_Agent</code>.</td><td>Kristen (Control Hub, CUBE)</td><td class="num">30 min – 2 h</td></tr>
-        <tr><td class="num">4</td><td><code>KC_Horry_Electric</code> flow</td><td>Savannah-off branch: instead of Queue, Bridge Transfer to 1122 with headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID = {{sGUID}}</code>. On the Bridge's failure path, Queue to <code>Q_Horry_Billing</code> as today, so a controller problem still reaches an agent.</td><td>Kristen (Designer)</td><td class="num">20 min</td></tr>
-        <tr><td class="num">5</td><td>Horry service + Member tab</td><td><code>.env</code>: controller URL + secret. The hand-off POST calls the controller instead of returning transfer targets; a status endpoint receives the middleware's steps; the button no longer touches the Desktop SDK. The button only shows on agent-first calls (a storm call that Savannah escalated didn't come through the middleware, so there's nothing to hold).</td><td>Claude</td><td class="num">~1 h</td></tr>
-        <tr><td class="num">6</td><td>Savannah</td><td>No change: the hand-off greeting is already keyed by the caller's number, and leg A carries Dorothy's.</td><td>—</td><td class="num">0</td></tr>
-        <tr><td class="num">7</td><td>Joint test</td><td>Test A (normal call through the middleware, Member tab pops), test B (hand-off, agent hears hold, Dorothy pays, re-bridge), and the failure path (Savannah unreachable → immediate re-bridge).</td><td>Both</td><td class="num">1 h</td></tr>
+        <tr><td class="num">1</td><td>Horry service (<code>horryDemo</code>)</td><td>New <code>packages/service/src/esl.ts</code> (event socket client) and <code>agent-first.ts</code>: on a parked <code>HorryAgentFirst</code> leg, originate the re-entry leg to <code>+12078886051</code> with the member's number as caller ID and <code>uuid_bridge</code> the two. <code>POST /api/agent-desk/handoff</code> now does <code>uuid_transfer A horry_savannah</code>; the agent leg parks and hears the announcement + hold music; when Savannah hangs up, <code>uuid_break B all</code> + <code>uuid_bridge A B</code>. New <code>GET /api/agent-first/by-ani/:ani</code> for the re-entry flow. <code>/horry/health</code> shows <code>agentFirst: { esl: connected }</code>.</td><td>Claude writes · Kristen deploys (usual pull/build/restart)</td><td class="num">~3 h</td></tr>
+        <tr><td class="num">2</td><td>freeSWITCH dialplan</td><td>One file, <code>deploy/freeswitch/dialplan-horry-agent-first.xml</code>: the <code>horry_agent_first_1122</code> intercept (answer, set vars, park), the <code>horry_savannah</code> extension (bridge to SIP 1151 with <code>X-Call-GUID</code>, <code>park_after_bridge</code>) and <code>horry_return</code> (park). Install in <code>/etc/freeswitch/dialplan/public/ivr_menu.xml</code> ABOVE the <code>ivr_handler</code> socket extension, next to the LiveTranslate intercept, then <code>fs_cli -x reloadxml</code>.</td><td>Claude writes · Kristen installs</td><td class="num">10 min</td></tr>
+        <tr><td class="num">3</td><td>Re-entry (reused from Live Translate)</td><td>Entry point <code>KC_Assist_2</code> (207-888-6051), shared flow <code>KC_AI_Demo_Dialer_Assist_Translate_WhileYouWait</code>, <code>sDNIS = 2078886051</code> branch. Today: Queue Contact → <code>Q_KC_Telephony</code>. Add before it: HTTP Request GET <code>https://kcdev2.workflowconcepts.com/horry/api/agent-first/by-ani/{{NewPhoneContact.ANI}}</code> → Case on <code>found</code> → true: Queue Contact <code>Q_Horry_Billing</code>; false: <code>Q_KC_Telephony</code> as today. Agent Live Assist and Live Translate keep working unchanged.</td><td>Kristen (Designer)</td><td class="num">20 min</td></tr>
+        <tr><td class="num">4</td><td><code>KC_Horry_Electric</code> flow</td><td>Savannah-off branch: instead of Queue, Bridge Transfer to <strong>1122</strong> with headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID = {{sGUID}}</code> (same activity as the Savannah branch, which keeps <code>horryelectric</code>). On the Bridge's failure path, Queue Contact <code>Q_Horry_Billing</code> as today, so a controller problem still reaches an agent.</td><td>Kristen (Designer)</td><td class="num">20 min</td></tr>
+        <tr><td class="num">5</td><td>Server <code>.env</code></td><td><code>FS_ESL_ENABLED=true</code>, <code>FS_ESL_PASSWORD=&lt;event_socket password&gt;</code>. Defaults that need no line: <code>FS_ESL_HOST=127.0.0.1</code>, <code>FS_ESL_PORT=8021</code>, <code>FS_REENTRY_DIAL=sofia/gateway/cube/+12078886051</code>, <code>FS_SAVANNAH_DIAL=sofia/external/1151@sip.rtc.elevenlabs.io;transport=tcp</code>. Restart <code>horry-demo</code>.</td><td>Kristen</td><td class="num">5 min</td></tr>
+        <tr><td class="num">6</td><td>Member tab</td><td>The button calls the service only (no Desktop transfer). It shows only on calls that came through the controller; a storm call Savannah escalated didn't, so there's nothing to hold.</td><td>Claude</td><td class="num">in #1</td></tr>
+        <tr><td class="num">7</td><td>Savannah</td><td>No change: the hand-off greeting is already keyed by the caller's number, and leg A carries Dorothy's.</td><td>—</td><td class="num">0</td></tr>
+        <tr><td class="num">8</td><td>Joint test</td><td>Test A (normal call through the controller, Member tab pops), test B (hand-off, agent hears hold, Dorothy pays, re-bridge), test C (Cancel hand-off, and Savannah unreachable → immediate re-bridge).</td><td>Both</td><td class="num">1 h</td></tr>
       </tbody>
     </table></div>
     <p style="margin-top:8px"><code>EP_KC_Horry_Payment</code> (972-903-8486) and its DNIS branch are no longer used. Leave them; nothing dials them.</p>
@@ -148,46 +153,83 @@
       <li>Payment reminders (use case 3), web chat, email, Customer Review: untouched. The dashboard already shows the path "Agent → Savannah (payment) → agent".</li>
       <li>Member tab lookup: by caller number. Live Translate proved the re-entry leg presents the original number, so Dorothy pops exactly as she did tonight.</li>
       <li>Demo caller setting: same one place (AI Operations → Demo caller).</li>
+      <li>Agent Live Assist and Live Translate: same re-entry point, same flow; the new Case sends only Horry callers to <code>Q_Horry_Billing</code>.</li>
     </ul>
   </section>
 
   <section>
-    <h2>4. Decisions to confirm</h2>
+    <h2>4. Decisions</h2>
     <div class="table-wrap"><table>
-      <thead><tr><th>Question</th><th>Recommendation</th><th>Who</th></tr></thead>
+      <thead><tr><th>Question</th><th>Decision</th><th>Who</th></tr></thead>
       <tbody>
-        <tr><td>Re-entry number: reuse Live Translate's 207-888-6051 or a new DID?</td><td>Reuse for tomorrow; new DID after the demo. Reuse means <code>KC_Translate_2</code> queues to <code>Q_Horry_Billing</code> until it's switched back.</td><td>Kristen</td></tr>
-        <tr><td>What the agent hears while Savannah works</td><td>"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done." then hold music. Agent-facing, so it can be plain.</td><td>Kristen</td></tr>
-        <tr><td>Every Savannah-off call goes through the middleware</td><td>Yes: that's what makes the hand-off possible mid-call, and a normal billing call looks identical to the agent. Bridge failure falls back to the queue.</td><td>Kristen</td></tr>
-        <tr><td>Where the middleware runs</td><td>On the FS box next to the ivr-controller (it needs ESL on :8021), reachable from kcdev2 over HTTPS for the hand-off call. <strong>[CONFIRM]</strong> it's still deployed there from Live Translate.</td><td>Kristen</td></tr>
-        <tr><td>If Savannah is unreachable or drops without wrapping up</td><td>Re-bridge within 10 s, post a <em>failed</em> step; the Member tab says "Savannah couldn't take the payment — send the secure pay link instead."</td><td>agreed?</td></tr>
+        <tr><td>Re-entry number</td><td><strong>Reuse Live Translate's</strong>: <code>+12078886051</code> → <code>KC_Assist_2</code> → the shared flow, with a REST + Case so the other two demos are unaffected. Fallback if short on time: re-point that Queue Contact to <code>Q_Horry_Billing</code> for the demo and switch it back after. The kc-wiki will record that <code>KC_Assist_2</code> / 2078886051 is now shared by three demos (Agent Live Assist, Live Translate, Horry).</td><td>decided 2026-11-03</td></tr>
+        <tr><td>What the agent hears while Savannah works</td><td>"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done." (<code>savannah-hold.wav</code>), then the controller's own hold music, <code>/usr/share/freeswitch/sounds/ivr/onholdmusic.wav</code>. Agent-facing, so it can be plain.</td><td>decided</td></tr>
+        <tr><td>Every Savannah-off call goes through the controller</td><td>Yes: that's what makes the hand-off possible mid-call, and a normal billing call looks identical to the agent. Bridge failure falls back to the queue.</td><td>decided</td></tr>
+        <tr><td>Where the controller logic runs</td><td>Resolved: in the Horry service itself on kc-dev-2, over the loopback event socket. No middleware change, no new service.</td><td>resolved</td></tr>
+        <tr><td>If Savannah is unreachable or drops without wrapping up</td><td>Not answered within 20 s, or dropped before any step: re-bridge at once and post a <em>failed</em> step; the Member tab says "Savannah couldn't take the payment — send the secure pay link instead." <strong>Cancel hand-off</strong> does the same re-bridge on purpose.</td><td>agreed</td></tr>
         <tr><td>Fallback for tomorrow if the joint test isn't clean by tonight</td><td>The conference version (button does consult → conference on 972-903-8486; that branch becomes REST → Bridge → Disconnect). Agent hears Savannah; the production answer is this page.</td><td>Kristen</td></tr>
       </tbody>
     </table></div>
+  </section>
+
+  <section>
+    <h2>5. Every hop, by number</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Hop</th><th>From → To</th><th>Number / target</th><th>What carries the identity</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Dorothy → WxCC</td><td>Demo line <strong>(972) 430-9658</strong> → entry point <code>EP_KC_Horry</code> → flow <code>KC_Horry_Electric</code></td><td>Her caller ID (the Demo caller setting maps the presenter's phone to Dorothy)</td></tr>
+        <tr><td class="num">2</td><td>WxCC flow → freeSWITCH (leg A)</td><td>Savannah-off branch: <strong>Bridge Transfer to 1122</strong> → CUBE dial-peer 1122 → freeSWITCH 34.41.17.98. Failure path → Queue Contact <code>Q_Horry_Billing</code>. (Savannah-on branch: same Bridge, <code>X-Solution-Name = horryelectric</code>.)</td><td>Headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID = {{sGUID}}</code>; caller ID stays Dorothy's</td></tr>
+        <tr><td class="num">3</td><td>freeSWITCH → Horry service</td><td>Dialplan intercept <code>horry_agent_first_1122</code> answers and parks leg A; the service sees the park event over ESL (127.0.0.1:8021)</td><td>Channel vars: <code>horry_solution</code>, <code>horry_guid</code>, caller ID number</td></tr>
+        <tr><td class="num">4</td><td>freeSWITCH → WxCC (leg B, re-entry)</td><td>Service originates <code>sofia/gateway/cube/+12078886051</code> (CUBE dial-peers 1141/1142) → entry point <code>KC_Assist_2</code> (207-888-6051) → shared flow <code>KC_AI_Demo_Dialer_Assist_Translate_WhileYouWait</code>, <code>sDNIS = 2078886051</code> branch</td><td><code>origination_caller_id_number</code> = Dorothy's number; <code>sip_copy_custom_headers=false</code></td></tr>
+        <tr><td class="num">5</td><td>Shared flow → queue → agent</td><td>HTTP Request GET <code>…/horry/api/agent-first/by-ani/{{NewPhoneContact.ANI}}</code> → Case <code>found</code> → true: Queue Contact <code>Q_Horry_Billing</code>; false: <code>Q_KC_Telephony</code>. Agent answers; service <code>uuid_bridge A B</code></td><td>The Desktop task shows Dorothy's number; the Member tab pops by caller ID</td></tr>
+        <tr><td class="num">6</td><td>Member tab → Horry service</td><td><strong>Hand payment to Savannah</strong> → <code>POST /horry/api/agent-desk/handoff</code> → hand-off record (ref, GUID, agent, member, amount) → service <code>uuid_transfer A horry_savannah</code></td><td>Caller number → hand-off record</td></tr>
+        <tr><td class="num">7</td><td>freeSWITCH (leg A) → Savannah</td><td>Extension <code>horry_savannah</code> bridges A to <strong>SIP 1151 at sip.rtc.elevenlabs.io</strong> (WFC AI Agent trunk, TCP), <code>park_after_bridge</code>. Leg B parks and hears <code>savannah-hold.wav</code>, then <code>/usr/share/freeswitch/sounds/ivr/onholdmusic.wav</code></td><td><code>X-Call-GUID</code>; caller ID = Dorothy's → Savannah's initiation webhook on the Horry service finds the open hand-off → payment greeting</td></tr>
+        <tr><td class="num">8</td><td>Savannah → Horry service → Member tab</td><td>Her tools post each step (<code>ai_answered</code>, <code>paid</code>, <code>receipt</code>, <code>returning</code>); the Member tab polls and shows them live</td><td>Hand-off ref</td></tr>
+        <tr><td class="num">9</td><td>Return</td><td>Savannah hangs up → A parks (<code>park_after_bridge</code>) → service <code>uuid_break B all</code> + <code>uuid_bridge A B</code> → step "Back with you". Not answered within 20 s or dropped before any step → same re-bridge + <em>failed</em> step. <strong>Cancel hand-off</strong> → <code>uuid_transfer A horry_return</code> → same re-bridge</td><td>Same two leg UUIDs the service has held since hop 3</td></tr>
+        <tr><td>—</td><td>Not used any more</td><td><code>EP_KC_Horry_Payment</code> / 972-903-8486 and its DNIS branch</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>6. Set-up order for Kristen</h2>
+    <p>The step-by-step walk-through happens live in chat once the build is done; this is the order it will follow.</p>
+    <ol>
+      <li>Deploy the service: <code>cd /opt/horryDemo &amp;&amp; git pull --ff-only &amp;&amp; npm ci &amp;&amp; npm run build &amp;&amp; sudo systemctl restart horry-demo</code>.</li>
+      <li>Install <code>deploy/freeswitch/dialplan-horry-agent-first.xml</code> into <code>/etc/freeswitch/dialplan/public/ivr_menu.xml</code> above <code>ivr_handler</code>, then <code>fs_cli -x reloadxml</code>.</li>
+      <li>Add <code>FS_ESL_ENABLED=true</code> and <code>FS_ESL_PASSWORD=…</code> to <code>/opt/horryDemo/.env</code>; restart <code>horry-demo</code>.</li>
+      <li>Check <code>https://kcdev2.workflowconcepts.com/horry/health</code> shows <code>agentFirst: { esl: connected }</code>.</li>
+      <li>Designer: <code>KC_Horry_Electric</code>, Savannah-off branch → Bridge Transfer 1122 with the two headers; failure path → Queue <code>Q_Horry_Billing</code>.</li>
+      <li>Designer: shared flow, <code>2078886051</code> branch → HTTP Request + Case → <code>Q_Horry_Billing</code> / <code>Q_KC_Telephony</code>.</li>
+      <li>Publish both flows.</li>
+      <li>Test A: Savannah off, call the demo line as David; the agent rings with David on the Member tab; talk; hang up.</li>
+      <li>Test B: as Dorothy; click <strong>Hand payment to Savannah</strong>; agent hears the announcement and hold music; Dorothy pays by e-check on file; the Member tab shows the steps; Savannah hangs up and the agent is back with Dorothy.</li>
+      <li>Test C: start a hand-off and press <strong>Cancel hand-off</strong> (re-bridge); then a hand-off with Savannah unreachable (expect the <em>failed</em> step and re-bridge within 20 s).</li>
+    </ol>
   </section>
 </main>
 
 <script>
   const scenarios = [
     { name: 'Payment hand-off', steps: [
-      { nodes: ['mem', 'wxcc'], edges: ['e-mem-wxcc'], text: 'Dorothy calls (972) 430-9658. Savannah is off, so the flow takes the agent-first branch: Bridge Transfer to 1122 with X-Solution-Name = HorryAgentFirst and X-Call-GUID. Same activity as the Savannah branch, different solution name.' },
-      { nodes: ['wxcc', 'fs'], edges: ['e-wxcc-fs'], text: 'The WFC AI Controller answers Dorothy (leg A), reads the headers, and parks her with ringback while it fetches the agent.' },
-      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: "The controller dials back into WxCC on the re-entry entry point, presenting Dorothy's own number (leg B). That flow queues to Q_Horry_Billing. The agent answers and the Member tab pops Dorothy from the caller ID, exactly as it did tonight." },
+      { nodes: ['mem', 'wxcc'], edges: ['e-mem-wxcc'], text: 'Dorothy calls (972) 430-9658 → EP_KC_Horry → KC_Horry_Electric. Savannah is off, so the flow takes the agent-first branch: Bridge Transfer to 1122 with X-Solution-Name = HorryAgentFirst and X-Call-GUID. Same activity as the Savannah branch, different solution name.' },
+      { nodes: ['wxcc', 'fs', 'ep'], edges: ['e-wxcc-fs', 'e-fs-ep'], text: "The WFC AI Controller answers Dorothy (leg A) and immediately dials back into WxCC on +1 207-888-6051 (KC_Assist_2), presenting Dorothy's own number (leg B). What Dorothy hears is WxCC's own queue treatment on that leg: hold music, then ringback and the connection when an agent is available." },
+      { nodes: ['ep', 'agent'], edges: ['e-ep-agent'], text: "The shared flow's 2078886051 branch asks the Horry service whether this caller is a Horry agent-first call, then queues to Q_Horry_Billing. The agent answers and the Member tab pops Dorothy from the caller ID, exactly as it did tonight." },
       { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Legs A and B are bridged. Dorothy and the agent talk; the controller is invisible. Every Savannah-off call takes this path, so a normal billing call looks and sounds identical.' },
-      { nodes: ['agent', 'svc'], edges: ['e-agent-svc'], text: 'Dorothy wants to pay. The agent clicks Hand payment to Savannah. The Horry service records the hand-off (ref, GUID, agent, member, $194) and tells the controller: hand this caller to Savannah.' },
-      { nodes: ['svc', 'fs', 'agent'], edges: ['e-svc-fs'], held: ['e-ep-agent'], text: "The controller parks leg B. The agent hears \"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done,\" then hold music. The agent's task stays live; nothing on the Desktop changes." },
-      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "The controller sends leg A to Savannah (1151, X-Call-GUID as today). Her webhook sees the open hand-off for Dorothy's number and opens with the payment greeting: \"Dorothy, the agent asked me to take care of your payment of $194. Would you like to use the card on file, the e-check on file, or a new card?\"" },
+      { nodes: ['agent', 'svc'], edges: ['e-agent-svc'], text: 'Dorothy wants to pay. The agent clicks Hand payment to Savannah. The Horry service records the hand-off (ref, GUID, agent, member, $194) and, over the event socket, moves leg A: uuid_transfer A horry_savannah.' },
+      { nodes: ['svc', 'fs', 'agent'], edges: ['e-svc-fs'], held: ['e-ep-agent'], text: "Leg B parks. The agent hears \"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done,\" then hold music. The agent's task stays live; nothing on the Desktop changes." },
+      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is bridged to Savannah on SIP 1151 with X-Call-GUID, caller ID still Dorothy's. Her webhook sees the open hand-off for that number and opens with the payment greeting: \"Dorothy, the agent asked me to take care of your payment of $194. Would you like to use the card on file, the e-check on file, or a new card?\"" },
       { nodes: ['sav', 'svc', 'agent'], edges: ['e-sav-svc', 'e-agent-svc'], held: ['e-ep-agent'], text: 'Savannah takes the payment. Each tool posts a step, and the Member tab shows them live: Savannah answered · e-check drafted · confirmation 482913. The agent sees every step and hears none of it.' },
-      { nodes: ['sav', 'fs'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Savannah says \"I'll put you back with the agent now\" and hangs up her side. Leg A returns to park; the controller stops the hold music and bridges A and B again." },
+      { nodes: ['sav', 'fs'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Savannah says \"I'll put you back with the agent now\" and hangs up her side. Leg A returns to park; the service stops the hold music (uuid_break B all) and bridges A and B again (uuid_bridge A B)." },
       { nodes: ['mem', 'fs', 'agent', 'svc'], edges: ['e-ab'], text: "Dorothy and the agent are talking again: same task, no wrap-up, no re-queue. The Member tab says \"Back with you\" with the confirmation. Customer Review shows the path Agent → Savannah (payment) → agent." }
     ]},
-    { name: 'Savannah unreachable', steps: [
-      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is sent to Savannah, but she doesn't answer within 10 seconds, or she drops without a wrap-up." },
-      { nodes: ['fs', 'agent', 'svc'], edges: ['e-ab', 'e-svc-fs'], text: 'The controller re-bridges A and B at once and posts a failed step. The agent hears Dorothy again and the Member tab says "Savannah couldn\'t take the payment — send the secure pay link instead."' }
+    { name: 'Savannah unreachable, or Cancel', steps: [
+      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is sent to SIP 1151, but Savannah doesn't answer within 20 seconds, or she drops before any step is posted — or the agent presses Cancel hand-off (uuid_transfer A horry_return)." },
+      { nodes: ['fs', 'agent', 'svc'], edges: ['e-ab', 'e-svc-fs'], text: 'The service re-bridges A and B at once and posts a failed step (or cancelled). The agent hears Dorothy again and the Member tab says "Savannah couldn\'t take the payment — send the secure pay link instead."' }
     ]},
     { name: 'Normal billing call (no hand-off)', steps: [
-      { nodes: ['mem', 'wxcc', 'fs'], edges: ['e-mem-wxcc', 'e-wxcc-fs'], text: 'David calls with a question about his bill. Savannah is off: the flow bridges to the controller as in every agent-first call.' },
-      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: 'The controller fetches the agent through the re-entry entry point, presenting David\'s number. The Member tab pops David.' },
+      { nodes: ['mem', 'wxcc', 'fs'], edges: ['e-mem-wxcc', 'e-wxcc-fs'], text: 'David calls (972) 430-9658 with a question about his bill. Savannah is off: the flow bridges to 1122 (HorryAgentFirst) as in every agent-first call.' },
+      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: "The controller dials back in on 207-888-6051 presenting David's number; he hears WxCC's queue treatment; the shared flow queues to Q_Horry_Billing. The Member tab pops David." },
       { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Bridged. The agent answers the question and the call ends normally. The controller was never noticed, and the Hand payment button simply wasn\'t pressed.' }
     ]}
   ];
