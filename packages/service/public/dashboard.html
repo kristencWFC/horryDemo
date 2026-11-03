@@ -48,7 +48,11 @@
     .panel { break-inside: avoid; }
     body { background: #fff !important; }
   }
-  main { max-width: 1280px; margin: 0 auto; padding: 16px 20px 40px; display: grid; gap: 16px; }
+  /* Full width: the Desktop gives this page 2,500 px and a 1,280 px column wasted half of it (Kristen 2026-11-03). */
+  main { margin: 0; padding: 16px 24px 40px; display: grid; gap: 16px; }
+  .grid4 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 1500px) { .grid4 { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); } }
+  @media (max-width: 900px) { .grid4 { grid-template-columns: minmax(0, 1fr); } }
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
   .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
   .tile .k { font-size: 12px; color: var(--dim); }
@@ -169,7 +173,7 @@
 <main>
   <section class="tiles" id="tiles" aria-label="Summary"></section>
 
-  <section class="grid2">
+  <section class="grid4">
     <div class="panel">
       <h2>Why members called</h2>
       <p class="hint">Topics come from the conversation itself (what Savannah did, plus the live agent's AI summary), not a code someone picked. Click a topic to filter the calls below.</p>
@@ -182,9 +186,6 @@
       <div class="hours" id="hours"></div>
       <div class="haxis" id="haxis"></div>
     </div>
-  </section>
-
-  <section class="grid2">
     <div class="panel">
       <h2>How members felt</h2>
       <p class="hint">Sentiment from each conversation, after the call.</p>
