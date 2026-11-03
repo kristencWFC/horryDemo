@@ -28,7 +28,7 @@ const A = 'aaaaaaaa-0000-0000-0000-000000000001';
 
 function setup() {
   const esl = new FakeEsl();
-  const opts = { ...defaultOptions(), holdAnnounce: '/tmp/announce.wav', holdMusic: '/tmp/moh.wav' };
+  const opts = { ...defaultOptions(), holdAnnounce: '/tmp/announce.wav', holdMusic: '/tmp/moh.wav', backAnnounce: '' };
   const bridge = new AgentFirstBridge(esl, opts);
   const returned: ReturnInfo[] = [];
   bridge.on('returned', (r: ReturnInfo) => returned.push(r));

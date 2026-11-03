@@ -60,6 +60,8 @@ export interface AgentFirstOptions {
   /** Files freeSWITCH plays to the AGENT while Savannah has the member ('' = skip). */
   holdAnnounce: string;
   holdMusic: string;
+  /** Played to the AGENT right after the re-bridge ('' = skip): the member can't hear it. */
+  backAnnounce: string;
   /** Safety net: a hand-off that runs this long is pulled back. */
   maxSavannahMs: number;
 }
@@ -67,6 +69,7 @@ export interface AgentFirstOptions {
 const here = dirname(fileURLToPath(import.meta.url));
 /** Committed in the repo so freeSWITCH (same VM) can read it by absolute path. */
 export const DEFAULT_HOLD_ANNOUNCE = join(here, '..', 'public', 'audio', 'savannah-hold.wav');
+export const DEFAULT_BACK_ANNOUNCE = join(here, '..', 'public', 'audio', 'savannah-back.wav');
 
 export const defaultOptions = (): AgentFirstOptions => ({
   reentryDial: 'sofia/gateway/cube/+19724309658',
@@ -75,6 +78,7 @@ export const defaultOptions = (): AgentFirstOptions => ({
   returnExtension: 'horry_return',
   holdAnnounce: existsSync(DEFAULT_HOLD_ANNOUNCE) ? DEFAULT_HOLD_ANNOUNCE : '',
   holdMusic: '/usr/share/freeswitch/sounds/ivr/onholdmusic.wav',
+  backAnnounce: existsSync(DEFAULT_BACK_ANNOUNCE) ? DEFAULT_BACK_ANNOUNCE : '',
   maxSavannahMs: 15 * 60_000,
 });
 
@@ -322,6 +326,9 @@ export class AgentFirstBridge extends EventEmitter {
     c.state = 'bridged';
     c.holdStarted = false;
     console.log(`${this.tag(c)}: member back with the agent (${reason}, ${Math.round(heldMs / 1000)} s)`);
+    // Tell the agent, in their ear only: a broadcast on a bridged leg replaces that leg's
+    // audio for its duration, so the member hears nothing (Kristen 2026-11-03: "confusing").
+    if (this.opts.backAnnounce) await esl.api(`uuid_broadcast ${c.b} playback::${this.opts.backAnnounce} aleg`).catch(() => undefined);
     this.emit('returned', { call: c, answered, reason } satisfies ReturnInfo);
   }
 

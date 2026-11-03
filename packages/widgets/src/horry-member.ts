@@ -267,6 +267,9 @@ export class HorryMember extends LitElement {
       .ok-msg { border-left: 3px solid var(--h-ok); background: var(--h-ok-soft); padding: 8px 10px; border-radius: 0 6px 6px 0; }
       .ho { border-left: 4px solid var(--h-accent); }
       .ho.paid, .ho.done { border-left-color: var(--h-ok); }
+      .hobox { border: 1px solid var(--h-border); border-left: 4px solid var(--h-accent); border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: grid; gap: 8px; }
+      .hobox.paid, .hobox.done { border-left-color: var(--h-ok); }
+      .hobox h3 { margin: 0; }
       table { width: 100%; border-collapse: collapse; font-size: 12px; }
       td { padding: 4px 4px; border-top: 1px solid var(--h-border); vertical-align: top; }
       td.r { text-align: right; font-variant-numeric: tabular-nums; }
@@ -408,6 +411,9 @@ export class HorryMember extends LitElement {
       const d = await api<DeskDto>(this.server, `api/agent-desk?${key}`);
       if (key !== this.key) return;
       this.data = d;
+      // The server's copy of the hand-off is the live one (steps arrive from Savannah's tools);
+      // the snapshot kept at button time went stale on the first live test (Kristen 2026-11-03).
+      if (this.mode !== 'desk' && this.busy !== 'handoff') this.handoff = d.handoff ?? null;
       this.notFound = false;
       this.loadError = '';
     } catch (err) {
@@ -472,7 +478,7 @@ export class HorryMember extends LitElement {
     }
     return html`<div class="wrap">
       ${this.loadError ? html`<div class="err">${this.loadError}</div>` : nothing}
-      ${this.renderHeader(d)} ${this.renderHandoff(this.handoff ?? d.handoff ?? null)} ${this.renderSavannah(d)} ${this.renderAssistant(d)}
+      ${this.renderHeader(d)} ${this.renderSavannah(d)} ${this.renderAssistant(d)}
       ${d.aiOn === false ? nothing : this.renderOutage(d)} ${this.renderUsage(d)} ${this.renderPayments(d)}
     </div>`;
   }
@@ -545,8 +551,8 @@ export class HorryMember extends LitElement {
     </section>`;
   }
 
-  /** Live view of the payment Savannah is taking for this agent (use case 1). */
-  private renderHandoff(h: HandoffDto | null) {
+  /** Live view of the payment Savannah is taking for this agent (use case 1). `inner` = inside the Billing assistant card. */
+  private renderHandoff(h: HandoffDto | null, inner = false) {
     if (!h || h.status === 'failed') return nothing;
     // Through the WFC AI Controller the member leaves and returns on the agent's own task;
     // the manual path (no controller) still ends with the call ringing back.
@@ -565,10 +571,9 @@ export class HorryMember extends LitElement {
       failed: '',
     };
     const pill = h.status === 'paid' || h.status === 'done' ? 'ok' : h.status === 'pending' ? '' : 'warn';
-    return html`<section class="card ho ${h.status}" aria-label="Payment hand-off">
-      <div class="row between">
+    const body = html`<div class="row between">
         <h3>Payment hand-off to Savannah · ${money(h.amount)}</h3>
-        <span class="pill ${pill}">${h.status === 'with_ai' ? 'with Savannah' : h.status.replace('_', ' ')} · ref ${h.ref}</span>
+        <span class="pill ${pill}">${h.status === 'with_ai' ? 'with Savannah' : h.status === 'done' ? (paid ? 'paid' : 'back') : h.status.replace('_', ' ')} · ref ${h.ref}</span>
       </div>
       <div class=${h.status === 'pending' ? 'note' : h.status === 'done' || h.status === 'paid' ? 'ok-msg' : 'dim'}>${text[h.status]}</div>
       <ul class="steps">
@@ -576,8 +581,8 @@ export class HorryMember extends LitElement {
       </ul>
       ${h.status !== 'done'
         ? html`<div class="row"><button ?disabled=${!!this.busy} @click=${() => void this.cancelHandoff(h.ref)}>Cancel hand-off</button></div>`
-        : nothing}
-    </section>`;
+        : nothing}`;
+    return inner ? html`<div class="hobox ${h.status}">${body}</div>` : html`<section class="card ho ${h.status}" aria-label="Payment hand-off">${body}</section>`;
   }
 
   /** Record the hand-off, then transfer the call to the payment entry point through the Desktop (Kristen 2026-11-02). */
@@ -654,11 +659,12 @@ export class HorryMember extends LitElement {
     const busy = !!this.busy;
     const amt = this.amountValue();
     const amtOk = amt > 0;
-    const live = this.handoff ?? d.handoff ?? null;
+    const h = this.handoff ?? d.handoff ?? null;
+    // While Savannah has the member the hand-off IS the billing assistant: the steps show
+    // here and the buttons go away until she is done (Kristen 2026-11-03).
+    const live = h && h.status !== 'done' && h.status !== 'failed' ? h : null;
     // Say why the hand-off button is off (Kristen 2026-11-02: "greyed out and not accessible").
-    const why = live
-      ? `A hand-off is already running for this member (ref ${live.ref}): cancel it or wait for it to finish.`
-      : !this.callerAni
+    const why = !this.callerAni
         ? "No caller number on this call, so Savannah couldn't recognise them after the transfer."
         : d.agentFirst === true
           ? 'Savannah takes the member while you hold; they come back to you on this same call.'
@@ -669,8 +675,9 @@ export class HorryMember extends LitElement {
               : '';
     return html`<section class="card" aria-label="Billing assistant">
       <h3>Billing assistant</h3>
-      ${this.result ? html`<div class=${this.result.ok ? 'ok-msg' : 'err'} role="status">${this.result.text}</div>` : nothing}
-      <div class="row">
+      ${this.result && !live ? html`<div class=${this.result.ok ? 'ok-msg' : 'err'} role="status">${this.result.text}</div>` : nothing}
+      ${h ? this.renderHandoff(h, true) : nothing}
+      ${live ? nothing : html`<div class="row">
         <div class="field">
           <label for="amt">Amount</label>
           <input id="amt" type="text" inputmode="decimal" .value=${this.amount ?? a.paymentLink.amount.toFixed(2)} @input=${(e: Event) => (this.amount = (e.target as HTMLInputElement).value)} />
@@ -681,7 +688,7 @@ export class HorryMember extends LitElement {
         </div>
       </div>
       <div class="row">
-        <button class="primary" ?disabled=${busy || !amtOk || !this.callerAni || !!live}
+        <button class="primary" ?disabled=${busy || !amtOk || !this.callerAni}
           title="Savannah takes the payment and sends the call back to you"
           @click=${() => void this.handPayment(amt)}>
           ${this.busy === 'handoff' ? 'Preparing…' : 'Hand payment to Savannah'}
@@ -697,7 +704,7 @@ export class HorryMember extends LitElement {
           : nothing}
       </div>
       ${why ? html`<div class="dim" style="font-size:12px">${why}</div>` : nothing}
-      <div class="dim" style="font-size:12px">The member enters card details on their own phone. Card numbers never reach this desktop.</div>
+      <div class="dim" style="font-size:12px">The member enters card details on their own phone. Card numbers never reach this desktop.</div>`}
       ${a.extension.allowed
         ? html`<div class="row">
             <div class="field" style="flex:0 1 120px">

@@ -42,6 +42,7 @@ const agentFirst = new AgentFirstBridge(esl, {
   originateTimeoutS: env.FS_ORIGINATE_TIMEOUT_S,
   ...(env.FS_HOLD_ANNOUNCE !== undefined ? { holdAnnounce: env.FS_HOLD_ANNOUNCE } : {}),
   holdMusic: env.FS_HOLD_MUSIC,
+  ...(env.FS_BACK_ANNOUNCE !== undefined ? { backAnnounce: env.FS_BACK_ANNOUNCE } : {}),
 });
 
 const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders, agentFirst });

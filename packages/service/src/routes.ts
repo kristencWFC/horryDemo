@@ -22,6 +22,7 @@ import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 import type { HandoffStore, Handoff, HandoffStatus } from './handoff.js';
 import type { AgentFirstBridge } from './agent-first.js';
+import { spokenMoney } from './spoken.js';
 import { parseReminderCsv, type ReminderStore, type ReminderBatch, type ReminderRow } from './reminders.js';
 import { placeOutboundCall, outboundConfigured } from './outbound.js';
 
@@ -140,7 +141,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
 
   function handoffPlaybook(h: Handoff, card: string, echeck: boolean): string {
     return [
-      `PAYMENT HAND-OFF: ${h.agentName}, a member services representative, has already verified this member and handed the call to you ONLY to take a payment of ${money(h.amount)}.`,
+      `PAYMENT HAND-OFF: ${h.agentName}, a member services representative, has already verified this member and handed the call to you ONLY to take a payment of ${spokenMoney(h.amount)}.`,
       'Do not confirm the address, do not ask about outages, do not ask what they are calling about, and do not offer anything else.',
       `${payOptions(card, echeck)} Amount ${h.amount.toFixed(2)} unless they ask for a different amount. On a clear yes say "One moment while I run that" before the tool call.`,
       `After the payment is approved (or declined twice), offer a text receipt. Then say "I'll send you back to ${h.agentName} now — one moment" and call wrap_up, then end_call.`,
@@ -175,9 +176,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       account_number: m ? m.MemberSep : '',
       ...outageFacts(o),
       life_support: m && m.PrioritySvc > 0 ? 'true' : 'false',
-      balance_due: fin ? money(fin.AmountDue) : '',
+      balance_due: fin ? spokenMoney(fin.AmountDue) : '',
       due_date: fin?.DueDate ?? '',
-      past_due: fin ? money(fin.PastDueAmount) : '$0.00',
+      past_due: fin ? spokenMoney(fin.PastDueAmount) : '0 dollars',
       cutoff_date: fin?.CutOffDate ?? 'none',
       storm_mode: st.storm ? 'true' : 'false',
       current_date: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz }),
@@ -321,7 +322,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
       const echeck = Boolean(fin?.ChkProfileExists);
       const cell = textNumber(m) || last10(ani);
       vars.first_message =
-        `Hi ${m.FirstName}, this is ${ASSISTANT}, Horry Electric's virtual assistant. ${h.agentName} asked me to take care of your payment of ${money(h.amount)}. ` +
+        `Hi ${m.FirstName}, this is ${ASSISTANT}, Horry Electric's virtual assistant. ${h.agentName} asked me to take care of your payment of ${spokenMoney(h.amount)}. ` +
         (card || echeck ? `Would you like to use ${payChoices(card, echeck)}?` : `I can text a secure payment link to your cell ending ${digits(cell.slice(-4))} — shall I send it?`);
       vars.call_playbook = handoffPlaybook(h, card, echeck);
       if (row) calls.patch(row, { handoffRef: h.ref, memberSep: m.MemberSep, memberName: displayName(m) });
@@ -531,7 +532,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     }
     calls.step(row, 'payment', `${money(amount)} approved — card on file ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
     hoStep(row, 'paid', `${money(amount)} approved on ${cardBrand(s.cardType ?? null)} ending ${s.last4}. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4}` });
-    return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
+    return { status: 'approved', amount, card: `${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${spokenMoney(amount)} payment on the ${cardBrand(s.cardType ?? null)} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
   });
 
   // E-check from the bank account on file (Horry's Milsoft side; Kristen 2026-11-02).
@@ -547,7 +548,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     await payments.payWithEcheck(s);
     calls.step(row, 'payment', `${money(amount)} approved — e-check from the bank account on file, confirmation ${s.confirmation}`, 'payment');
     hoStep(row, 'paid', `${money(amount)} approved by e-check from the bank account on file. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: 'E-check on file' });
-    return { status: 'approved', amount, method: 'e-check from the bank account on file', confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(amount)} e-check payment from the bank account on file and read confirmation ${digits(s.confirmation ?? '')}. It will show on the account in one to two business days.` };
+    return { status: 'approved', amount, method: 'e-check from the bank account on file', confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${spokenMoney(amount)} e-check payment from the bank account on file and read confirmation ${digits(s.confirmation ?? '')}. It will show on the account in one to two business days.` };
   });
 
   // Text receipt (Kristen 2026-10-29: a caller asked and Savannah had no way to send one).
@@ -577,7 +578,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     if (s.status === 'approved') {
       if (!row.journey.some((j) => j.step === 'payment')) calls.step(row, 'payment', `${money(s.amount)} approved — ${s.cardType} ending ${s.last4}, confirmation ${s.confirmation}`, 'payment');
       hoStep(row, 'paid', `${money(s.amount)} approved on ${cardBrand(s.cardType ?? null)} ending ${s.last4}. Confirmation ${s.confirmation}.`, 'paid', { confirmation: s.confirmation ?? '', card: `${cardBrand(s.cardType ?? null)} ending ${s.last4}` });
-      return { status: 'approved', amount: s.amount, card: `${s.cardType} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${money(s.amount)} payment on the ${s.cardType} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
+      return { status: 'approved', amount: s.amount, card: `${s.cardType} ending ${digits(s.last4 ?? '')}`, confirmation: digits(s.confirmation ?? ''), next_step: `Confirm the ${spokenMoney(s.amount)} payment on the ${s.cardType} ending ${digits(s.last4 ?? '')} and read confirmation ${digits(s.confirmation ?? '')}.` };
     }
     if (s.status === 'declined') return { status: 'declined', attempts: s.attempts, next_step: s.attempts >= 2 ? 'Declined twice: offer a representative (escalate department billing, reason payment_declined).' : 'The card was declined. They can try another card from the same link.' };
     return { status: s.status, next_step: s.status === 'expired' ? 'The link expired. Offer to send a new one.' : 'Still waiting — chat briefly (do they see the text?) and check again in a few seconds.' };
@@ -739,7 +740,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     return [
       `OUTBOUND PAYMENT REMINDER: YOU placed this call to ${r.name || 'the member'}${r.account ? ` (account ending ${r.account.slice(-4)})` : ''}. A past-due balance of ${money(r.amount)}${r.dueDate ? ` was due ${r.dueDate}` : ''}.`,
       `Your first message asked whether you are speaking with ${name}. If it is not them, ask if ${r.name || 'they'} is available; if not, say you will try again another time, call wrap_up with outcome wrong_person, then end_call. Never discuss the account with anyone else.`,
-      `Once it is ${name}: "I'm calling with a friendly reminder that there's a past-due balance of ${money(r.amount)} on your account. I can take care of that for you right now if you'd like." ${payOptions(card, echeck)} Amount ${r.amount.toFixed(2)}.`,
+      `Once it is ${name}: "I'm calling with a friendly reminder that there's a past-due balance of ${spokenMoney(r.amount)} on your account. I can take care of that for you right now if you'd like." ${payOptions(card, echeck)} Amount ${r.amount.toFixed(2)}.`,
       'If they cannot pay today, offer a payment extension (request_payment_extension) or ask when they expect to pay, and call wrap_up with outcome promised_to_pay. If they say they already paid, thank them, call wrap_up with outcome says_paid. If they do not want to talk, apologise for the interruption and end politely (wrap_up outcome declined).',
       'Keep it short and warm: two or three exchanges. No outage questions, no address check. Do not threaten disconnection; if the account shows a cut-off date, mention it once, gently. Always finish with wrap_up then end_call.',
     ].join('\n');
@@ -922,8 +923,10 @@ function billingSummary(fin: Financial, m: Member, kwh: number, kwhLy: number) {
   const pct = kwhLy ? Math.round(((kwh - kwhLy) / kwhLy) * 100) : 0;
   return {
     amount_due: fin.AmountDue,
+    amount_due_spoken: spokenMoney(fin.AmountDue),
     due_date: fin.DueDate,
     past_due: fin.PastDueAmount,
+    past_due_spoken: spokenMoney(fin.PastDueAmount),
     cutoff_date: fin.CutOffDate ?? 'none',
     on_cutoff_list: fin.OnCutOffList,
     last_payment: `${money(fin.LastPayment)} on ${fin.PaymentDate}`,

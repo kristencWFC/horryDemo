@@ -56,6 +56,8 @@ const EnvSchema = z.object({
   /** What the AGENT hears while Savannah has the member: announcement WAV ('' = none) then looping music. */
   FS_HOLD_ANNOUNCE: z.string().optional(),
   FS_HOLD_MUSIC: z.string().default('/usr/share/freeswitch/sounds/ivr/onholdmusic.wav'),
+  /** What the AGENT hears the moment the member is back ('' = nothing). */
+  FS_BACK_ANNOUNCE: z.string().optional(),
 
   // Storm Mode = a WxCC Global Variable the flow reads. The middleware writes its
   // defaultValue through the Config API with a Service App token. Unset = local flag only.

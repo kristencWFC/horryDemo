@@ -244,7 +244,7 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
       billingScreen: `billing.html?sep=${m.MemberSep}`,
       /** Savannah is answering calls: show the outage banner and card (Kristen 2026-11-02). */
       aiOn: mode.aiRouting(),
-      handoff: handoffDto(handoffs.activeByAni(row?.ani || m.CellPhone || '')),
+      handoff: handoffDto(handoffs.recentByAni(row?.ani || m.CellPhone || '')),
       /** This call is bridged through the WFC AI Controller, so the hand-off button can move it itself. null = controller not configured. */
       agentFirst: agentFirst.enabled ? Boolean(agentFirst.activeByAni(row?.ani || m.CellPhone || '')) : null,
     };

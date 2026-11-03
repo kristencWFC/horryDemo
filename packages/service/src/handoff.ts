@@ -83,6 +83,12 @@ export class HandoffStore extends EventEmitter {
     return p ? this.all().find((h) => this.isActive(h) && h.ani === p) : undefined;
   }
 
+  /** For the Member tab: the open hand-off, or one that finished in the last 10 minutes so "Back with you" stays on screen. */
+  recentByAni(ani: string): Handoff | undefined {
+    const p = last10(ani);
+    return p ? this.all().find((h) => h.ani === p && (this.isActive(h) || (h.status === 'done' && Date.now() - Date.parse(h.updatedAt) < 10 * 60_000))) : undefined;
+  }
+
   activeForAgent(agentEmail: string): Handoff | undefined {
     const e = agentEmail.trim().toLowerCase();
     return e ? this.all().find((h) => this.isActive(h) && h.agentEmail.toLowerCase() === e) : undefined;
