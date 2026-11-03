@@ -70,17 +70,11 @@
 
 <main>
   <header>
-    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · use case 1 · Kristen Christopher · 2026-11-03 · approved · building</div>
+    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · use case 1 · Kristen Christopher · 2026-11-03 · live-tested</div>
     <h1>Payment Hand-off Design</h1>
     <p class="lede">The live agent hands Dorothy to Savannah for the payment and never hears it. The WFC AI Controller sits in
-    the middle of every agent-first call (the same shape Live Translate uses): it owns Dorothy's leg and the agent's leg
-    separately, so it can hold one and send the other to Savannah, then put them back together. The agent's Desktop task
-    never ends. Members dial <strong>972-903-8486</strong> for this; the controller brings them back in on
-    <strong>972-430-9658</strong>, Horry's own numbers end to end.</p>
-    <div class="note">Internal build plan, not for the client. Approved by Kristen 2026-11-03 with two changes: Dorothy hears
-    WxCC's own queue treatment, not a parked ringback (step 2), and the re-entry uses Horry's own demo line through new CUBE
-    dial-peers 1145/1146, so nothing is shared with the other demos. Section 5 lists every hop by number; section 6 is the
-    set-up order.</div>
+    the middle of the call, holds the agent, sends Dorothy to Savannah, and puts them back together on the same call.
+    Members dial <strong>972-903-8486</strong>; the controller brings them back in on <strong>972-430-9658</strong>.</p>
   </header>
 
   <section>
@@ -128,87 +122,35 @@
   </section>
 
   <section>
-    <h2>2. What changes, who does it, in build order</h2>
-    <p>freeSWITCH and its event socket run on <strong>kc-dev-2, the same VM as the Horry service</strong>, so the service
-    drives freeSWITCH directly over ESL (127.0.0.1:8021) with the ~150-line client copied from Live Translate.
-    <strong>The live-translate middleware is not touched.</strong></p>
+    <h2>2. Every hop, by number</h2>
     <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Piece</th><th>Change</th><th>Who</th><th>Time</th></tr></thead>
+      <thead><tr><th>Hop</th><th>Where the call goes</th><th>What carries the identity</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>Horry service (<code>horryDemo</code>)</td><td>New <code>packages/service/src/esl.ts</code> (event socket client) and <code>agent-first.ts</code>: on a parked <code>HorryAgentFirst</code> leg, originate the re-entry leg to <code>+19724309658</code> with the member's number as caller ID and <code>uuid_bridge</code> the two (a loop guard refuses a second 1122 leg from the same member while the first is connecting). <code>POST /api/agent-desk/handoff</code> now does <code>uuid_transfer A horry_savannah</code>; the agent leg parks and hears the announcement + hold music; when Savannah hangs up, <code>uuid_break B all</code> + <code>uuid_bridge A B</code>. New <code>GET /api/agent-first/by-ani/:ani</code> (optional guard for the re-entry flow). <code>/horry/health</code> shows <code>agentFirst: { esl: connected }</code>.</td><td>Claude writes · Kristen deploys (usual pull/build/restart)</td><td class="num">~3 h</td></tr>
-        <tr><td class="num">2</td><td>freeSWITCH dialplan</td><td>One file, <code>deploy/freeswitch/dialplan-horry-agent-first.xml</code>: the <code>horry_agent_first_1122</code> intercept (answer, set vars, park), the <code>horry_savannah</code> extension (bridge to SIP 1151 with <code>X-Call-GUID</code>, <code>park_after_bridge</code>) and <code>horry_return</code> (park). Install in <code>/etc/freeswitch/dialplan/public/ivr_menu.xml</code> ABOVE the <code>ivr_handler</code> socket extension, next to the LiveTranslate intercept, then <code>fs_cli -x reloadxml</code>.</td><td>Claude writes · Kristen installs</td><td class="num">10 min</td></tr>
-        <tr><td class="num">3</td><td>Re-entry (Horry's own)</td><td>CUBE dial-peers <strong>1145/1146</strong> (copies of the Live Translate pair 1141/1142, incl. <code>voice-class sip profiles 400</code>) deliver <code>+19724309658</code> from freeSWITCH into Webex → entry point <code>EP_KC_Horry</code> (972-430-9658) → the main flow <code>KC_Horry_Electric</code>, Savannah-off branch → Queue Contact <code>Q_Horry_Billing</code>. <strong>Nothing changes in that flow.</strong> Savannah must be off during use case 1 (on, the main flow would hand the re-entry leg to her). Optional guard, before the <code>Global_StormMode</code> Case: HTTP Request GET <code>https://kcdev2.workflowconcepts.com/horry/api/agent-first/by-ani/{{NewPhoneContact.ANI}}</code> → Case <code>found</code> = true → Queue <code>Q_Horry_Billing</code>. Agent Live Assist and Live Translate (+12078886051, <code>KC_Assist_2</code>) are untouched.</td><td>Kristen — dial-peers done 2026-11-03</td><td class="num">done</td></tr>
-        <tr><td class="num">4</td><td><code>KC_Horry_Electric</code> flow, <code>9729038486</code> DNIS branch</td><td>The branch for <code>EP_KC_Horry_Payment</code> (972-903-8486) becomes: Bridge Transfer to <strong>1122</strong> with headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID = {{sGUID}}</code> (same activity as the Savannah branch, which keeps <code>horryelectric</code>); Bridge success → Disconnect; Bridge failure → Queue Contact <code>Q_Horry_Billing</code>, so a controller problem still reaches an agent. Replaces the old REST → Bridge → Queue To Agent in that branch.</td><td>Kristen (Designer)</td><td class="num">20 min</td></tr>
-        <tr><td class="num">5</td><td>Server <code>.env</code></td><td><code>FS_ESL_ENABLED=true</code>, <code>FS_ESL_PASSWORD=&lt;event_socket password&gt;</code>. Defaults that need no line: <code>FS_ESL_HOST=127.0.0.1</code>, <code>FS_ESL_PORT=8021</code>, <code>FS_REENTRY_DIAL=sofia/gateway/cube/+19724309658</code>, <code>FS_SAVANNAH_DIAL=sofia/external/1151@sip.rtc.elevenlabs.io;transport=tcp</code>. Restart <code>horry-demo</code>.</td><td>Kristen</td><td class="num">5 min</td></tr>
-        <tr><td class="num">6</td><td>Member tab</td><td>The button calls the service only (no Desktop transfer). It shows only on calls that came through the controller; a storm call Savannah escalated didn't, so there's nothing to hold.</td><td>Claude</td><td class="num">in #1</td></tr>
-        <tr><td class="num">7</td><td>Savannah</td><td>No change: the hand-off greeting is already keyed by the caller's number, and leg A carries Dorothy's.</td><td>—</td><td class="num">0</td></tr>
-        <tr><td class="num">8</td><td>Joint test</td><td>Test A (normal call through the controller, Member tab pops), test B (hand-off, agent hears hold, Dorothy pays, re-bridge), test C (Cancel hand-off, and Savannah unreachable → immediate re-bridge).</td><td>Both</td><td class="num">1 h</td></tr>
-      </tbody>
-    </table></div>
-    <p style="margin-top:8px">The main flow's Savannah-off branch (972-430-9658 → Queue <code>Q_Horry_Billing</code>) stays exactly as it is: it is now also the path the re-entry leg takes.</p>
-  </section>
-
-  <section>
-    <h2>3. What doesn't change</h2>
-    <ul>
-      <li>Savannah on (storm): the flow bridges to 1122 with <code>horryelectric</code> as today; the ivr-controller handles it; escalation returns by BYE headers. Untouched.</li>
-      <li>Payment reminders (use case 3), web chat, email, Customer Review: untouched. The dashboard already shows the path "Agent → Savannah (payment) → agent".</li>
-      <li>Member tab lookup: by caller number. Live Translate proved a CUBE re-entry leg presents the original number; dial-peers 1145/1146 are copies of that pair, so Dorothy pops exactly as she did tonight. [CONFIRM] on the first call.</li>
-      <li>Demo caller setting: same one place (AI Operations → Demo caller).</li>
-      <li>The demo line 972-430-9658 and the main flow: unchanged for the storm and normal-day stories.</li>
-      <li>Agent Live Assist and Live Translate: their re-entry (+12078886051, <code>KC_Assist_2</code>, <code>Q_KC_Telephony</code>, dial-peers 1141/1142) is not touched.</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>4. Decisions</h2>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Question</th><th>Decision</th><th>Who</th></tr></thead>
-      <tbody>
-        <tr><td>Re-entry number</td><td><strong>Horry's own</strong>: members dial 972-903-8486 (<code>EP_KC_Horry_Payment</code>) for use case 1; the controller dials back <code>+19724309658</code> (the demo line, <code>EP_KC_Horry</code>) through new CUBE dial-peers 1145/1146. Numbers stay separate per demo; the Live Translate re-entry is not shared. The kc-wiki records the new dial-peers.</td><td>decided 2026-11-03 (Kristen)</td></tr>
-        <tr><td>What the agent hears while Savannah works</td><td>"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done." (<code>savannah-hold.wav</code>), then the controller's own hold music, <code>/usr/share/freeswitch/sounds/ivr/onholdmusic.wav</code>. Agent-facing, so it can be plain.</td><td>decided</td></tr>
-        <tr><td>Which calls go through the controller</td><td>Calls to 972-903-8486: that's what makes the hand-off possible mid-call, and to the agent the call looks identical to one on the demo line. Bridge failure falls back to the queue. Calls to 972-430-9658 route as they always have.</td><td>decided</td></tr>
-        <tr><td>Where the controller logic runs</td><td>Resolved: in the Horry service itself on kc-dev-2, over the loopback event socket. No middleware change, no new service.</td><td>resolved</td></tr>
-        <tr><td>If Savannah is unreachable or drops without wrapping up</td><td>Not answered within 20 s, or dropped before any step: re-bridge at once and post a <em>failed</em> step; the Member tab says "Savannah couldn't take the payment — send the secure pay link instead." <strong>Cancel hand-off</strong> does the same re-bridge on purpose.</td><td>agreed</td></tr>
-        <tr><td>Fallback for tomorrow if the joint test isn't clean by tonight</td><td>The conference version (button does consult → conference to a payment entry point whose branch is REST → Bridge → Disconnect). Agent hears Savannah; the production answer is this page.</td><td>Kristen</td></tr>
+        <tr><td class="num">1</td><td>Dorothy dials <strong>(972) 903-8486</strong> → entry point <code>EP_KC_Horry_Payment</code> → flow <code>KC_Horry_Electric</code>, DNIS 9729038486 branch.</td><td>Her caller ID (Demo caller maps the presenter's phone to Dorothy)</td></tr>
+        <tr><td class="num">2</td><td><strong>Bridge Transfer to 1122</strong> → CUBE dial-peer 1122 → WFC AI Controller. Failure → Queue <code>Q_Horry_Billing</code>.</td><td>Headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID</code></td></tr>
+        <tr><td class="num">3</td><td>The controller answers and parks Dorothy (leg A); the Horry service on the same VM sees it.</td><td>Caller ID, GUID</td></tr>
+        <tr><td class="num">4</td><td>The service dials back into WxCC as Dorothy: <code>+19724309658</code> via CUBE dial-peers <strong>1145/1146</strong> → <code>EP_KC_Horry</code> → the main flow's normal path → Queue <code>Q_Horry_Billing</code> (leg B). Agent answers; the service bridges A and B.</td><td>Caller ID = Dorothy's number, so the Member tab pops</td></tr>
+        <tr><td class="num">5</td><td><strong>Hand payment to Savannah</strong> → the service records the hand-off and moves leg A to Savannah (<strong>SIP 1151</strong>, the WFC AI Agent trunk). Leg B parks: the agent hears "Savannah is taking the member's payment now…" then hold music.</td><td>GUID on the SIP leg; Dorothy's caller ID finds the open hand-off → payment greeting</td></tr>
+        <tr><td class="num">6</td><td>Savannah takes the payment; each tool posts a step and the Member tab shows it live.</td><td>Hand-off ref</td></tr>
+        <tr><td class="num">7</td><td>Savannah wraps up → the service pulls Dorothy back and re-bridges A and B. The agent hears "The member is back with you." <strong>Cancel hand-off</strong> or Savannah unreachable → the same re-bridge.</td><td>Same two legs the service has held since hop 3</td></tr>
       </tbody>
     </table></div>
   </section>
 
   <section>
-    <h2>5. Every hop, by number</h2>
+    <h2>3. Where it lives</h2>
     <div class="table-wrap"><table>
-      <thead><tr><th>Hop</th><th>From → To</th><th>Number / target</th><th>What carries the identity</th></tr></thead>
+      <thead><tr><th>Piece</th><th>Where</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>Dorothy → WxCC</td><td>Agent-first line <strong>(972) 903-8486</strong> → entry point <code>EP_KC_Horry_Payment</code> → flow <code>KC_Horry_Electric</code>, <code>sDNIS = 9729038486</code> branch</td><td>Her caller ID (the Demo caller setting maps the presenter's phone to Dorothy)</td></tr>
-        <tr><td class="num">2</td><td>WxCC flow → freeSWITCH (leg A)</td><td>That branch: <strong>Bridge Transfer to 1122</strong> → CUBE dial-peer 1122 → freeSWITCH 34.41.17.98. Success → Disconnect; failure → Queue Contact <code>Q_Horry_Billing</code>. (The main flow's Savannah-on branch uses the same Bridge with <code>X-Solution-Name = horryelectric</code>.)</td><td>Headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID = {{sGUID}}</code>; caller ID stays Dorothy's</td></tr>
-        <tr><td class="num">3</td><td>freeSWITCH → Horry service</td><td>Dialplan intercept <code>horry_agent_first_1122</code> answers and parks leg A; the service sees the park event over ESL (127.0.0.1:8021)</td><td>Channel vars: <code>horry_solution</code>, <code>horry_guid</code>, caller ID number</td></tr>
-        <tr><td class="num">4</td><td>freeSWITCH → WxCC (leg B, re-entry)</td><td>Service originates <code>sofia/gateway/cube/+19724309658</code> → CUBE dial-peers <strong>1145/1146</strong> → Webex → entry point <code>EP_KC_Horry</code> (972-430-9658) → main flow <code>KC_Horry_Electric</code>, Savannah-off branch (unchanged)</td><td><code>origination_caller_id_number</code> = Dorothy's number; <code>sip_copy_custom_headers=false</code></td></tr>
-        <tr><td class="num">5</td><td>Main flow → queue → agent</td><td>Queue Contact <code>Q_Horry_Billing</code> as on any normal-day call (optional guard first: HTTP Request GET <code>…/horry/api/agent-first/by-ani/{{NewPhoneContact.ANI}}</code> → Case <code>found</code> = true → Queue). Agent answers; service <code>uuid_bridge A B</code></td><td>The Desktop task shows Dorothy's number; the Member tab pops by caller ID</td></tr>
-        <tr><td class="num">6</td><td>Member tab → Horry service</td><td><strong>Hand payment to Savannah</strong> → <code>POST /horry/api/agent-desk/handoff</code> → hand-off record (ref, GUID, agent, member, amount) → service <code>uuid_transfer A horry_savannah</code></td><td>Caller number → hand-off record</td></tr>
-        <tr><td class="num">7</td><td>freeSWITCH (leg A) → Savannah</td><td>Extension <code>horry_savannah</code> bridges A to <strong>SIP 1151 at sip.rtc.elevenlabs.io</strong> (WFC AI Agent trunk, TCP), <code>park_after_bridge</code>. Leg B parks and hears <code>savannah-hold.wav</code>, then <code>/usr/share/freeswitch/sounds/ivr/onholdmusic.wav</code></td><td><code>X-Call-GUID</code>; caller ID = Dorothy's → Savannah's initiation webhook on the Horry service finds the open hand-off → payment greeting</td></tr>
-        <tr><td class="num">8</td><td>Savannah → Horry service → Member tab</td><td>Her tools post each step (<code>ai_answered</code>, <code>paid</code>, <code>receipt</code>, <code>returning</code>); the Member tab polls and shows them live</td><td>Hand-off ref</td></tr>
-        <tr><td class="num">9</td><td>Return</td><td>Savannah hangs up → A parks (<code>park_after_bridge</code>) → service <code>uuid_break B all</code> + <code>uuid_bridge A B</code> → step "Back with you". Not answered within 20 s or dropped before any step → same re-bridge + <em>failed</em> step. <strong>Cancel hand-off</strong> → <code>uuid_transfer A horry_return</code> → same re-bridge</td><td>Same two leg UUIDs the service has held since hop 3</td></tr>
-        <tr><td>—</td><td>Not used any more</td><td>The old <code>9729038486</code> branch contents (REST by-ani → Bridge → Queue To Agent); the Live Translate re-entry (+12078886051) was never wired in</td><td>—</td></tr>
+        <tr><td>Flow branch 9729038486 → Bridge 1122 (+ headers), failure → queue</td><td>Designer · <code>KC_Horry_Electric</code></td><td><span class="pill done">done</span></td></tr>
+        <tr><td>CUBE dial-peers 1145 / 1146 (+19724309658 → Webex)</td><td>CUBE WFC-VG1</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Dialplan <code>horry_agent_first_1122</code>, <code>horry_savannah</code>, <code>horry_return</code></td><td>kc-dev-2 · <code>ivr_menu.xml</code> (source <code>deploy/freeswitch/dialplan-horry-agent-first.xml</code>)</td><td><span class="pill done">installed</span></td></tr>
+        <tr><td>Horry service ↔ controller (<code>FS_ESL_ENABLED</code>, <code>FS_ESL_PASSWORD</code>); hold + "back with you" audio</td><td>kc-dev-2 · <code>horry-demo</code></td><td><span class="pill done">live</span></td></tr>
+        <tr><td>Member tab: hand-off panel inside Billing assistant, Cancel hand-off</td><td>Desktop layout <code>KC_Horry</code></td><td><span class="pill done">built</span></td></tr>
+        <tr><td>Test A (plain call) · Test B (hand-off, return) · Test C (cancel)</td><td>Tue 11/03</td><td><span class="pill done">A, B passed</span> <span class="pill open">C to run</span></td></tr>
       </tbody>
     </table></div>
-  </section>
-
-  <section>
-    <h2>6. Set-up order for Kristen</h2>
-    <p>The step-by-step walk-through happens live in chat once the build is done; this is the order it will follow.</p>
-    <ol>
-      <li>Deploy the service: <code>cd /opt/horryDemo &amp;&amp; git pull --ff-only &amp;&amp; npm ci &amp;&amp; npm run build &amp;&amp; sudo systemctl restart horry-demo</code>.</li>
-      <li>Install <code>deploy/freeswitch/dialplan-horry-agent-first.xml</code> into <code>/etc/freeswitch/dialplan/public/ivr_menu.xml</code> above <code>ivr_handler</code>, then <code>fs_cli -x reloadxml</code>.</li>
-      <li>Add <code>FS_ESL_ENABLED=true</code> and <code>FS_ESL_PASSWORD=…</code> to <code>/opt/horryDemo/.env</code>; restart <code>horry-demo</code>.</li>
-      <li>Check <code>https://kcdev2.workflowconcepts.com/horry/health</code> shows <code>agentFirst: { esl: connected }</code>.</li>
-      <li>CUBE: dial-peers 1145 (incoming called-number +19724309658) and 1146 (destination-pattern +19724309658 → Webex) — done 2026-11-03.</li>
-      <li>Designer: <code>KC_Horry_Electric</code>, <code>9729038486</code> DNIS branch → Bridge Transfer 1122 with the two headers; success → Disconnect; failure → Queue <code>Q_Horry_Billing</code>. The main Savannah-off branch stays as is (optional guard: REST <code>agent-first/by-ani</code> + Case before the <code>Global_StormMode</code> Case).</li>
-      <li>Publish the flow.</li>
-      <li>Test A: Savannah off, call (972) 903-8486 as David; the agent rings with David on the Member tab; talk; hang up.</li>
-      <li>Test B: as Dorothy; click <strong>Hand payment to Savannah</strong>; agent hears the announcement and hold music; Dorothy pays by e-check on file; the Member tab shows the steps; Savannah hangs up and the agent is back with Dorothy.</li>
-      <li>Test C: start a hand-off and press <strong>Cancel hand-off</strong> (re-bridge); then a hand-off with Savannah unreachable (expect the <em>failed</em> step and re-bridge within 20 s).</li>
-    </ol>
+    <p style="margin-top:8px">Build notes: <code>docs/wxcc-flow-notes.md</code> §A, <code>OPERATIONS.md</code>. Logs: <code>journalctl -u horry-demo -f -g AGENT-FIRST</code>.</p>
   </section>
 </main>
 
