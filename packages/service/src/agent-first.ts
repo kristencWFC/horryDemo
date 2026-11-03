@@ -44,6 +44,8 @@ export interface AgentFirstCall {
   savannahAt?: number;
   holdStarted?: boolean;
   handoffRef?: string;
+  /** Who asked for the member back: the agent (Cancel) or the service (wrap-up / post-call / her leg ended). */
+  recallWhy?: 'agent' | 'auto';
   endedAt?: number;
   endedBy?: string;
 }
@@ -135,6 +137,18 @@ export class AgentFirstBridge extends EventEmitter {
     const uuid = ev['Unique-ID'] ?? '';
     if (!uuid) return;
     try {
+      // Trace every event that touches one of our legs: freeSWITCH's own log file is not
+      // being written on kc-dev-2 (stopped 2026-09-18), so this is the only record.
+      const mine = this.byLeg(uuid) ?? this.byLeg(ev['Other-Leg-Unique-ID'] ?? '');
+      if (mine && mine.state !== 'ended') {
+        console.log(`${this.tag(mine)}: ${name} on ${uuid === mine.a ? 'A' : uuid === mine.b ? 'B' : 'other leg ' + uuid.slice(0, 8)} phase=${ev['variable_horry_phase'] ?? ''} cause=${ev['Hangup-Cause'] ?? ''} disp=${ev['variable_originate_disposition'] ?? ''}`);
+      }
+      // Savannah's leg ended, or A fell out of its bridge with her, but A did not park on its own:
+      // pull A to the return extension ourselves (first live test 2026-11-03: silence, no park).
+      if ((name === 'CHANNEL_UNBRIDGE' && mine && uuid === mine.a) || (name === 'CHANNEL_HANGUP' && mine && uuid !== mine.a && uuid !== mine.b)) {
+        if (mine.state === 'with_savannah') this.timer(mine, 'unbridged', 1500, () => void this.recall(mine.ani, 'auto'));
+        return;
+      }
       if (name === 'CHANNEL_PARK') {
         if (ev['variable_horry_solution'] !== SOLUTION) return;
         if ((ev['variable_horry_role'] ?? 'caller') === 'agent') {
@@ -232,6 +246,7 @@ export class AgentFirstBridge extends EventEmitter {
     c.handoffRef = ref;
     c.savannahAt = Date.now();
     c.holdStarted = false;
+    c.recallWhy = undefined;
     c.state = 'with_savannah';
     const r = await esl.api(`uuid_transfer ${c.a} ${this.opts.savannahExtension} XML public`);
     if (r.startsWith('-ERR')) {
@@ -255,14 +270,20 @@ export class AgentFirstBridge extends EventEmitter {
     if (this.opts.holdMusic) await esl.api(`uuid_broadcast ${c.b} endless_playback::${this.opts.holdMusic} aleg`).catch(() => undefined);
   }
 
-  /** Pull the member back from Savannah (Cancel hand-off, or the safety timer). */
-  async recall(ani: string): Promise<boolean> {
+  /** Pull the member back from Savannah: the agent's Cancel, or the service once she is done. */
+  async recall(ani: string, why: 'agent' | 'auto' = 'agent'): Promise<boolean> {
     const esl = this.esl;
     const c = this.activeByAni(ani);
     if (!esl || !c || c.state !== 'with_savannah') return false;
-    console.log(`${this.tag(c)}: recalling the member from Savannah`);
+    if (c.recallWhy) return true; // already on its way back
+    c.recallWhy = why;
+    console.log(`${this.tag(c)}: recalling the member from Savannah (${why})`);
     const r = await esl.api(`uuid_transfer ${c.a} ${this.opts.returnExtension} XML public`);
-    return !r.startsWith('-ERR');
+    if (r.startsWith('-ERR')) {
+      c.recallWhy = undefined;
+      return false;
+    }
+    return true;
   }
 
   // ---------------------------------------------------------------- 3. back together
@@ -275,7 +296,8 @@ export class AgentFirstBridge extends EventEmitter {
     const disposition = ev['variable_originate_disposition'] ?? '';
     const heldMs = Date.now() - (c.savannahAt ?? Date.now());
     const answered = disposition === 'SUCCESS' || heldMs > 8000;
-    const reason: ReturnInfo['reason'] = phase === 'return' ? 'recalled' : answered ? 'savannah_hungup' : 'not_answered';
+    const reason: ReturnInfo['reason'] = phase === 'return' && c.recallWhy !== 'auto' ? 'recalled' : answered ? 'savannah_hungup' : 'not_answered';
+    c.recallWhy = undefined;
     await esl.api(`uuid_break ${c.b} all`).catch(() => undefined);
     const bridged = await esl.api(`uuid_bridge ${c.a} ${c.b}`);
     if (bridged.startsWith('-ERR')) {
@@ -315,7 +337,7 @@ export class AgentFirstBridge extends EventEmitter {
   }
 
   private clearTimers(c: AgentFirstCall): void {
-    for (const key of ['hold', 'max']) {
+    for (const key of ['hold', 'max', 'unbridged']) {
       const id = `${c.a}:${key}`;
       clearTimeout(this.timers.get(id));
       this.timers.delete(id);

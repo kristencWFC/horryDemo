@@ -33,7 +33,7 @@ wireAgentSummaries(calls);
 // Agent-first calls through the WFC AI Controller (use case 1): freeSWITCH's event socket is
 // on this VM. Unset FS_ESL_ENABLED = the hand-off button records only, agent transfers by hand.
 const esl = env.FS_ESL_ENABLED
-  ? new EslClient({ host: env.FS_ESL_HOST, port: env.FS_ESL_PORT, password: env.FS_ESL_PASSWORD, events: ['CHANNEL_PARK', 'CHANNEL_HANGUP', 'BACKGROUND_JOB'] })
+  ? new EslClient({ host: env.FS_ESL_HOST, port: env.FS_ESL_PORT, password: env.FS_ESL_PASSWORD, events: ['CHANNEL_PARK', 'CHANNEL_HANGUP', 'CHANNEL_UNBRIDGE', 'CHANNEL_BRIDGE', 'BACKGROUND_JOB'] })
   : undefined;
 esl?.start();
 const agentFirst = new AgentFirstBridge(esl, {

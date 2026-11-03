@@ -131,6 +131,33 @@ describe('AgentFirstBridge', () => {
     expect(returned[0]).toMatchObject({ reason: 'recalled' });
   });
 
+  it("pulls the member back itself when Savannah's leg ends without A parking", async () => {
+    const { esl, bridge, returned } = setup();
+    await memberArrives(esl);
+    const c = bridge.activeByAni('8435550118')!;
+    await bridge.handoff('8435550118', '5555');
+    // Her leg hangs up (Other-Leg = A), A never parks on its own.
+    esl.emit('event', { 'Event-Name': 'CHANNEL_HANGUP', 'Unique-ID': 'savannah-leg', 'Other-Leg-Unique-ID': A, 'Hangup-Cause': 'NORMAL_CLEARING' });
+    await new Promise((r) => setTimeout(r, 1700));
+    expect(esl.cmds.at(-1)).toBe(`uuid_transfer ${A} horry_return XML public`);
+    esl.park(A, { variable_horry_solution: 'HorryAgentFirst', variable_horry_phase: 'return', variable_originate_disposition: 'SUCCESS' });
+    await tick();
+    expect(c.state).toBe('bridged');
+    expect(returned[0]).toMatchObject({ answered: true, reason: 'savannah_hungup' });
+  });
+
+  it('an automatic recall after wrap-up reads as Savannah finishing, not the agent cancelling', async () => {
+    const { esl, bridge, returned } = setup();
+    await memberArrives(esl);
+    await bridge.handoff('8435550118', '6666');
+    expect(await bridge.recall('8435550118', 'auto')).toBe(true);
+    expect(await bridge.recall('8435550118', 'auto')).toBe(true); // second call is a no-op
+    expect(esl.cmds.filter((x) => x.includes('horry_return'))).toHaveLength(1);
+    esl.park(A, { variable_horry_solution: 'HorryAgentFirst', variable_horry_phase: 'return', variable_originate_disposition: 'SUCCESS' });
+    await tick();
+    expect(returned[0]).toMatchObject({ reason: 'savannah_hungup' });
+  });
+
   it('refuses a hand-off for a call that is not bridged through us', async () => {
     const { bridge } = setup();
     await expect(bridge.handoff('8435550199', '3333')).rejects.toThrow(/did not come through/);

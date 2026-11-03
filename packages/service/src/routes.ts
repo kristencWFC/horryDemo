@@ -343,6 +343,8 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     const dv = p.data.conversation_initiation_client_data?.dynamic_variables ?? {};
     const guid = String(dv.sip_call_guid ?? '');
     const row = (guid && calls.get(guid)) || calls.findRecentByAni(String(dv.system__caller_id ?? '')) || calls.resolve(guid, String(dv.system__caller_id ?? ''), mode.get().storm);
+    // Her conversation is over: if the member is still on her leg through the controller, bring them back now.
+    if (agentFirst?.activeByAni(row.ani)?.state === 'with_savannah') void agentFirst.recall(row.ani, 'auto');
     const transcript = (p.data.transcript ?? [])
       .filter((t) => t.message)
       .map((t) => ({ role: t.role === 'agent' ? ('agent' as const) : ('user' as const), text: String(t.message) }));
@@ -587,6 +589,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     calls.patch(row, { escalation: esc });
     calls.step(row, 'escalated', `${esc.department} / ${esc.urgency}: ${esc.reason}`, esc.department === 'outage' ? 'outage_escalation' : 'escalation');
     hoStep(row, 'returning', 'Savannah is sending the call back to a representative.', 'returning');
+    if (agentFirst?.activeByAni(row.ani)?.state === 'with_savannah') setTimeout(() => void agentFirst.recall(row.ani, 'auto'), 4000).unref();
     const data: Record<string, string> = {
       escalate: 'true',
       department: esc.department,
@@ -612,6 +615,9 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     calls.patch(row, { outcome: String(b.outcome ?? ''), tags: [...new Set([...row.tags, ...tags])] });
     calls.step(row, 'wrapped', String(b.outcome ?? ''));
     { const h = handoffs.activeByAni(row.ani); if (h) hoStep(row, 'returning', `Sending the call back to ${h.agentName}.`, 'returning'); }
+    // Agent-first hand-off: don't wait for Savannah's leg to drop on its own (it didn't on the
+    // first live test, 2026-11-03) — give her the goodbye sentence, then pull the member back.
+    if (agentFirst?.activeByAni(row.ani)?.state === 'with_savannah') setTimeout(() => void agentFirst.recall(row.ani, 'auto'), 7000).unref();
     if (row.channel !== 'chat') await relayResultToFreeswitch(row.guid, { escalate: 'false', outcome: String(b.outcome ?? '').slice(0, 240) });
     return { ok: true, next_step: 'Say a one-sentence goodbye, then call end_call.' };
   });
