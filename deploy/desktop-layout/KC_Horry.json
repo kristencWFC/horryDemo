@@ -264,55 +264,6 @@
       "navigation": [
         {
           "nav": {
-            "label": "Calls",
-            "icon": "waveform",
-            "iconType": "momentum",
-            "navigateTo": "horry-calls",
-            "align": "top"
-          },
-          "page": {
-            "id": "horry-calls",
-            "widgets": {
-              "main": {
-                "comp": "horry-member",
-                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
-                "attributes": {
-                  "darkmode": "$STORE.app.darkMode",
-                  "mode": "desk"
-                },
-                "properties": {
-                  "server": "https://kcdev2.workflowconcepts.com/horry",
-                  "ani": "$STORE.agentContact.taskSelected.ani",
-                  "interactionid": "$STORE.agentContact.taskSelected.interactionId",
-                  "interactionData": "$STORE.agentContact.taskSelected",
-                  "agentname": "$STORE.agent.agentName",
-                  "agentemail": "$STORE.agent.agentEmailId"
-                },
-                "wrapper": {
-                  "title": "Calls",
-                  "maximizeAreaName": "app-maximize-area"
-                }
-              }
-            },
-            "layout": {
-              "areas": [
-                [
-                  "main"
-                ]
-              ],
-              "size": {
-                "cols": [
-                  1
-                ],
-                "rows": [
-                  1
-                ]
-              }
-            }
-          }
-        },
-        {
-          "nav": {
             "label": "Web Chats",
             "icon": "chat",
             "iconType": "momentum",
@@ -1678,55 +1629,6 @@
                 },
                 "wrapper": {
                   "title": "Payment reminders",
-                  "maximizeAreaName": "app-maximize-area"
-                }
-              }
-            },
-            "layout": {
-              "areas": [
-                [
-                  "main"
-                ]
-              ],
-              "size": {
-                "cols": [
-                  1
-                ],
-                "rows": [
-                  1
-                ]
-              }
-            }
-          }
-        },
-        {
-          "nav": {
-            "label": "Calls",
-            "icon": "waveform",
-            "iconType": "momentum",
-            "navigateTo": "horry-calls",
-            "align": "top"
-          },
-          "page": {
-            "id": "horry-calls",
-            "widgets": {
-              "main": {
-                "comp": "horry-member",
-                "script": "https://kcdev2.workflowconcepts.com/horry/widgets/horry-widgets.js",
-                "attributes": {
-                  "darkmode": "$STORE.app.darkMode",
-                  "mode": "desk"
-                },
-                "properties": {
-                  "server": "https://kcdev2.workflowconcepts.com/horry",
-                  "ani": "$STORE.agentContact.taskSelected.ani",
-                  "interactionid": "$STORE.agentContact.taskSelected.interactionId",
-                  "interactionData": "$STORE.agentContact.taskSelected",
-                  "agentname": "$STORE.agent.agentName",
-                  "agentemail": "$STORE.agent.agentEmailId"
-                },
-                "wrapper": {
-                  "title": "Calls",
                   "maximizeAreaName": "app-maximize-area"
                 }
               }

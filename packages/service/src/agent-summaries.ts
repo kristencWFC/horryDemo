@@ -22,7 +22,26 @@ const WRAP_CODES: Record<string, string> = {
 };
 
 function simulated(r: CallRow): AgentLeg {
-  const esc = r.escalation!;
+  const esc = r.escalation;
+  if (!esc) {
+    // Straight to an agent, or an agent → Savannah payment hand-off: code from what happened.
+    const handoff = r.journey.some((j) => j.step === 'agent_handoff');
+    const paid = r.tags.includes('payment');
+    const code = handoff || paid ? 'Billing - Payment' : r.tags.includes('payment_extension') ? 'Billing - Payment Arrangement' : r.tags.includes('outage_reported') ? 'Outage - Report' : r.tags.includes('billing_inquiry') ? 'Billing - Inquiry' : 'Billing - Inquiry';
+    return {
+      agentName: 'Live agent',
+      team: 'Billing & Collections',
+      endedAt: new Date().toISOString(),
+      wrapUpCode: code,
+      summary: {
+        reason: handoff ? 'Member called to pay the past-due balance.' : paid ? 'Member made a payment.' : 'Member called about the account balance and due date.',
+        actions: handoff ? (paid ? 'Handed the payment to Savannah; payment approved and confirmation given. Member back with the agent.' : 'Handed the payment to Savannah.') : paid ? 'Took the payment and read back the confirmation.' : 'Reviewed the account with the member and answered the question.',
+        status: 'Resolved',
+        followUp: 'None.',
+      },
+      source: 'simulated',
+    };
+  }
   const dept = esc.department;
   const code = WRAP_CODES[esc.reason] ?? (dept === 'outage' ? 'Outage - Report' : dept === 'billing' ? 'Billing - Inquiry' : 'General - Inquiry');
   const actions =
@@ -46,6 +65,19 @@ function simulated(r: CallRow): AgentLeg {
     },
     source: 'simulated',
   };
+}
+
+/** The call reached a live agent: Savannah escalated it, an agent answered it directly, or an agent handed a payment to Savannah. */
+function reachedAgent(r: CallRow): boolean {
+  return Boolean(r.escalation || r.agentSeenAt || r.journey.some((j) => j.step === 'agent_handoff'));
+}
+
+/** Over, as far as we can tell: an end time, or the agent's Member tab stopped showing it 45 s ago. */
+function over(r: CallRow, now: number): number | null {
+  if (r.endedAt) return Date.parse(r.endedAt);
+  const seen = r.agentSeenAt ? Date.parse(r.agentSeenAt) : 0;
+  if (seen && now - seen > 45_000) return seen;
+  return null;
 }
 
 /** Loose parse until the response shape is confirmed: sections map, or flat fields, or text. */
@@ -89,13 +121,15 @@ export function wireAgentSummaries(calls: CallStore): void {
   const tick = async () => {
     const now = Date.now();
     for (const r of calls.all()) {
-      if (!r.escalation || r.agentLeg || !r.endedAt) continue;
-      const ended = Date.parse(r.endedAt);
-      if (now - ended > 24 * 3600_000) continue;
-      if (!live) {
+      if (r.agentLeg || r.channel !== 'voice' || r.direction === 'outbound' || !reachedAgent(r)) continue;
+      const ended = over(r, now);
+      if (ended === null || now - ended > 24 * 3600_000) continue;
+      if (!live || !r.escalation) {
+        // No Cisco summary for this leg (API unconfirmed, or the call never had an escalation id): a
+        // plausible wrap-up code from what the call did, so every agent call shows one (Kristen 2026-11-03).
         if (now - ended > 45_000) {
           calls.patch(r, { agentLeg: simulated(r) });
-          console.log(`HORRY SUMMARY ${r.guid}: simulated agent leg`);
+          console.log(`HORRY SUMMARY ${r.guid}: simulated agent leg (${r.escalation ? 'escalation' : 'agent call'})`);
         }
         continue;
       }

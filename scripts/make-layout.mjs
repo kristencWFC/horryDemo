@@ -166,7 +166,8 @@ for (const persona of ['agent', 'supervisor', 'supervisorAgent']) {
     }
     return true;
   });
-  if (persona !== 'supervisor') a.navigation.unshift(structuredClone(callsPage));
+  // Calls page retired 2026-11-03: the hand-off now stays on the agent's own task, so the Member tab is the whole story.
+  void callsPage;
   if (persona !== 'agent') a.navigation.unshift(structuredClone(stormOps));
   if (persona !== 'agent') a.navigation.splice(1, 0, structuredClone(remindersPage));
   // Agents work email and chats; the supervisor assigns emails (assign control only off the agent persona).

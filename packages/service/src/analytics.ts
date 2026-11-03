@@ -50,6 +50,8 @@ export interface CallView {
   aiSummary: string;
   restorationSignup: boolean;
   payment: boolean;
+  /** "Paid $194.00" when a payment was approved on this conversation. */
+  paymentText?: string;
   journey: { at: string; step: string; detail: string }[];
   escalation?: { department: string; urgency: string; reason: string; summary: string };
   agentLeg?: AgentLeg;
@@ -72,6 +74,13 @@ export function topicsFor(tags: string[], reason: string, text: string): Topic[]
   if (/start service|stop service|moving|new service|transfer service/.test(low)) t.add('Start / stop service');
   if (!t.size) t.add('Other');
   return TOPICS.filter((x) => t.has(x)); // priority order: the first is the primary topic
+}
+
+/** "Paid $194.00" from the approved-payment step, if there was one. */
+function paidText(r: CallRow): string {
+  const step = r.journey.find((j) => j.step === 'payment' && /approved/i.test(j.detail));
+  const amount = step ? /\$[\d,]+\.\d{2}/.exec(step.detail)?.[0] : undefined;
+  return step ? `Paid${amount ? ` ${amount}` : ''}` : '';
 }
 
 function fromRow(r: CallRow): CallView {
@@ -104,6 +113,7 @@ function fromRow(r: CallRow): CallView {
     aiSummary: r.summary ?? r.outcome ?? (!ai ? '' : r.endedAt || stale ? '' : 'Call in progress'),
     restorationSignup: r.tags.includes('restoration_signup'),
     payment: r.tags.includes('payment'),
+    ...(paidText(r) ? { paymentText: paidText(r) } : {}),
     journey: r.journey,
     ...(r.escalation ? { escalation: r.escalation } : {}),
     ...(r.agentLeg ? { agentLeg: r.agentLeg } : {}),

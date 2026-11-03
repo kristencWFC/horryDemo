@@ -102,7 +102,7 @@
   tbody tr.call:hover { background: var(--soft); }
   .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; margin: 0 4px 2px 0; }
   .chip.live { border-color: #1f8a4c; color: #1f8a4c; font-weight: 600; }
-  .chip.sample { border-style: dashed; }
+  .chip.paid { border-color: #1f8a4c; color: #1f8a4c; background: #e6f4ea; font-weight: 600; }
   .chan { white-space: nowrap; font-size: 13px; }
   .path { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -201,7 +201,6 @@
 
   <section class="panel">
     <h2>Phone calls and web chats</h2>
-    <p class="hint">The same picture for each channel in the selected dates: how many Savannah finished on her own and how many went to a person.</p>
     <div class="tablewrap"><table>
       <thead><tr><th>Channel</th><th class="num">Conversations</th><th class="num">Resolved by Savannah</th><th class="num">Sent to an agent</th><th class="num">Agent only (AI off)</th><th class="num">Avg length</th><th class="num">Negative</th></tr></thead>
       <tbody id="channels"></tbody>
@@ -343,10 +342,10 @@
     $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
       <tr class="call" tabindex="0" data-id="${esc(c.id)}">
-        <td>${day(c.startedAt)} ${clock(c.startedAt)}${c.sample ? ' <span class="chip sample" title="Made-up sample storm day">Sample</span>' : c.inProgress ? ' <span class="chip live">In progress</span>' : ''}</td>
+        <td>${day(c.startedAt)} ${clock(c.startedAt)}${c.inProgress ? ' <span class="chip live">In progress</span>' : ''}</td>
         <td><span class="chan">${c.outbound && c.channel === 'voice' ? '📞 Outbound call' : CHANNEL[c.channel] || esc(c.channel)}</span></td>
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
-        <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</td>
+        <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.paymentText ? `<span class="chip paid">${esc(c.paymentText)}</span>` : ''}</td>
         <td><span class="path">${c.outbound ? '<span class="dot ai"></span>Savannah ' + (c.channel === 'sms' ? 'texted' : 'called') + ' (reminder)' : c.handoff ? '<span class="dot ag"></span>Agent <span aria-hidden="true">→</span> <span class="dot ai"></span>Savannah (payment) <span aria-hidden="true">→</span> agent' : !c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
         <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained || !c.ai ? '' : '<span class="empty">waiting for summary</span>'}</td>
         <td>${esc(c.sentiment)}</td>

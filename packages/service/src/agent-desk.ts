@@ -265,7 +265,16 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
   f.get('/api/agent-desk', async (req, reply) => {
     const q = req.query as { guid?: string; ani?: string; sep?: string };
     if (!q.guid && !q.ani && !q.sep) return reply.code(400).send({ found: false, error: 'guid, ani or sep required' });
-    const { m, row } = await resolve(q);
+    const found = await resolve(q);
+    const m = found.m;
+    let row = found.row;
+    // A call that went straight to an agent never passes the flow's call-context step (that is
+    // on the Savannah branch only), so the Member tab opening it is the first the service hears
+    // of it: record it here so Customer Review lists every call (Kristen 2026-11-03).
+    if (!row && q.guid && m && !q.guid.startsWith('$')) {
+      row = calls.seed({ guid: q.guid, ani: last10(q.ani ?? ''), dnis: '', channel: 'voice', stormMode: false, memberSep: m.MemberSep, memberName: displayName(m) });
+      calls.step(row, 'identified', `${displayName(m)} — ${displayAddress(m)} (from caller ID)`);
+    }
     if (row && q.guid && !row.endedAt) calls.patch(row, { agentSeenAt: new Date().toISOString() });
     // The agent's Desktop is showing this call again after Savannah sent it back: close the loop.
     if (row && q.guid) {
