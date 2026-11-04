@@ -362,7 +362,7 @@ export class HorrySupervisor extends LitElement {
         />
         <select
           id="demo-member"
-          style="flex:1;min-width:220px"
+          style="flex:1;min-width:220px;max-width:460px"
           @change=${(e: Event) => this.editCaller({ sep: (e.target as HTMLSelectElement).value })}
         >
           ${this.members.map(
