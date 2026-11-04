@@ -23,6 +23,7 @@ import { legFromBody } from './agent-summaries.js';
 import { relayResultToFreeswitch, fsRelayConfigured } from './freeswitch.js';
 import type { HandoffStore, Handoff, HandoffStatus } from './handoff.js';
 import type { AgentFirstBridge } from './agent-first.js';
+import type { LiveQa } from './live-qa.js';
 import { spokenMoney } from './spoken.js';
 import { parseReminderCsv, type ReminderStore, type ReminderBatch, type ReminderRow } from './reminders.js';
 import { placeOutboundCall, outboundConfigured } from './outbound.js';
@@ -41,12 +42,15 @@ export interface Deps {
   reminders: ReminderStore;
   /** Agent-first calls through the WFC AI Controller (use case 1); absent in chat.ts. */
   agentFirst?: AgentFirstBridge;
+  /** Live quality management (live-qa.ts); absent in chat.ts. */
+  qa?: LiveQa;
 }
 
 interface Settings {
   demoAni: string; // the presenter's phone
   demoMemberSep: string; // which member that phone "is" right now
   demoSmsTo: string; // every demo text goes here (empty = the member's own number)
+  supervisorPhone: string; // where the controller calls the supervisor to listen / join a call
 }
 
 const ASSISTANT = 'Savannah';
@@ -75,7 +79,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
   const { members, nextgen, outages, calls, sms, payments, mode, handoffs, reminders, agentFirst } = d;
   const tz = env.BUSINESS_TIMEZONE;
   const settingsStore = new JsonStore<Settings>(join(d.dataDir, 'settings.json'));
-  const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', ...(settingsStore.load() ?? {}) };
+  const settings: Settings = { demoAni: '2142823566', demoMemberSep: '00212040001', demoSmsTo: '', supervisorPhone: '', ...(settingsStore.load() ?? {}) };
   sms.demoTo = settings.demoSmsTo;
 
   const toolAuth = (req: FastifyRequest, reply: FastifyReply): boolean => {
@@ -203,6 +207,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     staffing: staffingConfigured(),
     fsRelay: fsRelayConfigured(),
     agentFirst: agentFirst?.status() ?? { enabled: false },
+    qa: d.qa?.status() ?? { transcription: 'off', scorer: 'rules', monitor: 'off', live: 0 },
     storm: mode.get().storm,
     aiAll: mode.get().aiAll,
   }));
@@ -213,6 +218,7 @@ export function registerRoutes(f: FastifyInstance, d: Deps): void {
     if (b.demoAni !== undefined) settings.demoAni = last10(b.demoAni);
     if (b.demoMemberSep !== undefined) settings.demoMemberSep = b.demoMemberSep;
     if (b.demoSmsTo !== undefined) settings.demoSmsTo = sms.demoTo = last10(b.demoSmsTo);
+    if (b.supervisorPhone !== undefined) settings.supervisorPhone = last10(b.supervisorPhone);
     settingsStore.save(settings);
     return settings;
   });

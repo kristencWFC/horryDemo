@@ -263,11 +263,13 @@ export function registerAgentDeskRoutes(f: FastifyInstance, d: AgentDeskDeps): v
   // ---- reads ------------------------------------------------------------------------
 
   f.get('/api/agent-desk', async (req, reply) => {
-    const q = req.query as { guid?: string; ani?: string; sep?: string };
+    const q = req.query as { guid?: string; ani?: string; sep?: string; agent?: string };
     if (!q.guid && !q.ani && !q.sep) return reply.code(400).send({ found: false, error: 'guid, ani or sep required' });
     const found = await resolve(q);
     const m = found.m;
     let row = found.row;
+    // Who answered: the live quality view and Customer Review name the agent on the call.
+    if (row && q.guid && q.agent && !row.agentName) calls.patch(row, { agentName: String(q.agent).slice(0, 60) });
     // A call that went straight to an agent never passes the flow's call-context step (that is
     // on the Savannah branch only), so the Member tab opening it is the first the service hears
     // of it: record it here so Customer Review lists every call (Kristen 2026-11-03).

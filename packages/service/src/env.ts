@@ -80,6 +80,23 @@ const EnvSchema = z.object({
   // any team already on the queue), so nobody can staff Horry's queue with a colleague's team.
   WXCC_STAFFING_TEAM_PREFIX: z.string().default('KC_Horry'),
 
+  // Live quality management (src/live-qa.ts): the controller streams agent calls to this
+  // service; Deepgram transcribes, Claude rates the member's mood, the supervisor can listen /
+  // whisper / join. Unset keys = no transcript (audio ignored) and word rules for the rating.
+  DEEPGRAM_API_KEY: z.string().optional(),
+  DEEPGRAM_MODEL: z.string().default('nova-2'),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  QA_MODEL: z.string().default('claude-opus-5-5'),
+  /** Where the controller sends the audio (this service, same VM). Default = ws://127.0.0.1:{PORT}/api/qa/stream */
+  QA_STREAM_URL: z.string().optional(),
+  /** Dial string for the supervisor's phone; {number} = the 10 digits typed on AI Operations. A SIP
+   *  phone registered to the controller works too (e.g. user/1000, no placeholder). */
+  QA_MONITOR_DIAL: z.string().default('sofia/gateway/cube/+1{number}'),
+  QA_MONITOR_CALLER_ID: z.string().default('9724309658'),
+  /** Text this number once per call that turns negative ('' = none). */
+  QA_ALERT_SMS_TO: z.string().optional(),
+  QA_ALERT_SCORE: z.coerce.number().default(-0.3),
+
   // Cisco AI Assistant wrap-up summaries for the live-agent leg. URL template with
   // {interactionId} (and optionally {orgId}). Unset = simulated summaries. [CONFIRM] path.
   WXCC_SUMMARY_URL: z.string().optional(),

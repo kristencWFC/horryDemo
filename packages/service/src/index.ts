@@ -1,5 +1,7 @@
 // horry-demo entry point. kcdev2 :8165 behind nginx /horry/ (systemd horry-demo).
+import { join } from 'node:path';
 import { env, dataDir, twilioConfigured, wxccConfigured, staffingConfigured } from './env.js';
+import { JsonStore } from './store.js';
 import { MemberStore } from './members.js';
 import { NextGenClient } from './nextgen.js';
 import { OutageStore } from './outages.js';
@@ -45,7 +47,26 @@ const agentFirst = new AgentFirstBridge(esl, {
   ...(env.FS_BACK_ANNOUNCE !== undefined ? { backAnnounce: env.FS_BACK_ANNOUNCE } : {}),
 });
 
-const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders, agentFirst });
+// Live quality management: transcript + sentiment of agent calls on the controller, listen / whisper /
+// join from AI Operations, sentiment drill-in on Customer Review (src/live-qa.ts).
+const { LiveQa, defaultOptions: qaDefaults, claudeScorer, rulesScorer } = await import('./live-qa.js');
+const qa = new LiveQa(esl, calls, agentFirst, {
+  ...qaDefaults(),
+  streamUrl: env.QA_STREAM_URL ?? `ws://127.0.0.1:${env.PORT}/api/qa/stream`,
+  monitorDial: env.QA_MONITOR_DIAL,
+  monitorCallerId: env.QA_MONITOR_CALLER_ID,
+  alertAt: env.QA_ALERT_SCORE,
+  scorer: env.ANTHROPIC_API_KEY ? claudeScorer(env.ANTHROPIC_API_KEY, env.QA_MODEL) : rulesScorer,
+  scorerName: env.ANTHROPIC_API_KEY ? 'claude' : 'rules',
+  transcription: Boolean(env.DEEPGRAM_API_KEY),
+  alertSmsTo: env.QA_ALERT_SMS_TO ?? '',
+  sendSms: (to, body, purpose) => sms.send(to, body, purpose),
+});
+
+const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders, agentFirst, qa });
+// The supervisor's monitor phone is saved through PATCH api/settings (routes.ts owns settings.json); read it fresh here.
+const settingsStore = new JsonStore<{ supervisorPhone?: string }>(join(dataDir, 'settings.json'));
+(await import('./qa-routes.js')).registerQa(app, { qa, calls, settings: () => settingsStore.load() ?? {} });
 (await import('./chat.js')).registerChat(app, { dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders }); // web chat (site.html bubble ↔ <horry-chat>)
 (await import('./agent-desk.js')).registerAgentDeskRoutes(app, { dataDir, members, nextgen, outages, calls, sms, payments, handoffs, mode, staffing, agentFirst }); // agent desktop: <horry-member> + billing.html
 (await import('./email.js')).registerEmail(app, { dataDir, members, nextgen, outages }); // email board: <horry-email> (api/emails...)

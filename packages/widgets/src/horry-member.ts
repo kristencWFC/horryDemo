@@ -340,6 +340,7 @@ export class HorryMember extends LitElement {
     if (this.guid) p.set('guid', this.guid);
     if (this.callerAni) p.set('ani', this.callerAni);
     if (this.account) p.set('sep', this.account);
+    if (this.guid && this.agentName) p.set('agent', this.agentName); // who answered, for the live quality view
     return p.toString();
   }
 

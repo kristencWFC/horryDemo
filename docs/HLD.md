@@ -306,6 +306,52 @@ Storm-day view with a date picker of "storm days":
 Deterministic seeded baseline + live overlay (home-services `aiops.ts` pattern), so
 calls made in the room move the numbers.
 
+### 2.10 Live quality management (asked for after the 2026-11-04 demo)
+
+Horry's one request after the demo: see a call going badly while it is happening, listen in
+or join it, and afterwards review every call with its summary and sentiment, filter by
+sentiment and drill into the negative ones.
+
+**During the call** (`src/live-qa.ts`, `src/qa-routes.ts`, AI Operations "Live calls" card):
+
+- Calls on the agent line (972-903-8486) already ride the WFC AI Controller (§2.5, agent-first).
+  Once the legs are bridged the service asks the controller for a stereo audio stream of the
+  member leg (`uuid_audio_stream <A> start ws://127.0.0.1:8165/api/qa/stream stereo 8000`,
+  mod_audio_stream is on kc-dev-2): channel 0 = the member, channel 1 = whoever they are
+  talking to. Deepgram (`DEEPGRAM_API_KEY`, multichannel nova-2) returns finals per channel.
+- After each thing the member says, a scorer rates their mood from −1 to +1 with a one-line
+  reason quoting their words: Claude (`ANTHROPIC_API_KEY`, `QA_MODEL`, default
+  `claude-opus-5-5` at low effort; `claude-haiku-5-5` for the cheapest/fastest) or, with no
+  key, word rules (`rulesReading`). Below `QA_ALERT_SCORE` (−0.3) the call is flagged once:
+  the card turns red with "needs attention" + Acknowledge, and `QA_ALERT_SMS_TO` gets one text.
+- Listen / whisper / join: the controller originates a call to the supervisor's phone
+  (`QA_MONITOR_DIAL`, default `sofia/gateway/cube/+1{number}`; a SIP phone registered to the
+  controller works as `user/1000`) with `&eavesdrop(<member leg>)`. Listen = hear both;
+  whisper = the supervisor's voice reaches the agent only (eavesdrop DTMF 2); join = both (3);
+  switching modes sends `uuid_recv_dtmf` to the supervisor's leg. **[CONFIRM] CUBE routes
+  +1 numbers to the PSTN from the controller; if not, use the SIP-phone form.**
+- PCI: on "Hand payment to Savannah" the stream is paused, any monitor is dropped
+  ("Monitoring stopped for the payment"), nothing said in that phase is kept, and any run of
+  eleven or more digits is masked before storage. The stream resumes when the member is back.
+- Savannah's own in-progress calls are listed on the same card (no live rating: her
+  transcript arrives after the call).
+- API-fed sessions (`POST api/qa/sessions`, `/turns`, `/end`) let a chat path or a test drive
+  the same pipeline without the controller.
+
+**After the call** (Customer Review, `analytics.ts`): the live rating becomes the call's
+sentiment (ElevenLabs' post-call sentiment still covers Savannah-only calls); the row keeps
+`qa` = member/agent transcript, the sentiment timeline, the reason, when the supervisor was
+alerted and who listened. The dashboard filters by Positive / Neutral / Negative / Flagged
+while live (buttons, the sentiment bar, the Negative tile), lists the newest negatives under
+"Needs attention", and the drill-in shows "How the member felt" (label, reason, timeline) and
+the two-party transcript with the lines that moved the rating marked. CSV gains Why
+(sentiment), Flagged live and Agent columns.
+
+**Limits.** Live rating covers calls that pass through the controller (the agent line). A
+Savannah → agent escalation leaves the controller at the hand-back, so that agent leg has no
+live transcript; in production every agent call would be bridged through the controller the
+same way, or WxCC's own real-time transcription would feed `api/qa/sessions`.
+
 ## 3. Architecture
 
 ```

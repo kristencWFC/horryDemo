@@ -54,6 +54,22 @@ export interface CallRow {
   /** Set while an agent has handed this call to Savannah for a payment (handoff.ts). */
   handoffRef?: string;
   agentLeg?: AgentLeg;
+  /** Who answered on the Desktop (the Member tab's agent name), when a person took the call. */
+  agentName?: string;
+  /** Live quality record (live-qa.ts): two-party transcript, sentiment timeline, reason, alert. */
+  qa?: {
+    score: number;
+    label: 'positive' | 'neutral' | 'negative';
+    why: string;
+    readings: { at: string; score: number; label: 'positive' | 'neutral' | 'negative'; why: string }[];
+    turns: { at: string; speaker: 'member' | 'agent' | 'savannah'; text: string }[];
+    alertAt?: string;
+    acknowledgedBy?: string;
+    monitoredBy?: string;
+    agentName: string;
+    scorer: 'claude' | 'rules';
+    transcription: 'live' | 'off';
+  };
 }
 
 export class CallStore extends EventEmitter {

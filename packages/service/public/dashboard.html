@@ -92,6 +92,28 @@
   .sent .neu { background: var(--s-neutral); }
   .sent .neg { background: var(--s-agent); border-radius: 0 4px 4px 0; }
   .sentlbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .sent div { cursor: pointer; }
+  .sent div.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* sentiment on a call: a dot + the word, never colour alone */
+  .sdot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .sdot.positive { background: var(--s-ai); } .sdot.neutral { background: var(--s-neutral); } .sdot.negative { background: var(--s-agent); }
+  .why { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .chip.alert { border-color: var(--bad); color: var(--bad); font-weight: 600; }
+  .tile.click { cursor: pointer; } .tile.click:hover, .tile.click.sel { border-color: var(--accent); }
+  .tile.bad .v { color: var(--bad); }
+  .attn { display: grid; gap: 4px; }
+  .attn .arow { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 13px; cursor: pointer; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; }
+  .attn .arow:hover, .attn .arow:focus-visible { background: var(--soft); border-color: var(--line); }
+  .attn .arow .t { color: var(--dim); font-variant-numeric: tabular-nums; }
+  /* drill-in: sentiment over the call, left to right */
+  .timeline { display: flex; align-items: flex-end; gap: 2px; height: 56px; padding-top: 4px; border-bottom: 1px solid var(--line); }
+  .timeline i { flex: 1; display: block; background: var(--s-neutral); border-radius: 3px 3px 0 0; min-width: 4px; max-width: 28px; }
+  .timeline i.negative { background: var(--s-agent); } .timeline i.positive { background: var(--s-ai); }
+  .convo { max-height: 340px; overflow-y: auto; font-size: 13px; display: grid; gap: 6px; }
+  .convo div { padding: 5px 9px; border-radius: 6px; border-left: 3px solid transparent; }
+  .convo .member { background: var(--soft); }
+  .convo .flag { border-left-color: var(--s-agent); }
+  .convo b { color: var(--dim); font-weight: 600; }
   /* tables */
   .tablewrap { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -188,9 +210,11 @@
     </div>
     <div class="panel">
       <h2>How members felt</h2>
-      <p class="hint">Sentiment from each conversation, after the call.</p>
+      <p class="hint">Rated live while the member talks to an agent, or after the call from Savannah's conversation. Click a band to filter the calls below.</p>
       <div class="sent" id="sent"></div>
       <div class="sentlbl" id="sentlbl"></div>
+      <h2 style="font-size:13px;margin-top:4px">Needs attention</h2>
+      <div class="attn" id="attn"></div>
     </div>
     <div class="panel codes">
       <h2>Wrap-up codes from live agents</h2>
@@ -218,6 +242,14 @@
       <button type="button" data-path="outbound" aria-pressed="false">Payment reminders</button>
       <button type="button" id="clearTopic" hidden>Clear topic filter</button>
     </div>
+    <div class="filters" role="group" aria-label="Sentiment filter">
+      <span class="hint" style="margin:0">Sentiment</span>
+      <button type="button" data-sent="" aria-pressed="true">All</button>
+      <button type="button" data-sent="positive" aria-pressed="false">Positive</button>
+      <button type="button" data-sent="neutral" aria-pressed="false">Neutral</button>
+      <button type="button" data-sent="negative" aria-pressed="false">Negative</button>
+      <button type="button" data-sent="alert" aria-pressed="false">Flagged while live</button>
+    </div>
     <div class="tablewrap">
       <table>
         <thead><tr><th>Time</th><th>Channel</th><th>Member</th><th>Why they called</th><th>Path</th><th>Wrap-up code</th><th>Sentiment</th><th class="num">Length</th></tr></thead>
@@ -240,7 +272,9 @@
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const hourLbl = (h) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
 
-  let data = null, topic = '', path = 'all', limit = 60;
+  let data = null, topic = '', path = 'all', sent = '', limit = 60;
+  const SENT_LABEL = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' };
+  const sentCell = (c) => `<span class="sdot ${esc(c.sentiment)}"></span>${SENT_LABEL[c.sentiment] || esc(c.sentiment)}${c.alert ? ' <span class="chip alert">flagged live</span>' : ''}`;
 
   // Date range (co-op time zone, Eastern). Presets fill From/To; editing either switches to Custom.
   const TZ = 'America/New_York';
@@ -298,7 +332,8 @@
       tile('Sent to a live agent', k.toAgent.toLocaleString(), 'with Savannah\'s notes on screen') +
       tile('Restoration sign-ups', k.restorationSignups.toLocaleString(), 'text when power is back') +
       tile('Payments taken', k.payments.toLocaleString(), 'no card numbers spoken') +
-      tile('Negative sentiment', pct(k.negativePct), 'of all calls');
+      `<div class="tile click bad${sent === 'negative' ? ' sel' : ''}" role="button" tabindex="0" data-sent="negative"><span class="k">Negative sentiment</span><span class="v">${pct(k.negativePct)}</span><span class="n">${data.sentiment.negative} conversations · click to list them</span></div>` +
+      `<div class="tile click${sent === 'alert' ? ' sel' : ''}" role="button" tabindex="0" data-sent="alert"><span class="k">Flagged while live</span><span class="v">${data.calls.filter((c) => c.alert).length}</span><span class="n">supervisor alerted during the call</span></div>`;
 
     const max = Math.max(1, ...data.topics.map((t) => t.contained + t.toAgent));
     $('topics').innerHTML = data.topics.map((t) => {
@@ -322,10 +357,17 @@
 
     const s = data.sentiment, st = Math.max(1, s.positive + s.neutral + s.negative);
     $('sent').innerHTML =
-      `<div class="pos" style="width:${(s.positive / st) * 100}%" data-tip="Positive: ${s.positive} calls"></div>` +
-      `<div class="neu" style="width:${(s.neutral / st) * 100}%" data-tip="Neutral: ${s.neutral} calls"></div>` +
-      `<div class="neg" style="width:${(s.negative / st) * 100}%" data-tip="Negative: ${s.negative} calls"></div>`;
+      `<div class="pos${sent === 'positive' ? ' sel' : ''}" role="button" tabindex="0" data-sent="positive" style="width:${(s.positive / st) * 100}%" data-tip="Positive: ${s.positive} calls · click to filter"></div>` +
+      `<div class="neu${sent === 'neutral' ? ' sel' : ''}" role="button" tabindex="0" data-sent="neutral" style="width:${(s.neutral / st) * 100}%" data-tip="Neutral: ${s.neutral} calls · click to filter"></div>` +
+      `<div class="neg${sent === 'negative' ? ' sel' : ''}" role="button" tabindex="0" data-sent="negative" style="width:${(s.negative / st) * 100}%" data-tip="Negative: ${s.negative} calls · click to filter"></div>`;
     $('sentlbl').innerHTML = `<span>Positive ${pct(s.positive / st)}</span><span>Neutral ${pct(s.neutral / st)}</span><span>Negative ${pct(s.negative / st)}</span>`;
+    // The newest negative conversations, one click from their drill-in.
+    const attn = data.calls.filter((c) => c.sentiment === 'negative').slice(0, 4);
+    $('attn').innerHTML = attn.map((c) => `<div class="arow" role="button" tabindex="0" data-id="${esc(c.id)}">
+        <span class="t">${clock(c.startedAt)}</span>
+        <span><strong>${esc(c.member)}</strong>${c.agentName ? ` · ${esc(c.agentName)}` : ''}${c.alert ? ' <span class="chip alert">flagged live</span>' : ''}<div class="why">${esc(c.sentimentWhy) || esc(c.topics[0] || '')}</div></span>
+      </div>`).join('') + (s.negative > attn.length ? `<button type="button" data-sent="negative" style="justify-self:start">All ${s.negative} negative conversations</button>` : '') || '<p class="empty" style="margin:0">Nothing needs attention.</p>';
+    document.querySelectorAll('.filters [data-sent]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sent === sent)));
 
     const cmax = Math.max(1, ...data.wrapUps.map((c) => c.count));
     $('codes').innerHTML = data.wrapUps.map((c) =>
@@ -337,7 +379,7 @@
 
   function renderRows() {
     const rows = data.calls.filter((c) =>
-      (!topic || c.topics.includes(topic)) && (path === 'all' || (path === 'outbound' ? c.outbound : path === 'handoff' ? c.handoff : path === 'ai' ? c.contained && !c.handoff : path === 'agent' ? c.ai && !c.contained && !c.handoff : !c.ai)));
+      (!topic || c.topics.includes(topic)) && (!sent || (sent === 'alert' ? c.alert : c.sentiment === sent)) && (path === 'all' || (path === 'outbound' ? c.outbound : path === 'handoff' ? c.handoff : path === 'ai' ? c.contained && !c.handoff : path === 'agent' ? c.ai && !c.contained && !c.handoff : !c.ai)));
     $('clearTopic').hidden = !topic;
     $('clearTopic').textContent = topic ? `Clear filter: ${topic}` : '';
     $('rows').innerHTML = rows.slice(0, limit).map((c) => `
@@ -347,8 +389,8 @@
         <td>${esc(c.member)}${c.town ? `<div class="hint" style="font-size:12px;color:var(--dim)">${esc(c.town)}</div>` : ''}</td>
         <td>${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${c.paymentText ? `<span class="chip paid">${esc(c.paymentText)}</span>` : ''}</td>
         <td><span class="path">${c.outbound ? '<span class="dot ai"></span>Savannah ' + (c.channel === 'sms' ? 'texted' : 'called') + ' (reminder)' : c.handoff ? '<span class="dot ag"></span>Agent <span aria-hidden="true">→</span> <span class="dot ai"></span>Savannah (payment) <span aria-hidden="true">→</span> agent' : !c.ai ? '<span class="dot ag"></span>Agent only' : c.contained ? '<span class="dot ai"></span>Savannah only' : '<span class="dot ai"></span>Savannah <span aria-hidden="true">→</span> <span class="dot ag"></span>agent'}</span></td>
-        <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained || !c.ai ? '' : '<span class="empty">waiting for summary</span>'}</td>
-        <td>${esc(c.sentiment)}</td>
+        <td>${c.agentLeg ? esc(c.agentLeg.wrapUpCode) : c.contained || !c.ai ? '' : '<span class="empty">waiting for summary</span>'}${c.agentName ? `<div class="why">${esc(c.agentName)}</div>` : ''}</td>
+        <td>${sentCell(c)}${c.sentimentWhy && c.sentiment !== 'neutral' ? `<div class="why">${esc(c.sentimentWhy)}</div>` : ''}</td>
         <td class="num">${mmss(c.durationSec)}</td>
       </tr>`).join('') || '<tr><td colspan="8" class="empty">No conversations match.</td></tr>';
     $('more').hidden = rows.length <= limit;
@@ -373,11 +415,17 @@
           <div>
             <h2>${esc(c.member)}</h2>
             <div class="meta">${day(c.startedAt)} ${clock(c.startedAt)} · ${mmss(c.durationSec)} · ${(CHANNEL[c.channel] || c.channel).replace(/^\S+ /, '')}${c.town ? ' · ' + esc(c.town) : ''}${c.sample ? ' · sample call' : ''}</div>
-            <div style="margin-top:6px">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}<span class="chip">${esc(c.sentiment)}</span></div>
+            <div style="margin-top:6px">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}<span class="chip">${sentCell(c)}</span></div>
           </div>
           <button type="button" id="close">Close</button>
         </div>
         <div class="story"><strong>What happened.</strong> ${story}</div>
+        <section class="panel">
+          <h2>How the member felt</h2>
+          <div>${sentCell(c)}${c.qa?.alertAt ? ` · supervisor alerted at ${clock(c.qa.alertAt)}` : ''}${c.qa?.acknowledgedBy ? ` · acknowledged by ${esc(c.qa.acknowledgedBy)}` : ''}${c.qa?.monitoredBy ? ` · ${esc(c.qa.monitoredBy)} listened in` : ''}${c.qa ? ` · rated ${c.qa.scorer === 'claude' ? 'by AI' : 'by word rules'} ${c.qa.transcription === 'live' ? 'from the live transcript' : 'from the turns received'}` : c.ai ? ' · rated after the call from Savannah\'s conversation' : ''}</div>
+          <p style="margin:0">${esc(c.sentimentWhy) || '<span class="empty">No reason recorded for this call.</span>'}</p>
+          ${c.qa?.readings?.length ? `<div class="timeline">${c.qa.readings.map((r) => `<i class="${esc(r.label)}" style="height:${Math.round(8 + ((r.score + 1) / 2) * 92)}%" data-tip="${clock(r.at)} · ${r.score > 0 ? '+' : ''}${r.score} · ${esc(r.why)}"></i>`).join('')}</div><p class="hint" style="margin:0">Sentiment over the call, left to right; hover a bar for the words behind it.</p>` : ''}
+        </section>
         <div class="legs">
           <section class="leg">
             <h3><span class="dot ai"></span> Savannah (AI agent)</h3>
@@ -398,9 +446,10 @@
                     <dt>Status</dt><dd>${esc(a.summary.status)}</dd>
                     <dt>Follow-up</dt><dd>${esc(a.summary.followUp)}</dd>
                     <dt>Source</dt><dd>${src}</dd></dl>`
-                : '<p class="empty" style="margin:0">Waiting for the wrap-up summary.</p>'}
+                : `${c.agentName ? `<dl><dt>Agent</dt><dd>${esc(c.agentName)}</dd></dl>` : ''}<p class="empty" style="margin:0">Waiting for the wrap-up summary.</p>`}
           </section>
         </div>
+        ${c.qa?.turns?.length ? `<section class="panel"><h2>Member and ${esc(c.agentName || 'agent')}</h2><p class="hint">Transcribed live from the WFC AI Controller; lines that moved the rating are marked. Nothing from the payment hand-off is kept.</p><div class="convo">${c.qa.turns.map((t) => `<div class="${esc(t.speaker)}${t.speaker === 'member' && c.qa.readings.some((r) => r.why && t.text && r.why.includes(t.text.slice(0, 40))) ? ' flag' : ''}"><b>${t.speaker === 'member' ? 'Member' : t.speaker === 'savannah' ? 'Savannah' : esc(c.agentName || 'Agent')}:</b> ${esc(t.text)}</div>`).join('')}</div></section>` : ''}
         ${c.transcript?.length ? `<section class="panel"><h2>Savannah's conversation</h2><div class="transcript">${c.transcript.map((t) => `<div><b>${t.role === 'agent' ? 'Savannah' : 'Member'}:</b> ${esc(t.text)}</div>`).join('')}</div></section>` : ''}
       </div>`;
     const close = () => scrim.remove();
@@ -425,6 +474,19 @@
     renderRows();
   }));
   $('more').addEventListener('click', () => { limit += 60; renderRows(); });
+  // Sentiment filter: the tiles, the bands of the bar, the buttons and the "all negative" link all set it.
+  function setSent(v) { sent = v && sent !== v ? v : ''; limit = 60; render(); }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest?.('[data-sent]');
+    if (b) { setSent(b.dataset.sent); return; }
+    const a = e.target.closest?.('#attn .arow');
+    if (a) openCall(a.dataset.id);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const b = e.target.closest?.('[data-sent]:not(button), #attn .arow');
+    if (b) { e.preventDefault(); b.click(); }
+  });
   $('rows').addEventListener('click', (e) => { const r = e.target.closest('tr.call'); if (r) openCall(r.dataset.id); });
   $('rows').addEventListener('keydown', (e) => { const r = e.target.closest('tr.call'); if (r && e.key === 'Enter') openCall(r.dataset.id); });
 

@@ -46,6 +46,12 @@ export interface CallView {
   handoff: boolean;
   contained: boolean; // Savannah finished it, no person needed
   sentiment: 'positive' | 'neutral' | 'negative';
+  /** What drove the sentiment, in a sentence (the live rating's reason, or the sample's). */
+  sentimentWhy: string;
+  /** The person who took the call ('' = nobody / Savannah only). */
+  agentName: string;
+  /** The supervisor was flagged while this call was live. */
+  alert: boolean;
   durationSec: number;
   aiSummary: string;
   restorationSignup: boolean;
@@ -56,6 +62,8 @@ export interface CallView {
   escalation?: { department: string; urgency: string; reason: string; summary: string };
   agentLeg?: AgentLeg;
   transcript?: { role: 'agent' | 'user'; text: string }[];
+  /** Live quality record (member + agent transcript, sentiment timeline), detail view only. */
+  qa?: CallRow['qa'];
 }
 
 // ---- classification --------------------------------------------------------------
@@ -109,6 +117,9 @@ function fromRow(r: CallRow): CallView {
     handoff: r.journey.some((j) => j.step === 'agent_handoff'),
     contained: ai && !r.escalation,
     sentiment: r.sentiment ?? 'neutral',
+    sentimentWhy: r.qa?.why ?? '',
+    agentName: r.agentName ?? r.agentLeg?.agentName ?? '',
+    alert: Boolean(r.qa?.alertAt),
     durationSec: r.durationSec ?? Math.max(0, Math.round((end - Date.parse(r.startedAt)) / 1000)),
     aiSummary: r.summary ?? r.outcome ?? (!ai ? '' : r.endedAt || stale ? '' : 'Call in progress'),
     restorationSignup: r.tags.includes('restoration_signup'),
@@ -118,6 +129,7 @@ function fromRow(r: CallRow): CallView {
     ...(r.escalation ? { escalation: r.escalation } : {}),
     ...(r.agentLeg ? { agentLeg: r.agentLeg } : {}),
     ...(r.transcript ? { transcript: r.transcript } : {}),
+    ...(r.qa ? { qa: r.qa } : {}),
   };
 }
 
@@ -179,6 +191,33 @@ const AGENT_LEG: Record<Topic, { code: string; reason: string; actions: string; 
   Other: { code: 'General - Inquiry', reason: 'General question about co-op membership.', actions: 'Answered and sent a link to the capital credits page.', followUp: 'None.' },
 };
 
+// Why a sample call felt the way it did, so the drill-in reads like a real review.
+const WHY_NEGATIVE: Record<Topic, string> = {
+  'Outage status': 'Member said "this is the third time this month" and that the estimate keeps moving.',
+  'Outage report': 'Member said the neighbors have power and "nobody called me back".',
+  'Wire down / safety': 'Member was frightened and said the line had been down "for over an hour".',
+  'Bill payment': 'Member said the late fee was unfair and asked for a supervisor.',
+  'Payment reminder': 'Member said "I can\'t afford this" and felt the reminder was pushy.',
+  'Payment extension': 'Member said "y\'all don\'t care" after hearing the extension terms.',
+  'High bill': 'Member said the meter "must be wrong" and threatened to switch providers.',
+  'Billing question': 'Member called the bill "ridiculous" and asked why it went up.',
+  'Start / stop service': 'Member complained about the deposit and the wait to get connected.',
+  Other: 'Member was unhappy with the hold time before reaching a person.',
+};
+const WHY_POSITIVE: Record<Topic, string> = {
+  'Outage status': 'Member said "thank you so much" for the estimate and the text sign-up.',
+  'Outage report': 'Member appreciated that the outage was logged in under a minute.',
+  'Wire down / safety': 'Member thanked the agent for getting a crew out right away.',
+  'Bill payment': 'Member said "that was easy" after paying with the card on file.',
+  'Payment reminder': 'Member thanked Savannah for the reminder and paid on the spot.',
+  'Payment extension': 'Member said "I really appreciate it" after the new date was set.',
+  'High bill': 'Member thanked the agent for walking through last year\'s usage.',
+  'Billing question': 'Member said "perfect, thanks" once the fee was explained.',
+  'Start / stop service': 'Member was glad the transfer was scheduled in one call.',
+  Other: 'Member thanked Savannah for the quick answer.',
+};
+const WHY_NEUTRAL = 'Matter-of-fact call; no strong feelings either way.';
+
 let sampleCache: { day: string; views: CallView[] } | null = null;
 
 /** The instant when the wall clock in `tz` reads y-mo-d h:mi:s (mo 0-based). */
@@ -222,6 +261,7 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
       if (m.topic === 'Outage report' && r() < 0.3) topics.push('Outage status');
       const leg = AGENT_LEG[m.topic];
       const id = `sample-${String(views.length + 1).padStart(3, '0')}`;
+      const agentName = contained ? '' : pick(['Tonya B.', 'Mike R.', 'Ashley C.', 'Derrick H.', 'Kim S.', 'Billing team: Rhonda P.', 'Engineering: Scott L.']);
       views.push({
         id,
         sample: true,
@@ -237,6 +277,9 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
         topics,
         contained,
         sentiment,
+        sentimentWhy: sentiment === 'negative' ? WHY_NEGATIVE[m.topic] : sentiment === 'positive' ? WHY_POSITIVE[m.topic] : WHY_NEUTRAL,
+        agentName,
+        alert: sentiment === 'negative' && !contained && r() < 0.6,
         durationSec: ai + agentSec,
         aiSummary: contained ? AI_TEXT[m.topic] : `${AI_TEXT[m.topic].split('.')[0]}. ${leg.reason} Sent to a live agent.`,
         restorationSignup: m.topic.startsWith('Outage') && contained && r() < 0.75,
@@ -258,7 +301,7 @@ export function sampleStormDay(now = new Date(), tz = SAMPLE_TZ): CallView[] {
                 summary: leg.reason,
               },
               agentLeg: {
-                agentName: pick(['Tonya B.', 'Mike R.', 'Ashley C.', 'Derrick H.', 'Kim S.', 'Billing team: Rhonda P.', 'Engineering: Scott L.']),
+                agentName,
                 team: m.topic.startsWith('Outage') || m.topic === 'Wire down / safety' ? pick(['Member Services', 'Member Services', 'Engineering', 'Billing & Collections']) : 'Member Services',
                 endedAt: end.toISOString(),
                 wrapUpCode: leg.code,
@@ -297,7 +340,7 @@ export interface Overview {
   byHour: { hour: number; contained: number; toAgent: number }[];
   sentiment: { positive: number; neutral: number; negative: number };
   wrapUps: { code: string; count: number }[];
-  calls: Omit<CallView, 'journey' | 'transcript'>[];
+  calls: Omit<CallView, 'journey' | 'transcript' | 'qa'>[];
 }
 
 /** Date range in the co-op's time zone; from/to are inclusive YYYY-MM-DD (either may be empty). */
@@ -379,7 +422,7 @@ export function overview(rows: CallRow[], includeSample: boolean, range?: Range)
       negative: views.filter((v) => v.sentiment === 'negative').length,
     },
     wrapUps: [...codes].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count),
-    calls: all.map(({ journey: _j, transcript: _t, ...rest }) => rest),
+    calls: all.map(({ journey: _j, transcript: _t, qa: _q, ...rest }) => rest),
   };
 }
 
@@ -396,11 +439,11 @@ export function callsCsv(rows: CallRow[], includeSample: boolean, range: Range):
     return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   const time = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: range.tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
-  const head = ['Date', 'Time', 'Member', 'Channel', 'Path', 'Why they called', 'Wrap-up code', 'Sentiment', 'Length (min:sec)', 'Restoration text', 'Payment', 'Savannah summary', 'Handed to', 'Agent summary', 'Sample'];
+  const head = ['Date', 'Time', 'Member', 'Channel', 'Path', 'Why they called', 'Wrap-up code', 'Sentiment', 'Why (sentiment)', 'Flagged live', 'Agent', 'Length (min:sec)', 'Restoration text', 'Payment', 'Savannah summary', 'Handed to', 'Agent summary', 'Sample'];
   const lines = viewsFor(rows, includeSample, range).filter((v) => !range.channel || v.channel === range.channel).map((v) => [
     localDay(v.startedAt, range.tz), time(v.startedAt), v.member, v.channel === 'chat' ? 'Web chat' : v.channel === 'sms' ? 'Text' : v.outbound ? 'Outbound call' : 'Phone',
     !v.ai ? 'Agent only' : v.contained ? 'Savannah only' : 'Savannah to agent', v.topics.join('; '), v.agentLeg?.wrapUpCode ?? '',
-    v.sentiment, Math.floor(v.durationSec / 60) + ':' + String(v.durationSec % 60).padStart(2, '0'),
+    v.sentiment, v.sentimentWhy, v.alert ? 'yes' : '', v.agentName, Math.floor(v.durationSec / 60) + ':' + String(v.durationSec % 60).padStart(2, '0'),
     v.restorationSignup ? 'yes' : '', v.payment ? 'yes' : '', v.aiSummary, v.escalation ? v.escalation.department.replace('_', ' ') : '',
     v.agentLeg ? [v.agentLeg.summary.reason, v.agentLeg.summary.actions].filter(Boolean).join(' ') : '', v.sample ? 'yes' : '',
   ].map(q).join(','));

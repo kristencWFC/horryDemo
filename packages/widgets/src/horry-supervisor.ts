@@ -47,6 +47,36 @@ interface SettingsDto {
   demoAni: string;
   demoMemberSep: string;
   demoSmsTo?: string;
+  supervisorPhone?: string;
+}
+
+/** One live call on the quality view (GET api/qa/live). */
+interface QaSessionDto {
+  guid: string;
+  member: string;
+  agentName: string;
+  startedAt: string;
+  state: 'live' | 'ended';
+  phase: 'agent' | 'savannah';
+  score: number;
+  label: 'positive' | 'neutral' | 'negative';
+  why: string;
+  alert: { at: string; why: string; acknowledgedBy?: string } | null;
+  monitor: { by: string; mode: 'listen' | 'whisper' | 'join'; startedAt: string } | null;
+  monitorNote: string;
+  transcription: 'live' | 'off';
+  controller: boolean;
+  turns: number;
+  lastMember: string;
+}
+
+interface QaLiveDto {
+  transcription: 'live' | 'off';
+  scorer: 'claude' | 'rules';
+  monitor: 'controller' | 'off';
+  supervisorPhone: string;
+  sessions: QaSessionDto[];
+  savannah: { guid: string; member: string; startedAt: string; lastStep: string }[];
 }
 
 interface MemberOption {
@@ -80,7 +110,20 @@ export class HorrySupervisor extends LitElement {
     callerSaved: { state: true },
     textingLive: { state: true },
     resetDone: { state: true },
+    qa: { state: true },
+    qaBusy: { state: true },
+    qaError: { state: true },
+    phoneDraft: { state: true },
+    phoneSaved: { state: true },
   };
+
+  /** Live calls with sentiment (polled every 3 s, faster than the rest of the page). */
+  qa: QaLiveDto | null = null;
+  qaBusy = '';
+  qaError = '';
+  phoneDraft: string | null = null;
+  phoneSaved = false;
+  private qaTimer: number | undefined;
 
   server = DEFAULT_SERVER;
   supervisor = '';
@@ -167,6 +210,22 @@ export class HorrySupervisor extends LitElement {
       li.extra label span:nth-child(2) { font-weight: 600; color: var(--h-ok); }
       li.changed.extra label { background: var(--h-accent-soft); }
       .counts { font-size: 12px; }
+      /* Live calls: one row per call, tinted by how the member feels right now. */
+      .live { border: 1px solid var(--h-border); border-left: 4px solid var(--h-border); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; }
+      .live.negative { border-left-color: var(--h-danger); background: var(--h-danger-soft); }
+      .live.positive { border-left-color: var(--h-ok); }
+      .live.savannah { border-left-color: var(--h-navy); }
+      .live .who { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .live .who b { font-size: 14px; }
+      .live .quote { font-style: italic; color: var(--h-dim); }
+      .meter { position: relative; height: 8px; border-radius: 4px; margin: 8px 8px 6px;
+        background: linear-gradient(90deg, var(--h-danger) 0%, var(--h-border) 50%, var(--h-ok) 100%); }
+      .meter i { position: absolute; top: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--h-bg);
+        border: 3px solid var(--h-text); transform: translateX(-50%); transition: left .4s; box-sizing: border-box; }
+      .meter .lbl { position: absolute; top: 12px; font-size: 10px; color: var(--h-dim); text-transform: uppercase; letter-spacing: .05em; }
+      .meter .lbl.r { right: 0; }
+      button[aria-pressed='true'] { border-color: var(--h-navy); background: var(--h-navy); color: var(--h-bg); font-weight: 600; }
+      :host([darkmode='true']) button[aria-pressed='true'] { color: #10203a; }
     `,
   ];
 
@@ -174,11 +233,14 @@ export class HorrySupervisor extends LitElement {
     super.connectedCallback();
     void this.refresh();
     this.timer = window.setInterval(() => void this.refresh(), 8000);
+    void this.pollQa();
+    this.qaTimer = window.setInterval(() => void this.pollQa(), 3000);
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     window.clearInterval(this.timer);
+    window.clearInterval(this.qaTimer);
   }
 
   private get by(): string {
@@ -312,6 +374,57 @@ export class HorrySupervisor extends LitElement {
     return this.staffing?.teams.find((t) => t.id === id)?.name ?? id;
   }
 
+  // ---- live calls (quality) ----------------------------------------------------------
+
+  private async pollQa(): Promise<void> {
+    try {
+      this.qa = await api<QaLiveDto>(this.server, 'api/qa/live');
+    } catch {
+      /* the 8 s poll reports the outage */
+    }
+  }
+
+  private async qaRun(label: string, fn: () => Promise<void>): Promise<void> {
+    this.qaBusy = label;
+    this.qaError = '';
+    try {
+      await fn();
+      await this.pollQa();
+    } catch (err) {
+      this.qaError = (err as Error).message;
+    } finally {
+      this.qaBusy = '';
+    }
+  }
+
+  private get phone(): string {
+    return this.phoneDraft ?? this.settings?.supervisorPhone ?? this.qa?.supervisorPhone ?? '';
+  }
+
+  private savePhone(): Promise<void> {
+    const phone = this.phone.replace(/\D/g, '').slice(-10);
+    return this.qaRun('phone', async () => {
+      this.settings = await api<SettingsDto>(this.server, 'api/settings', { method: 'PATCH', body: { supervisorPhone: phone } });
+      this.phoneDraft = null;
+      this.phoneSaved = true;
+    });
+  }
+
+  private monitor(guid: string, mode: 'listen' | 'whisper' | 'join'): Promise<void> {
+    return this.qaRun(`${guid}:${mode}`, async () => {
+      if (this.phoneDraft !== null) await this.savePhone();
+      await api(this.server, `api/qa/sessions/${encodeURIComponent(guid)}/monitor`, { method: 'POST', body: { mode, phone: this.phone, by: this.by } });
+    });
+  }
+
+  private stopMonitor(guid: string): Promise<void> {
+    return this.qaRun(`${guid}:stop`, () => api(this.server, `api/qa/sessions/${encodeURIComponent(guid)}/monitor/stop`, { method: 'POST', body: {} }).then(() => undefined));
+  }
+
+  private ack(guid: string): Promise<void> {
+    return this.qaRun(`${guid}:ack`, () => api(this.server, `api/qa/sessions/${encodeURIComponent(guid)}/ack`, { method: 'POST', body: { by: this.by } }).then(() => undefined));
+  }
+
   // ---- render ------------------------------------------------------------------------
 
   render() {
@@ -322,6 +435,7 @@ export class HorrySupervisor extends LitElement {
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
       ${this.renderSummary(storm)}
+      ${this.renderLive()}
       ${this.renderAi(storm)}
       ${!on && extras.length && !this.pending
         ? html`<div class="note">
@@ -336,6 +450,95 @@ export class HorrySupervisor extends LitElement {
       <div class="group">Demo</div>
       ${this.renderCaller()}
     </div>`;
+  }
+
+  /** Every live call, with the member's mood as it moves; listen / whisper / join from here. */
+  private renderLive() {
+    const q = this.qa;
+    if (!q) return nothing;
+    const flagged = q.sessions.filter((s) => s.alert && !s.alert.acknowledgedBy).length;
+    const total = q.sessions.length + q.savannah.length;
+    const mmss = (iso: string) => {
+      const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const LABEL = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' } as const;
+    const PILL = { positive: 'ok', neutral: '', negative: 'bad' } as const;
+    const canMonitor = q.monitor === 'controller';
+    return html`<section class="card" aria-label="Live calls">
+      <div class="row between">
+        <div class="titlerow">
+          <h2>Live calls</h2>
+          <span class="pill ${total ? 'ok' : ''}">${total} live</span>
+          ${flagged ? html`<span class="pill bad">${flagged} need${flagged === 1 ? 's' : ''} attention</span>` : nothing}
+        </div>
+        <div class="row">
+          <span class="pill ${q.transcription === 'live' ? 'ok' : ''}">${q.transcription === 'live' ? 'transcribing live' : 'transcription off'}</span>
+          <span class="pill">${q.scorer === 'claude' ? 'AI rated' : 'word rules'}</span>
+        </div>
+      </div>
+      ${this.qaError ? html`<div class="err">${this.qaError}</div>` : nothing}
+      ${canMonitor
+        ? html`<div class="row">
+            <label for="sup-phone" class="dim" style="white-space:nowrap">Listen or join from</label>
+            <input
+              id="sup-phone"
+              type="text"
+              inputmode="tel"
+              style="max-width:180px"
+              placeholder="your 10-digit phone"
+              .value=${this.phone}
+              @input=${(e: Event) => { this.phoneDraft = (e.target as HTMLInputElement).value; this.phoneSaved = false; }}
+            />
+            <button ?disabled=${this.phoneDraft === null || !!this.qaBusy} @click=${() => void this.savePhone()}>${this.qaBusy === 'phone' ? 'Saving…' : 'Save'}</button>
+            ${this.phoneSaved ? html`<span class="dim">Saved.</span>` : nothing}
+          </div>`
+        : nothing}
+      ${!total ? html`<div class="dim">No calls in progress.</div>` : nothing}
+      ${q.sessions.map((s) => {
+        const busy = this.qaBusy.startsWith(`${s.guid}:`);
+        const mode = s.monitor?.mode ?? '';
+        const paying = s.phase === 'savannah';
+        return html`<div class="live ${s.label} ${paying ? 'savannah' : ''}">
+          <div class="who">
+            <b>${s.member}</b>
+            <span class="dim">${s.agentName ? `with ${s.agentName}` : 'with an agent'} · ${mmss(s.startedAt)}</span>
+            ${paying ? html`<span class="pill">Savannah · payment</span>` : html`<span class="pill ${PILL[s.label]}">${LABEL[s.label]}</span>`}
+            ${s.alert && !s.alert.acknowledgedBy ? html`<span class="pill bad">needs attention</span>` : nothing}
+            ${s.monitor ? html`<span class="pill ok">${s.monitor.by} · ${s.monitor.mode}</span>` : nothing}
+          </div>
+          <div class="meter" role="img" aria-label=${`Sentiment ${s.score}`}>
+            <i style=${`left:${Math.round(((s.score + 1) / 2) * 100)}%`}></i>
+            <span class="lbl">Upset</span><span class="lbl r">Happy</span>
+          </div>
+          ${s.why ? html`<div>${s.why}</div>` : nothing}
+          ${s.lastMember ? html`<div class="quote">“${s.lastMember}”</div>` : s.transcription === 'off' ? html`<div class="dim">No transcript on this call.</div> ` : nothing}
+          ${s.alert && !s.alert.acknowledgedBy
+            ? html`<div class="note">
+                Turned negative at ${fmtClock(s.alert.at)}. ${s.alert.why}
+                <div class="row" style="margin-top:6px">
+                  <button ?disabled=${busy} @click=${() => void this.ack(s.guid)}>Acknowledge</button>
+                </div>
+              </div>`
+            : nothing}
+          ${canMonitor && s.controller
+            ? html`<div class="row">
+                <button aria-pressed=${mode === 'listen' ? 'true' : 'false'} ?disabled=${busy || paying} @click=${() => void this.monitor(s.guid, 'listen')}>${busy && this.qaBusy.endsWith(':listen') ? 'Calling you…' : 'Listen'}</button>
+                <button aria-pressed=${mode === 'whisper' ? 'true' : 'false'} ?disabled=${busy || paying} @click=${() => void this.monitor(s.guid, 'whisper')}>Whisper to agent</button>
+                <button aria-pressed=${mode === 'join' ? 'true' : 'false'} ?disabled=${busy || paying} @click=${() => void this.monitor(s.guid, 'join')}>Join</button>
+                ${s.monitor ? html`<button ?disabled=${busy} @click=${() => void this.stopMonitor(s.guid)}>Stop</button>` : nothing}
+                ${s.monitorNote && !s.monitor ? html`<span class="dim">${s.monitorNote}</span>` : nothing}
+              </div>`
+            : nothing}
+        </div>`;
+      })}
+      ${q.savannah.map(
+        (c) => html`<div class="live savannah">
+          <div class="who"><b>${c.member}</b><span class="dim">with Savannah · ${mmss(c.startedAt)}</span><span class="pill">AI agent</span></div>
+          ${c.lastStep ? html`<div class="dim">${c.lastStep}</div>` : nothing}
+        </div>`,
+      )}
+    </section>`;
   }
 
   private renderCaller() {
