@@ -335,8 +335,9 @@ sentiment and drill into the negative ones.
   `claude-opus-5-5` at low effort; `claude-haiku-5-5` for the cheapest/fastest) or, with no
   key, word rules (`rulesReading`). Below `QA_ALERT_SCORE` (−0.3) the call is flagged once:
   the line turns red with "needs attention" + Acknowledge, and `QA_ALERT_SMS_TO` gets one text.
-  AI Operations shows a one-line strip (calls in progress, how many need attention, the first
-  flagged member and reason); the list itself is on Customer Review.
+  The same list, with the same buttons, is the "Live calls" card on AI Operations (the
+  supervisor's widget renders it from the same `api/qa/live`), so a supervisor sees every call
+  wherever they happen to be.
 - Listen / whisper / join: the controller originates a call to the supervisor's phone
   (`QA_MONITOR_DIAL`, default `sofia/gateway/cube/+1{number}`; a SIP phone registered to the
   controller works as `user/1000`) with `&eavesdrop(<member leg>)`. Listen = hear both;

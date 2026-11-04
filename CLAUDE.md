@@ -56,7 +56,8 @@ Read `docs/HLD.md` and `TODO.md` (STATE + Decisions) first.
   streamed (`uuid_audio_stream`, stereo) to `api/qa/stream` — Savannah's calls are found from
   the controller's CHANNEL_BRIDGE events (`QA_SAVANNAH_SOLUTION` = horryelectric), agent-line
   calls from agent-first.ts; Deepgram + Claude (`DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`,
-  `QA_MODEL`) rate the member live. Customer Review "Live now" lists every call in progress:
+  `QA_MODEL`) rate the member live. Customer Review "Live now" and the AI Operations "Live
+  calls" card list every call in progress, one line each, from the same `api/qa/live`:
   listen / whisper / join = `originate … &eavesdrop(<member leg>)` to `QA_MONITOR_DIAL`; take
   over = re-bridge the member leg to the supervisor (agent line) or escalate to department
   `supervisor` through the flow (Savannah's side — the flow needs a `supervisor` Case). The

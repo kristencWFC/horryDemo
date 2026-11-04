@@ -50,12 +50,38 @@ interface SettingsDto {
   supervisorPhone?: string;
 }
 
-/** Calls in progress with the member's mood (GET api/qa/live); the full list with listen / join /
- *  take over lives on Customer Review, this page shows the headline only. */
+type QaAction = 'listen' | 'whisper' | 'join' | 'takeover';
+
+/** One call in progress (GET api/qa/live): Savannah's or an agent's, with the member's mood. */
+interface QaCallDto {
+  guid: string;
+  ani: string;
+  member: string;
+  with: string;
+  phase: 'agent' | 'savannah' | 'supervisor';
+  paused: boolean;
+  startedAt: string;
+  score: number;
+  label: 'positive' | 'neutral' | 'negative';
+  why: string;
+  alert: { at: string; why: string; acknowledgedBy?: string } | null;
+  monitor: { by: string; mode: QaAction; startedAt: string } | null;
+  monitorNote: string;
+  transcription: 'live' | 'off';
+  controller: boolean;
+  actions: Record<QaAction, boolean>;
+  lastMember: string;
+  lastStep?: string;
+}
+
 interface QaLiveDto {
   live: number;
   flagged: number;
-  calls: { guid: string; member: string; with: string; label: 'positive' | 'neutral' | 'negative'; why: string; alert: { at: string; why: string; acknowledgedBy?: string } | null }[];
+  transcription: 'live' | 'off';
+  scorer: 'claude' | 'rules';
+  monitor: 'controller' | 'off';
+  supervisorPhone: string;
+  calls: QaCallDto[];
 }
 
 interface MemberOption {
@@ -90,10 +116,18 @@ export class HorrySupervisor extends LitElement {
     textingLive: { state: true },
     resetDone: { state: true },
     qa: { state: true },
+    qaBusy: { state: true },
+    qaError: { state: true },
+    phoneDraft: { state: true },
+    phoneSaved: { state: true },
   };
 
   /** Calls in progress with sentiment (polled every 3 s, faster than the rest of the page). */
   qa: QaLiveDto | null = null;
+  qaBusy = '';
+  qaError = '';
+  phoneDraft: string | null = null;
+  phoneSaved = false;
   private qaTimer: number | undefined;
 
   server = DEFAULT_SERVER;
@@ -181,10 +215,24 @@ export class HorrySupervisor extends LitElement {
       li.extra label span:nth-child(2) { font-weight: 600; color: var(--h-ok); }
       li.changed.extra label { background: var(--h-accent-soft); }
       .counts { font-size: 12px; }
-      /* Calls in progress: a one-line headline; the list itself is on Customer Review. */
-      .strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--h-border); border-radius: 8px; font-size: 13px; }
-      .strip.flagged { border-color: var(--h-danger); background: var(--h-danger-soft); }
-      .strip .quote { font-style: italic; color: var(--h-dim); }
+      /* Live calls: one line per call in progress, Savannah's and the agents'. */
+      .livewrap { overflow-x: auto; }
+      table.live { border-collapse: collapse; width: 100%; font-size: 13px; }
+      table.live th, table.live td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--h-border); }
+      table.live th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--h-dim); font-weight: 600; }
+      table.live td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      table.live tr.flag td { background: var(--h-danger-soft); }
+      table.live .who b { display: block; font-size: 14px; }
+      table.live .quote { font-style: italic; color: var(--h-dim); }
+      table.live .acts { display: flex; flex-wrap: wrap; gap: 4px; }
+      table.live .acts button { padding: 3px 8px; font-size: 12px; }
+      .sdot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 5px; background: var(--h-border); }
+      .sdot.positive { background: var(--h-ok); } .sdot.negative { background: var(--h-danger); }
+      .meter { position: relative; height: 6px; border-radius: 3px; width: 110px; margin-top: 6px;
+        background: linear-gradient(90deg, var(--h-danger) 0%, var(--h-border) 50%, var(--h-ok) 100%); }
+      .meter i { position: absolute; top: -4px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--h-text); transition: left .4s; }
+      button[aria-pressed='true'] { border-color: var(--h-navy); background: var(--h-navy); color: var(--h-bg); font-weight: 600; }
+      :host([darkmode='true']) button[aria-pressed='true'] { color: #10203a; }
     `,
   ];
 
@@ -343,6 +391,47 @@ export class HorrySupervisor extends LitElement {
     }
   }
 
+  private async qaRun(label: string, fn: () => Promise<void>): Promise<void> {
+    this.qaBusy = label;
+    this.qaError = '';
+    try {
+      await fn();
+      await this.pollQa();
+    } catch (err) {
+      this.qaError = (err as Error).message;
+    } finally {
+      this.qaBusy = '';
+    }
+  }
+
+  private get phone(): string {
+    return this.phoneDraft ?? this.settings?.supervisorPhone ?? this.qa?.supervisorPhone ?? '';
+  }
+
+  private savePhone(): Promise<void> {
+    const phone = this.phone.replace(/\D/g, '').slice(-10);
+    return this.qaRun('phone', async () => {
+      this.settings = await api<SettingsDto>(this.server, 'api/settings', { method: 'PATCH', body: { supervisorPhone: phone } });
+      this.phoneDraft = null;
+      this.phoneSaved = true;
+    });
+  }
+
+  private monitor(guid: string, mode: QaAction): Promise<void> {
+    return this.qaRun(`${guid}:${mode}`, async () => {
+      if (this.phoneDraft !== null) await this.savePhone();
+      await api(this.server, `api/qa/sessions/${encodeURIComponent(guid)}/monitor`, { method: 'POST', body: { mode, phone: this.phone, by: this.by } });
+    });
+  }
+
+  private stopMonitor(guid: string): Promise<void> {
+    return this.qaRun(`${guid}:stop`, () => api(this.server, `api/qa/sessions/${encodeURIComponent(guid)}/monitor/stop`, { method: 'POST', body: {} }).then(() => undefined));
+  }
+
+  private ack(guid: string): Promise<void> {
+    return this.qaRun(`${guid}:ack`, () => api(this.server, `api/qa/sessions/${encodeURIComponent(guid)}/ack`, { method: 'POST', body: { by: this.by } }).then(() => undefined));
+  }
+
   // ---- render ------------------------------------------------------------------------
 
   render() {
@@ -353,7 +442,7 @@ export class HorrySupervisor extends LitElement {
     return html`<div class="wrap">
       ${this.error ? html`<div class="err">${this.error}</div>` : nothing}
       ${this.renderSummary(storm)}
-      ${this.renderLiveStrip()}
+      ${this.renderLive()}
       ${this.renderAi(storm)}
       ${!on && extras.length && !this.pending
         ? html`<div class="note">
@@ -370,17 +459,92 @@ export class HorrySupervisor extends LitElement {
     </div>`;
   }
 
-  /** Calls in progress right now; the list itself (listen / join / take over) is on Customer Review. */
-  private renderLiveStrip() {
+  /** Every call in progress, one line each (Savannah's and the agents'), with the member's mood and
+   *  the supervisor's buttons. Same list as Customer Review's "Live now". */
+  private renderLive() {
     const q = this.qa;
-    if (!q || !q.live) return nothing;
-    const flagged = q.calls.filter((c) => c.alert && !c.alert.acknowledgedBy);
-    const first = flagged[0];
-    return html`<div class="strip ${flagged.length ? 'flagged' : ''}" role="status">
-      <span class="pill ok">${q.live} call${q.live === 1 ? '' : 's'} in progress</span>
-      ${flagged.length ? html`<span class="pill bad">${flagged.length} need${flagged.length === 1 ? 's' : ''} attention</span>` : nothing}
-      ${first ? html`<span><b>${first.member}</b> with ${first.with}</span><span class="quote">${first.why}</span>` : nothing}
-    </div>`;
+    if (!q) return nothing;
+    const mmss = (iso: string) => {
+      const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const LABEL = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' } as const;
+    const MODE = { listen: 'is listening', whisper: 'is whispering to the agent', join: 'joined the call', takeover: 'has the call' } as const;
+    const canMonitor = q.monitor === 'controller';
+    return html`<section class="card" aria-label="Live calls">
+      <div class="row between">
+        <div class="titlerow">
+          <h2>Live calls</h2>
+          <span class="pill ${q.live ? 'ok' : ''}">${q.live} live</span>
+          ${q.flagged ? html`<span class="pill bad">${q.flagged} need${q.flagged === 1 ? 's' : ''} attention</span>` : nothing}
+        </div>
+        <div class="row">
+          <span class="pill ${q.transcription === 'live' ? 'ok' : ''}">${q.transcription === 'live' ? 'transcribing live' : 'transcription off'}</span>
+          <span class="pill">${q.scorer === 'claude' ? 'AI rated' : 'word rules'}</span>
+        </div>
+      </div>
+      ${this.qaError ? html`<div class="err">${this.qaError}</div>` : nothing}
+      ${canMonitor
+        ? html`<div class="row">
+            <label for="sup-phone" class="dim" style="white-space:nowrap">Listen or join from</label>
+            <input
+              id="sup-phone"
+              type="text"
+              inputmode="tel"
+              style="max-width:180px"
+              placeholder="your 10-digit phone"
+              .value=${this.phone}
+              @input=${(e: Event) => { this.phoneDraft = (e.target as HTMLInputElement).value; this.phoneSaved = false; }}
+            />
+            <button ?disabled=${this.phoneDraft === null || !!this.qaBusy} @click=${() => void this.savePhone()}>${this.qaBusy === 'phone' ? 'Saving…' : 'Save'}</button>
+            ${this.phoneSaved ? html`<span class="dim">Saved.</span>` : nothing}
+          </div>`
+        : nothing}
+      ${!q.calls.length
+        ? html`<div class="dim">No calls in progress.</div>`
+        : html`<div class="livewrap"><table class="live">
+            <thead><tr><th>Member</th><th>With</th><th class="num">Length</th><th>How they feel</th><th>What they said</th><th>Supervisor</th></tr></thead>
+            <tbody>
+              ${q.calls.map((c) => {
+                const busy = this.qaBusy.startsWith(`${c.guid}:`);
+                const mode = c.monitor?.mode ?? '';
+                const flag = Boolean(c.alert && !c.alert.acknowledgedBy);
+                const btn = (act: QaAction, label: string) =>
+                  c.actions[act]
+                    ? html`<button aria-pressed=${mode === act ? 'true' : 'false'} ?disabled=${busy} @click=${() => void this.monitor(c.guid, act)}>${busy && this.qaBusy.endsWith(`:${act}`) ? 'Calling you…' : label}</button>`
+                    : nothing;
+                const status = c.monitor ? `${c.monitor.by} ${MODE[c.monitor.mode]}` : c.monitorNote;
+                return html`<tr class=${flag ? 'flag' : ''}>
+                  <td class="who"><b>${c.member}</b><span class="dim">${c.ani}</span></td>
+                  <td>${c.with}${c.paused ? html`<div class="dim">Savannah · payment</div>` : nothing}</td>
+                  <td class="num">${mmss(c.startedAt)}</td>
+                  <td>
+                    <span class="sdot ${c.label}"></span>${LABEL[c.label]}${flag ? html` <span class="pill bad">needs attention</span>` : nothing}
+                    <div class="meter" role="img" aria-label=${`Sentiment ${c.score}`}><i style=${`left:${Math.round(((c.score + 1) / 2) * 100)}%`}></i></div>
+                    ${c.why ? html`<div class="dim">${c.why}</div>` : nothing}
+                  </td>
+                  <td>
+                    ${c.lastMember
+                      ? html`<span class="quote">“${c.lastMember}”</span>`
+                      : c.paused
+                        ? html`<span class="dim">Savannah is taking the payment; nothing is kept.</span>`
+                        : c.transcription === 'off'
+                          ? html`<span class="dim">${c.controller ? 'No transcript on this call.' : c.lastStep || 'Not on the WFC AI Controller.'}</span>`
+                          : html`<span class="dim">Listening…</span>`}
+                  </td>
+                  <td>
+                    <div class="acts">
+                      ${flag ? html`<button ?disabled=${busy} @click=${() => void this.ack(c.guid)}>Acknowledge</button>` : nothing}
+                      ${btn('listen', 'Listen')}${btn('whisper', 'Whisper to agent')}${btn('join', 'Join')}${btn('takeover', c.phase === 'savannah' ? 'Take the call' : 'Take over')}
+                      ${c.monitor ? html`<button ?disabled=${busy} @click=${() => void this.stopMonitor(c.guid)}>${mode === 'takeover' ? 'Hang up' : 'Stop'}</button>` : nothing}
+                    </div>
+                    ${status ? html`<div class="dim">${status}</div>` : nothing}
+                  </td>
+                </tr>`;
+              })}
+            </tbody>
+          </table></div>`}
+    </section>`;
   }
 
   private renderCaller() {
