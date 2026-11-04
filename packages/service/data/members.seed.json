@@ -3,7 +3,7 @@
   "members": [
     {
       "MemberSep": "00212040001", "Name": "HARDEE CASEY", "FirstName": "Casey",
-      "ServAddr": "4810 DICK POND RD", "City": "MYRTLE BEACH", "Zip": "29588",
+      "ServAddr": "4810 FORESTBROOK RD", "City": "MYRTLE BEACH", "Zip": "29588",
       "CellPhone": "2142823566", "Telephone": "8435550101", "EmailAddr": "linda.hardee@example.com",
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124639041", "Location": "76638017000",
       "SubStation": 7, "Circuit": 2, "PrioritySvc": 0,

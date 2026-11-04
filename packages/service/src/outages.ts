@@ -14,7 +14,7 @@ export type OutageStatus = 'active' | 'restored';
 
 export interface Outage {
   id: string; // OMS-style id, e.g. OMS-261103-01
-  area: string; // spoken area name ("Socastee, along Dick Pond Road")
+  area: string; // spoken area name ("Socastee, along Forestbrook Road")
   substation: number;
   circuit: number | null; // null = whole substation
   location: string | null; // set = single-location (individual / nested) outage
@@ -59,7 +59,7 @@ function seedState(): State {
     outages: [
       {
         id: 'OMS-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-01',
-        area: 'Socastee, along Dick Pond Road and Peachtree Road',
+        area: 'Socastee, along Forestbrook Road and Peachtree Road',
         substation: 7,
         circuit: 2,
         location: null,
