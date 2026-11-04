@@ -96,6 +96,9 @@ const EnvSchema = z.object({
   /** Text this number once per call that turns negative ('' = none). */
   QA_ALERT_SMS_TO: z.string().optional(),
   QA_ALERT_SCORE: z.coerce.number().default(-0.3),
+  /** X-Solution-Name the flow sends Savannah's calls to the controller with (docs/wxcc-flow-notes.md
+   *  step 5): the service watches the controller's bridge events for it to rate her calls live. */
+  QA_SAVANNAH_SOLUTION: z.string().default('horryelectric'),
 
   // Cisco AI Assistant wrap-up summaries for the live-agent leg. URL template with
   // {interactionId} (and optionally {orgId}). Unset = simulated summaries. [CONFIRM] path.

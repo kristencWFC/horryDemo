@@ -99,6 +99,22 @@
   .sdot.positive { background: var(--s-ai); } .sdot.neutral { background: var(--s-neutral); } .sdot.negative { background: var(--s-agent); }
   .why { font-size: 12px; color: var(--dim); margin-top: 2px; }
   .chip.alert { border-color: var(--bad); color: var(--bad); font-weight: 600; }
+  /* Live now: one line per call in progress, Savannah's and the agents' */
+  .livenow { border-left: 4px solid var(--s-ai); }
+  .livenow.flagged { border-left-color: var(--bad); }
+  .livenow .phone { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--dim); }
+  .livenow .phone input { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: inherit; color: var(--fg); width: 150px; }
+  .livenow .err { color: var(--bad); font-size: 13px; }
+  .livenow tr.flag td { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+  .livenow td.who b { display: block; }
+  .livenow .meter { position: relative; height: 6px; border-radius: 3px; width: 110px; margin-top: 6px; background: linear-gradient(90deg, var(--s-agent), var(--s-neutral) 50%, var(--s-ai)); }
+  .livenow .meter i { position: absolute; top: -4px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--fg); }
+  .livenow .acts { display: flex; flex-wrap: wrap; gap: 4px; }
+  .livenow .acts button { padding: 3px 8px; font-size: 12px; }
+  .livenow .acts button[aria-pressed="true"] { background: var(--soft); }
+  .livenow .quote { font-style: italic; }
+  .livenow tr.more td { background: var(--soft); }
+  .livenow .convo { max-height: 220px; }
   .tile.click { cursor: pointer; } .tile.click:hover, .tile.click.sel { border-color: var(--accent); }
   .tile.bad .v { color: var(--bad); }
   .attn { display: grid; gap: 4px; }
@@ -193,6 +209,28 @@
 </div>
 
 <main>
+  <section class="panel livenow" id="livenow" aria-label="Live now">
+    <div class="filters">
+      <h2 style="margin-right:4px">Live now</h2>
+      <span class="chip" id="liveCount">0 live</span>
+      <span class="chip alert" id="liveFlag" hidden></span>
+      <span class="chip" id="liveMode"></span>
+      <span class="spacer" style="flex:1"></span>
+      <label class="phone" id="phoneBox" hidden>Listen or join from
+        <input type="text" id="supPhone" inputmode="tel" placeholder="your 10-digit phone" autocomplete="off">
+        <button type="button" id="savePhone">Save</button>
+        <span class="hint" id="phoneNote" style="margin:0"></span>
+      </label>
+    </div>
+    <div class="err" id="liveErr" hidden></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Member</th><th>With</th><th class="num">Length</th><th>How they feel</th><th>What they said</th><th>Supervisor</th></tr></thead>
+        <tbody id="live"><tr><td colspan="6" class="empty">No calls in progress.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="tiles" id="tiles" aria-label="Summary"></section>
 
   <section class="grid4">
@@ -275,6 +313,9 @@
   let data = null, topic = '', path = 'all', sent = '', limit = 60;
   const SENT_LABEL = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' };
   const sentCell = (c) => `<span class="sdot ${esc(c.sentiment)}"></span>${SENT_LABEL[c.sentiment] || esc(c.sentiment)}${c.alert ? ' <span class="chip alert">flagged live</span>' : ''}`;
+  const speakerName = (who, agentName, supervisor) => who === 'member' ? 'Member' : who === 'savannah' ? 'Savannah' : who === 'supervisor' ? esc(supervisor || 'Supervisor') : esc(agentName || 'Agent');
+  // Who is acting from this page (the Desktop layout passes the supervisor's name on the URL).
+  const BY = new URLSearchParams(location.search).get('supervisor') || 'Supervisor';
 
   // Date range (co-op time zone, Eastern). Presets fill From/To; editing either switches to Custom.
   const TZ = 'America/New_York';
@@ -422,7 +463,7 @@
         <div class="story"><strong>What happened.</strong> ${story}</div>
         <section class="panel">
           <h2>How the member felt</h2>
-          <div>${sentCell(c)}${c.qa?.alertAt ? ` · supervisor alerted at ${clock(c.qa.alertAt)}` : ''}${c.qa?.acknowledgedBy ? ` · acknowledged by ${esc(c.qa.acknowledgedBy)}` : ''}${c.qa?.monitoredBy ? ` · ${esc(c.qa.monitoredBy)} listened in` : ''}${c.qa ? ` · rated ${c.qa.scorer === 'claude' ? 'by AI' : 'by word rules'} ${c.qa.transcription === 'live' ? 'from the live transcript' : 'from the turns received'}` : c.ai ? ' · rated after the call from Savannah\'s conversation' : ''}</div>
+          <div>${sentCell(c)}${c.qa?.alertAt ? ` · supervisor alerted at ${clock(c.qa.alertAt)}` : ''}${c.qa?.acknowledgedBy ? ` · acknowledged by ${esc(c.qa.acknowledgedBy)}` : ''}${c.qa?.monitoredBy ? ` · ${esc(c.qa.monitoredBy)} listened in` : ''}${c.qa?.takenOverBy ? ` · ${esc(c.qa.takenOverBy)} took the call` : ''}${c.qa ? ` · rated ${c.qa.scorer === 'claude' ? 'by AI' : 'by word rules'} ${c.qa.transcription === 'live' ? 'from the live transcript' : 'from the turns received'}` : c.ai ? ' · rated after the call from Savannah\'s conversation' : ''}</div>
           <p style="margin:0">${esc(c.sentimentWhy) || '<span class="empty">No reason recorded for this call.</span>'}</p>
           ${c.qa?.readings?.length ? `<div class="timeline">${c.qa.readings.map((r) => `<i class="${esc(r.label)}" style="height:${Math.round(8 + ((r.score + 1) / 2) * 92)}%" data-tip="${clock(r.at)} · ${r.score > 0 ? '+' : ''}${r.score} · ${esc(r.why)}"></i>`).join('')}</div><p class="hint" style="margin:0">Sentiment over the call, left to right; hover a bar for the words behind it.</p>` : ''}
         </section>
@@ -449,7 +490,7 @@
                 : `${c.agentName ? `<dl><dt>Agent</dt><dd>${esc(c.agentName)}</dd></dl>` : ''}<p class="empty" style="margin:0">Waiting for the wrap-up summary.</p>`}
           </section>
         </div>
-        ${c.qa?.turns?.length ? `<section class="panel"><h2>Member and ${esc(c.agentName || 'agent')}</h2><p class="hint">Transcribed live from the WFC AI Controller; lines that moved the rating are marked. Nothing from the payment hand-off is kept.</p><div class="convo">${c.qa.turns.map((t) => `<div class="${esc(t.speaker)}${t.speaker === 'member' && c.qa.readings.some((r) => r.why && t.text && r.why.includes(t.text.slice(0, 40))) ? ' flag' : ''}"><b>${t.speaker === 'member' ? 'Member' : t.speaker === 'savannah' ? 'Savannah' : esc(c.agentName || 'Agent')}:</b> ${esc(t.text)}</div>`).join('')}</div></section>` : ''}
+        ${c.qa?.turns?.length ? `<section class="panel"><h2>${c.qa.turns.some((t) => t.speaker === 'agent' || t.speaker === 'supervisor') ? `Member and ${esc(c.agentName || 'agent')}` : 'Member and Savannah, live'}</h2><p class="hint">Transcribed live from the WFC AI Controller; lines that moved the rating are marked. Nothing from the payment hand-off is kept.</p><div class="convo">${c.qa.turns.map((t) => `<div class="${esc(t.speaker)}${t.speaker === 'member' && c.qa.readings.some((r) => r.why && t.text && r.why.includes(t.text.slice(0, 40))) ? ' flag' : ''}"><b>${speakerName(t.speaker, c.agentName, c.qa.takenOverBy)}:</b> ${esc(t.text)}</div>`).join('')}</div></section>` : ''}
         ${c.transcript?.length ? `<section class="panel"><h2>Savannah's conversation</h2><div class="transcript">${c.transcript.map((t) => `<div><b>${t.role === 'agent' ? 'Savannah' : 'Member'}:</b> ${esc(t.text)}</div>`).join('')}</div></section>` : ''}
       </div>`;
     const close = () => scrim.remove();
@@ -500,8 +541,105 @@
     tip.style.left = `${x}px`; tip.style.top = `${e.clientY + 14}px`;
   });
 
+  // ---- Live now: every call in progress, one line each, polled every 3 s ----------------------
+  let live = null, liveBusy = '', phoneDraft = null;
+  const liveOpen = new Set(), liveTx = {};
+  const MODE_TEXT = { listen: 'is listening', whisper: 'is whispering to the agent', join: 'joined the call', takeover: 'has the call' };
+  const since = (iso) => mmss(Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)));
+  async function pollLive() {
+    try {
+      const res = await fetch('api/qa/live');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      live = await res.json();
+      for (const id of liveOpen) if (!live.calls.some((c) => c.guid === id)) { liveOpen.delete(id); delete liveTx[id]; }
+      renderLive();
+    } catch { /* the 15 s load reports an outage */ }
+  }
+  function renderLive() {
+    const q = live;
+    if (!q) return;
+    $('liveCount').textContent = `${q.live} live`;
+    $('liveFlag').hidden = !q.flagged;
+    $('liveFlag').textContent = `${q.flagged} need${q.flagged === 1 ? 's' : ''} attention`;
+    $('liveMode').textContent = `${q.transcription === 'live' ? 'transcribing live' : 'transcription off'} · ${q.scorer === 'claude' ? 'AI rated' : 'word rules'}`;
+    $('livenow').classList.toggle('flagged', q.flagged > 0);
+    $('phoneBox').hidden = q.monitor !== 'controller';
+    if (phoneDraft === null && document.activeElement !== $('supPhone')) $('supPhone').value = q.supervisorPhone || '';
+    $('live').innerHTML = q.calls.map(liveRow).join('') || '<tr><td colspan="6" class="empty">No calls in progress.</td></tr>';
+  }
+  function liveRow(c) {
+    const busy = liveBusy.startsWith(`${c.guid}:`);
+    const mode = c.monitor?.mode || '';
+    const flag = c.alert && !c.alert.acknowledgedBy;
+    const btn = (act, label) => c.actions[act] ? `<button type="button" data-act="${act}" data-guid="${esc(c.guid)}" aria-pressed="${mode === act}"${busy ? ' disabled' : ''}>${busy && liveBusy.endsWith(`:${act}`) ? 'Calling you…' : label}</button>` : '';
+    const said = c.lastMember ? `<span class="quote">“${esc(c.lastMember)}”</span>`
+      : c.paused ? '<span class="empty">Savannah is taking the payment; nothing is kept.</span>'
+      : c.transcription === 'off' ? `<span class="empty">${c.controller ? 'No transcript on this call.' : esc(c.lastStep || 'Not on the WFC AI Controller.')}</span>`
+      : '<span class="empty">Listening…</span>';
+    const status = c.monitor ? `${esc(c.monitor.by)} ${MODE_TEXT[c.monitor.mode] || c.monitor.mode}` : c.monitorNote;
+    return `<tr class="call${flag ? ' flag' : ''}" data-live="${esc(c.guid)}" tabindex="0" aria-expanded="${liveOpen.has(c.guid)}">
+      <td class="who"><b>${esc(c.member)}</b><span class="why">${esc(c.ani)}</span></td>
+      <td>${esc(c.with)}${c.paused ? '<div class="why">Savannah · payment</div>' : ''}</td>
+      <td class="num">${since(c.startedAt)}</td>
+      <td>${sentCell({ sentiment: c.label, alert: flag })}<div class="meter" role="img" aria-label="Sentiment ${c.score}"><i style="left:${Math.round(((c.score + 1) / 2) * 100)}%"></i></div>${c.why ? `<div class="why">${esc(c.why)}</div>` : ''}</td>
+      <td>${said}</td>
+      <td><div class="acts">${flag ? `<button type="button" data-act="ack" data-guid="${esc(c.guid)}"${busy ? ' disabled' : ''}>Acknowledge</button>` : ''}${btn('listen', 'Listen')}${btn('whisper', 'Whisper to agent')}${btn('join', 'Join')}${btn('takeover', c.phase === 'savannah' ? 'Take the call' : 'Take over')}${c.monitor ? `<button type="button" data-act="stop" data-guid="${esc(c.guid)}"${busy ? ' disabled' : ''}>${mode === 'takeover' ? 'Hang up' : 'Stop'}</button>` : ''}</div>${status ? `<div class="why">${esc(status)}</div>` : ''}</td>
+    </tr>${liveOpen.has(c.guid) ? liveTranscript(c) : ''}`;
+  }
+  function liveTranscript(c) {
+    const t = liveTx[c.guid];
+    const body = !t ? '<span class="empty">Loading…</span>' : !t.length ? '<span class="empty">Nothing transcribed yet.</span>'
+      : `<div class="convo">${t.map((x) => `<div class="${esc(x.speaker)}"><b>${speakerName(x.speaker, c.agentName, c.monitor?.by)}:</b> ${esc(x.text)}</div>`).join('')}</div>`;
+    return `<tr class="more"><td colspan="6">${body}</td></tr>`;
+  }
+  async function toggleLive(guid) {
+    if (liveOpen.has(guid)) { liveOpen.delete(guid); renderLive(); return; }
+    liveOpen.add(guid); renderLive();
+    try {
+      const res = await fetch(`api/qa/sessions/${encodeURIComponent(guid)}`);
+      liveTx[guid] = res.ok ? (await res.json()).transcript || [] : [];
+    } catch { liveTx[guid] = []; }
+    renderLive();
+  }
+  async function savePhone() {
+    const supervisorPhone = $('supPhone').value.replace(/\D/g, '').slice(-10);
+    const res = await fetch('api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supervisorPhone }) });
+    if (!res.ok) throw new Error('Could not save the phone number.');
+    phoneDraft = null;
+    $('phoneNote').textContent = 'Saved.';
+  }
+  async function liveAct(act, guid) {
+    liveBusy = `${guid}:${act}`;
+    $('liveErr').hidden = true;
+    renderLive();
+    try {
+      if (phoneDraft !== null) await savePhone();
+      const path = act === 'ack' ? 'ack' : act === 'stop' ? 'monitor/stop' : 'monitor';
+      const body = act === 'ack' ? { by: BY } : act === 'stop' ? {} : { mode: act, phone: $('supPhone').value, by: BY };
+      const res = await fetch(`api/qa/sessions/${encodeURIComponent(guid)}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    } catch (e) {
+      $('liveErr').textContent = e.message;
+      $('liveErr').hidden = false;
+    } finally {
+      liveBusy = '';
+      await pollLive();
+    }
+  }
+  $('supPhone').addEventListener('input', () => { phoneDraft = $('supPhone').value; $('phoneNote').textContent = ''; });
+  $('savePhone').addEventListener('click', () => savePhone().catch((e) => { $('liveErr').textContent = e.message; $('liveErr').hidden = false; }));
+  $('live').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]');
+    if (b) { liveAct(b.dataset.act, b.dataset.guid); return; }
+    const r = e.target.closest('tr[data-live]');
+    if (r) toggleLive(r.dataset.live);
+  });
+  $('live').addEventListener('keydown', (e) => { const r = e.target.closest('tr[data-live]'); if (r && e.key === 'Enter' && e.target === r) toggleLive(r.dataset.live); });
+
   load();
   setInterval(load, 15000);
+  pollLive();
+  setInterval(pollLive, 3000);
 </script>
 </body>
 </html>

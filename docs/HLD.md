@@ -312,31 +312,61 @@ Horry's one request after the demo: see a call going badly while it is happening
 or join it, and afterwards review every call with its summary and sentiment, filter by
 sentiment and drill into the negative ones.
 
-**During the call** (`src/live-qa.ts`, `src/qa-routes.ts`, AI Operations "Live calls" card):
+**During the call** (`src/live-qa.ts`, `src/qa-routes.ts`, Customer Review "Live now"):
 
-- Calls on the agent line (972-903-8486) already ride the WFC AI Controller (§2.5, agent-first).
-  Once the legs are bridged the service asks the controller for a stereo audio stream of the
-  member leg (`uuid_audio_stream <A> start ws://127.0.0.1:8165/api/qa/stream stereo 8000`,
+- **Live now** at the top of Customer Review lists every call in progress, one line each:
+  member, who they are with (Savannah, the agent's name, or the supervisor), length, how they
+  feel (label + meter + reason), their last words, and the supervisor's buttons. Ten calls in
+  progress are ten lines. Click a line for the transcript so far. `GET api/qa/live` returns
+  the controller's sessions plus any in-progress call row the service knows only from its
+  tools (no live transcript); each line carries `actions` = which buttons apply.
+- Every AI-handled call passes through the WFC AI Controller: Savannah's calls are bridged
+  from it to her SIP number (flow step 5, `X-Solution-Name: horryelectric`), agent-line calls
+  (972-903-8486) are bridged back into WxCC from it (§2.5, agent-first). The service finds
+  Savannah's calls from the controller's own CHANNEL_BRIDGE events (`QA_SAVANNAH_SOLUTION`;
+  inbound leg, not an agent-first leg; `X-Call-GUID` = the row) and agent-line calls from
+  agent-first's `bridged`, then asks the controller for a stereo audio stream of the member
+  leg (`uuid_audio_stream <A> start ws://127.0.0.1:8165/api/qa/stream stereo 8000`,
   mod_audio_stream is on kc-dev-2): channel 0 = the member, channel 1 = whoever they are
   talking to. Deepgram (`DEEPGRAM_API_KEY`, multichannel nova-2) returns finals per channel.
+  The controller is not changed: these are runtime commands and events over its event socket.
 - After each thing the member says, a scorer rates their mood from −1 to +1 with a one-line
   reason quoting their words: Claude (`ANTHROPIC_API_KEY`, `QA_MODEL`, default
   `claude-opus-5-5` at low effort; `claude-haiku-5-5` for the cheapest/fastest) or, with no
   key, word rules (`rulesReading`). Below `QA_ALERT_SCORE` (−0.3) the call is flagged once:
-  the card turns red with "needs attention" + Acknowledge, and `QA_ALERT_SMS_TO` gets one text.
+  the line turns red with "needs attention" + Acknowledge, and `QA_ALERT_SMS_TO` gets one text.
+  AI Operations shows a one-line strip (calls in progress, how many need attention, the first
+  flagged member and reason); the list itself is on Customer Review.
 - Listen / whisper / join: the controller originates a call to the supervisor's phone
   (`QA_MONITOR_DIAL`, default `sofia/gateway/cube/+1{number}`; a SIP phone registered to the
   controller works as `user/1000`) with `&eavesdrop(<member leg>)`. Listen = hear both;
-  whisper = the supervisor's voice reaches the agent only (eavesdrop DTMF 2); join = both (3);
-  switching modes sends `uuid_recv_dtmf` to the supervisor's leg. **[CONFIRM] CUBE routes
-  +1 numbers to the PSTN from the controller; if not, use the SIP-phone form.**
+  whisper = the supervisor's voice reaches the agent only (eavesdrop DTMF 2; offered on agent
+  calls only); join = both (3); switching modes sends `uuid_recv_dtmf` to the supervisor's
+  leg. **[CONFIRM] CUBE routes +1 numbers to the PSTN from the controller; if not, use the
+  SIP-phone form.**
+- Take over. *Agent line:* the controller calls the supervisor's phone (`&park()`), then
+  `uuid_bridge <member leg> <supervisor leg>`; agent-first `release()` drops the agent's leg
+  (their task ends, they wrap up) without touching the member leg; the session phase becomes
+  `supervisor`, the stream keeps running (channel 1 is now the supervisor), and the session
+  ends when either side hangs up (the supervisor hanging up ends the member's leg too).
+  *Savannah's side:* the shared controller owns that member leg and would end it once the
+  ElevenLabs result arrives, so the call is not re-bridged; instead the service records an
+  escalation (`department: supervisor`, `reason: supervisor_takeover`), relays it to the
+  controller (same path as the `escalate` tool), and drops Savannah's leg so the hand-back
+  happens at once. The flow then reads `api/intake/:guid` as it does for any escalation.
+  **[CONFIRM, Kristen, Designer] add Case `aiDepartment = supervisor` → Queue To Agent (the
+  supervisor's agent) in step 7; without it the call lands in `Q_Horry_Billing`.**
 - PCI: on "Hand payment to Savannah" the stream is paused, any monitor is dropped
   ("Monitoring stopped for the payment"), nothing said in that phase is kept, and any run of
   eleven or more digits is masked before storage. The stream resumes when the member is back.
-- Savannah's own in-progress calls are listed on the same card (no live rating: her
-  transcript arrives after the call).
-- API-fed sessions (`POST api/qa/sessions`, `/turns`, `/end`) let a chat path or a test drive
-  the same pipeline without the controller.
+  Savannah's own calls are rated in full: she never takes card digits by voice (§2.5), and the
+  same digit mask applies.
+- A call Savannah has already handed to the agent queue is still listed (from its row: who the
+  member is with, the rating she heard, the last step) but has no live transcript or buttons,
+  because that leg no longer passes through the controller. WxCC's own supervisor monitor /
+  barge covers it.
+- API-fed sessions (`POST api/qa/sessions {guid, ani, member?, agentName?, phase?}`, `/turns`,
+  `/end`) let a chat path or a test drive the same pipeline without the controller.
 
 **After the call** (Customer Review, `analytics.ts`): the live rating becomes the call's
 sentiment (ElevenLabs' post-call sentiment still covers Savannah-only calls); the row keeps
@@ -347,10 +377,12 @@ while live (buttons, the sentiment bar, the Negative tile), lists the newest neg
 the two-party transcript with the lines that moved the rating marked. CSV gains Why
 (sentiment), Flagged live and Agent columns.
 
-**Limits.** Live rating covers calls that pass through the controller (the agent line). A
-Savannah → agent escalation leaves the controller at the hand-back, so that agent leg has no
-live transcript; in production every agent call would be bridged through the controller the
-same way, or WxCC's own real-time transcription would feed `api/qa/sessions`.
+**Limits.** Live rating covers calls that pass through the controller: Savannah's calls and
+the agent line. A Savannah → agent escalation leaves the controller at the hand-back, so that
+agent leg has no live transcript; in production every agent call would be bridged through the
+controller the same way (the agent-first pattern on every escalation), or WxCC's own real-time
+transcription would feed `api/qa/sessions`. Prior art in the wiki: Agent Live Assist (the same
+stereo fork, scored live) and the omnixpress supervisor live view (`demo-dashboard-patterns`).
 
 ## 3. Architecture
 

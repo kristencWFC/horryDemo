@@ -332,6 +332,20 @@ export class AgentFirstBridge extends EventEmitter {
     this.emit('returned', { call: c, answered, reason } satisfies ReturnInfo);
   }
 
+  /** A supervisor took the member (live-qa.ts re-bridged leg A to their phone): drop the agent's
+   *  leg only and forget the call; A lives on and is not ours any more. */
+  release(a: string, by: string): void {
+    const c = this.calls.get(a);
+    if (!c || c.state === 'ended') return;
+    c.state = 'ended';
+    c.endedAt = Date.now();
+    c.endedBy = `supervisor:${by}`;
+    this.clearTimers(c);
+    console.log(`${this.tag(c)}: released to ${by} (the agent's leg is dropped, the member stays)`);
+    if (this.esl) void this.esl.api(`uuid_kill ${c.b}`).catch(() => undefined);
+    this.emit('ended', c);
+  }
+
   private async end(c: AgentFirstCall, by: string, cause: string): Promise<void> {
     c.state = 'ended';
     c.endedAt = Date.now();

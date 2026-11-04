@@ -1,31 +1,43 @@
 // Live quality management (Horry asked for it after the 2026-11-04 demo).
 //
-//   During the call  a supervisor sees every live agent call with the member's sentiment as it
-//                    moves, gets an alert when a call turns negative, and can listen, whisper to
-//                    the agent or join from the AI Operations page.
+//   During the call  Customer Review lists every call in progress, one line each, whether the
+//                    member is with Savannah or with a live agent, with the member's sentiment as
+//                    it moves; a call that turns negative is flagged (and texted); the supervisor
+//                    can listen, whisper to the agent, join, or take the call themselves.
 //   After the call   Customer Review keeps the two-party transcript, the sentiment timeline and
 //                    the reason, next to Savannah's summary (analytics.ts).
 //
-// Where the audio comes from: calls on the agent line (972-903-8486) ride the WFC AI Controller
-// (agent-first.ts), so the member leg is a freeSWITCH channel. Once the legs are bridged the
-// service asks the controller for a stereo stream of that leg (uuid_audio_stream → the WebSocket
-// at api/qa/stream): channel 0 = the member, channel 1 = whoever they are talking to. Deepgram
-// turns it into text; a scorer (Claude, or word rules when there is no key) rates the member's
-// mood after each thing they say. Listen / whisper / join = the controller originates a call to
-// the supervisor's phone and eavesdrops the member leg (eavesdrop: 0 = listen, 2 = speak to the
-// agent only, 3 = speak to both).
+// Where the audio comes from: every call the AI handles passes through the WFC AI Controller
+// (freeSWITCH): Savannah's calls are bridged from there to her SIP number, and calls on the agent
+// line (972-903-8486) are bridged back into WxCC from there (agent-first.ts). Either way the member
+// leg is a controller channel. The service learns about Savannah's calls from the controller's own
+// CHANNEL_BRIDGE events (X-Solution-Name = horryelectric) and about agent-line calls from
+// agent-first.ts, then asks the controller for a stereo stream of the member leg
+// (uuid_audio_stream → the WebSocket at api/qa/stream): channel 0 = the member, channel 1 = whoever
+// they are talking to. Deepgram turns it into text; a scorer (Claude, or word rules when there is
+// no key) rates the member's mood after each thing they say.
 //
-// PCI: while Savannah has the member for a payment the stream is PAUSED, any monitor is dropped,
-// and nothing from that phase is kept; long digit runs are masked before any text is stored.
+// Listen / whisper / join = the controller originates a call to the supervisor's phone and
+// eavesdrops the member leg (eavesdrop: 0 = listen, 2 = speak to the agent only, 3 = speak to both).
+// Take over = on the agent line the member leg is re-bridged to the supervisor's phone and the
+// agent's leg is released; on Savannah's side the call is escalated to the supervisor through WxCC
+// (the escalation record names department "supervisor", the controller hands the call back and the
+// flow queues it to them).
+//
+// PCI: while an agent has handed the member to Savannah for a payment the stream is PAUSED, any
+// monitor is dropped, and nothing from that phase is kept; long digit runs are masked before any
+// text is stored.
 import { EventEmitter } from 'node:events';
 import type { AgentFirstBridge, AgentFirstCall, ReturnInfo } from './agent-first.js';
 import type { CallStore } from './calls.js';
 import type { EslEvent, EslLike } from './esl.js';
 import { last10 } from './env.js';
 
-export type Speaker = 'member' | 'agent' | 'savannah';
+export type Speaker = 'member' | 'agent' | 'savannah' | 'supervisor';
 export type Label = 'positive' | 'neutral' | 'negative';
-export type MonitorMode = 'listen' | 'whisper' | 'join';
+export type MonitorMode = 'listen' | 'whisper' | 'join' | 'takeover';
+/** Who the member is talking to right now. */
+export type Phase = 'agent' | 'savannah' | 'supervisor';
 
 export interface Turn {
   at: string;
@@ -52,14 +64,17 @@ export interface QaSession {
   guid: string;
   /** The member leg on the controller ('' for sessions fed through the API). */
   legA: string;
+  /** Savannah's leg (her SIP call) while she has the member; '' otherwise. */
+  savannahLeg: string;
   ani: string;
   member: string;
   agentName: string;
   startedAt: string;
   endedAt?: string;
   state: 'live' | 'ended';
-  /** Who the member is talking to right now. */
-  phase: 'agent' | 'savannah';
+  phase: Phase;
+  /** True during an agent → Savannah payment hand-off: nothing is kept, nobody can listen. */
+  paused: boolean;
   turns: Turn[];
   readings: Reading[];
   score: number;
@@ -84,6 +99,7 @@ export interface QaRecord {
   alertAt?: string;
   acknowledgedBy?: string;
   monitoredBy?: string;
+  takenOverBy?: string;
   agentName: string;
   scorer: 'claude' | 'rules';
   transcription: 'live' | 'off';
@@ -105,6 +121,11 @@ export interface LiveQaOptions {
   /** Texted once per flagged call ('' = no text). */
   alertSmsTo: string;
   sendSms?: (to: string, body: string, purpose: string) => Promise<unknown>;
+  /** X-Solution-Name the flow sends Savannah's calls to the controller with; '' = don't watch. */
+  savannahSolution: string;
+  /** Take over on Savannah's side: record the escalation to the supervisor and tell the controller
+   *  to hand the call back (routes.ts). Resolves false when nothing could be sent. */
+  sendToSupervisor?: (call: { guid: string; ani: string; member: string }, by: string) => Promise<boolean>;
 }
 
 // ---- rules scorer (no key needed) --------------------------------------------------------
@@ -178,6 +199,7 @@ export const defaultOptions = (): LiveQaOptions => ({
   scorerName: 'rules',
   transcription: false,
   alertSmsTo: '',
+  savannahSolution: 'horryelectric',
 });
 
 /**
@@ -192,15 +214,20 @@ export class LiveQa extends EventEmitter {
   constructor(
     private readonly esl: EslLike | undefined,
     private readonly calls: CallStore,
-    agentFirst: AgentFirstBridge | undefined,
+    private readonly agentFirst: AgentFirstBridge | undefined,
     readonly opts: LiveQaOptions = defaultOptions(),
   ) {
     super();
     agentFirst?.on('bridged', (c: AgentFirstCall) => void this.onBridged(c));
     agentFirst?.on('handoff', (c: AgentFirstCall) => void this.onHandoff(c));
     agentFirst?.on('returned', (r: ReturnInfo) => void this.onReturned(r.call));
-    agentFirst?.on('ended', (c: AgentFirstCall) => this.end(c.guid || c.a));
-    esl?.on('event', (ev: EslEvent) => this.onEslEvent(ev));
+    agentFirst?.on('ended', (c: AgentFirstCall) => {
+      // After a take-over the agent's leg ends but the member is with the supervisor: the
+      // session lives until the member leg hangs up (onEslEvent).
+      const s = this.sessions.get(c.guid || c.a);
+      if (s?.phase !== 'supervisor') this.end(c.guid || c.a);
+    });
+    esl?.on('event', (ev: EslEvent) => void this.onEslEvent(ev));
   }
 
   status() {
@@ -229,19 +256,21 @@ export class LiveQa extends EventEmitter {
   }
 
   /** A session for a call we know about (the controller's, or one created through the API). */
-  start(p: { guid: string; legA?: string; ani: string; member?: string; agentName?: string }): QaSession {
+  start(p: { guid: string; legA?: string; savannahLeg?: string; ani: string; member?: string; agentName?: string; phase?: Phase }): QaSession {
     const existing = this.sessions.get(p.guid);
     if (existing && existing.state === 'live') return existing;
     const row = this.calls.get(p.guid) ?? this.calls.findRecentByAni(p.ani);
     const s: QaSession = {
       guid: p.guid,
       legA: p.legA ?? '',
+      savannahLeg: p.savannahLeg ?? '',
       ani: last10(p.ani),
       member: p.member || row?.memberName || 'Unknown caller',
       agentName: p.agentName || row?.agentName || '',
       startedAt: new Date().toISOString(),
       state: 'live',
-      phase: 'agent',
+      phase: p.phase ?? 'agent',
+      paused: false,
       turns: [],
       readings: [],
       score: 0,
@@ -253,9 +282,18 @@ export class LiveQa extends EventEmitter {
     };
     this.sessions.set(p.guid, s);
     if (this.sessions.size > 80) for (const [k, v] of this.sessions) if (v.state === 'ended' && this.sessions.size > 50) this.sessions.delete(k);
-    console.log(`HORRY QA ${s.guid.slice(0, 8)}: session for ${s.member} (${s.ani})`);
+    console.log(`HORRY QA ${s.guid.slice(0, 8)}: session for ${s.member} (${s.ani}) with ${s.phase === 'savannah' ? 'Savannah' : s.agentName || 'an agent'}`);
     this.emit('change', s);
     return s;
+  }
+
+  /** The member is no longer with Savannah (her leg ended, or she handed the call back). */
+  setPhase(guid: string, phase: Phase): void {
+    const s = this.sessions.get(guid);
+    if (s && s.state === 'live' && s.phase !== phase) {
+      s.phase = phase;
+      this.emit('change', s);
+    }
   }
 
   /** The Member tab told us who answered. */
@@ -271,7 +309,7 @@ export class LiveQa extends EventEmitter {
   addTurn(guid: string, speaker: Speaker, text: string, at = new Date().toISOString()): Turn | undefined {
     const s = this.sessions.get(guid);
     if (!s || s.state !== 'live') return undefined;
-    if (s.phase === 'savannah') return undefined; // the payment: nothing kept
+    if (s.paused) return undefined; // the payment: nothing kept
     const turn: Turn = { at, speaker, text: maskDigits(text.trim()) };
     if (!turn.text) return undefined;
     s.turns.push(turn);
@@ -319,8 +357,8 @@ export class LiveQa extends EventEmitter {
   private async notify(s: QaSession): Promise<void> {
     const to = last10(this.opts.alertSmsTo);
     if (!to || !this.opts.sendSms) return;
-    const who = s.agentName ? ` with ${s.agentName}` : '';
-    await this.opts.sendSms(to, `Horry Electric: a call${who} is going badly (${s.member}). ${s.why} Open AI Operations to listen or join.`, 'qa_alert').catch(() => undefined);
+    const who = s.phase === 'savannah' ? ' with Savannah' : s.agentName ? ` with ${s.agentName}` : '';
+    await this.opts.sendSms(to, `Horry Electric: a call${who} is going badly (${s.member}). ${s.why} Open Customer Review to listen, join or take the call.`, 'qa_alert').catch(() => undefined);
   }
 
   acknowledge(guid: string, by: string): QaSession | undefined {
@@ -335,7 +373,7 @@ export class LiveQa extends EventEmitter {
   // ---- the controller's call -----------------------------------------------------------------
 
   private async onBridged(c: AgentFirstCall): Promise<void> {
-    const s = this.start({ guid: c.guid || c.a, legA: c.a, ani: c.ani, member: c.name });
+    const s = this.start({ guid: c.guid || c.a, legA: c.a, ani: c.ani, member: c.name, phase: 'agent' });
     s.legA = c.a;
     await this.stream(s, 'start');
   }
@@ -344,6 +382,7 @@ export class LiveQa extends EventEmitter {
     const s = this.sessions.get(c.guid || c.a);
     if (!s || s.state !== 'live') return;
     s.phase = 'savannah';
+    s.paused = true;
     await this.stream(s, 'pause');
     if (s.monitor) await this.stopMonitor(s.guid, 'Monitoring stopped for the payment.');
     this.emit('change', s);
@@ -353,8 +392,23 @@ export class LiveQa extends EventEmitter {
     const s = this.sessions.get(c.guid || c.a);
     if (!s || s.state !== 'live') return;
     s.phase = 'agent';
+    s.paused = false;
     await this.stream(s, 'resume');
     this.emit('change', s);
+  }
+
+  /** Savannah's calls: the controller bridges the member leg (X-Solution-Name = horryelectric) to
+   *  her SIP number; that CHANNEL_BRIDGE is where a session starts. */
+  private async onSavannahBridged(ev: EslEvent): Promise<void> {
+    const legA = ev['Unique-ID'] ?? '';
+    const savannahLeg = ev['Other-Leg-Unique-ID'] ?? '';
+    if (!legA || this.byLeg(legA)?.state === 'live') return;
+    const ani = ev['Caller-Caller-ID-Number'] ?? '';
+    const guid = ev['variable_sip_h_X-Call-GUID'] || legA;
+    const s = this.start({ guid, legA, savannahLeg, ani, phase: 'savannah' });
+    s.legA = legA;
+    s.savannahLeg = savannahLeg;
+    await this.stream(s, 'start');
   }
 
   private async stream(s: QaSession, verb: 'start' | 'pause' | 'resume' | 'stop'): Promise<void> {
@@ -378,6 +432,7 @@ export class LiveQa extends EventEmitter {
     clearTimeout(this.timers.get(guid));
     if (s.monitor && this.esl) void this.esl.api(`uuid_kill ${s.monitor.uuid}`).catch(() => undefined);
     s.monitor = undefined;
+    s.paused = false;
     this.persist(s);
     console.log(`HORRY QA ${s.guid.slice(0, 8)}: ended ${s.label} (${s.score}) after ${s.turns.length} turns`);
     this.emit('ended', s);
@@ -397,6 +452,7 @@ export class LiveQa extends EventEmitter {
       ...(s.alert ? { alertAt: s.alert.at } : {}),
       ...(s.alert?.acknowledgedBy ? { acknowledgedBy: s.alert.acknowledgedBy } : {}),
       ...(s.monitorNote.startsWith('Monitored by') ? { monitoredBy: s.monitorNote.replace('Monitored by ', '').replace(/\.$/, '') } : {}),
+      ...(s.monitorNote.startsWith('Taken over by') ? { takenOverBy: s.monitorNote.replace('Taken over by ', '').replace(/\.$/, '') } : {}),
       agentName: s.agentName,
       scorer: s.scorer,
       transcription: s.transcription,
@@ -414,15 +470,29 @@ export class LiveQa extends EventEmitter {
 
   // ---- listen / whisper / join -----------------------------------------------------------------
 
-  private static readonly DTMF: Record<MonitorMode, string> = { listen: '0', whisper: '2', join: '3' };
+  private static readonly DTMF: Record<MonitorMode, string> = { listen: '0', whisper: '2', join: '3', takeover: '3' };
+
+  /** Which actions make sense for a call right now (the live list shows exactly these). */
+  actions(s: QaSession): Record<MonitorMode, boolean> {
+    const onController = Boolean(this.esl && s.legA) && s.state === 'live' && !s.paused;
+    return {
+      listen: onController && s.phase !== 'supervisor',
+      whisper: onController && s.phase === 'agent',
+      join: onController && s.phase !== 'supervisor',
+      takeover: s.state === 'live' && !s.paused && s.phase !== 'supervisor' && (s.phase === 'savannah' ? Boolean(this.opts.sendToSupervisor) : onController),
+    };
+  }
 
   async monitor(guid: string, mode: MonitorMode, by: string, phone: string): Promise<QaSession> {
+    if (mode === 'takeover') return this.takeOver(guid, by, phone);
     const esl = this.esl;
     const s = this.sessions.get(guid);
     if (!s || s.state !== 'live') throw new Error('That call has ended.');
     if (!esl) throw new Error('The WFC AI Controller is not connected to this service.');
     if (!s.legA) throw new Error('This call did not come through the WFC AI Controller, so it cannot be monitored from here.');
-    if (s.phase === 'savannah') throw new Error('Savannah is taking a payment on this call; monitoring resumes when the member is back with the agent.');
+    if (s.paused) throw new Error('Savannah is taking a payment on this call; monitoring resumes when the member is back with the agent.');
+    if (s.phase === 'supervisor') throw new Error('A supervisor already has this call.');
+    if (mode === 'whisper' && s.phase !== 'agent') throw new Error('Whisper reaches a live agent only; this member is with Savannah.');
     if (s.monitor) {
       // Already on the call: switch what the supervisor's voice reaches (eavesdrop reads DTMF).
       const r = await esl.api(`uuid_recv_dtmf ${s.monitor.uuid} ${LiveQa.DTMF[mode]}`);
@@ -431,46 +501,135 @@ export class LiveQa extends EventEmitter {
       this.emit('change', s);
       return s;
     }
-    const number = last10(phone);
-    if (this.opts.monitorDial.includes('{number}') && number.length !== 10) throw new Error('Enter the 10-digit phone the controller should call you on.');
-    const dial = this.opts.monitorDial.replace('{number}', number);
+    const dial = this.dialFor(phone);
     const vars = [
-      `origination_caller_id_number=${this.opts.monitorCallerId}`,
-      `origination_caller_id_name='Horry QA'`,
+      ...this.callerVars(s),
       'eavesdrop_enable_dtmf=true',
       `eavesdrop_bridge_aleg=${mode === 'join' ? 'true' : 'false'}`,
       `eavesdrop_bridge_bleg=${mode === 'join' || mode === 'whisper' ? 'true' : 'false'}`,
-      'ignore_early_media=true',
-      'originate_timeout=30',
-      `horry_qa_monitor=${s.guid}`,
     ].join(',');
-    const res = await esl.bgapi(`originate {${vars}}${dial} &eavesdrop(${s.legA})`, 45_000);
-    const m = /^\+OK\s+([0-9a-f-]{36})/i.exec(res);
-    if (!m) throw new Error(`The controller could not reach your phone (${res.slice(0, 80)}).`);
-    s.monitor = { by: by || 'supervisor', mode, uuid: m[1]!, dial, startedAt: new Date().toISOString() };
+    const uuid = await this.originate(`originate {${vars}}${dial} &eavesdrop(${s.legA})`);
+    s.monitor = { by: by || 'supervisor', mode, uuid, dial, startedAt: new Date().toISOString() };
     s.monitorNote = `Monitored by ${s.monitor.by}.`;
     console.log(`HORRY QA ${s.guid.slice(0, 8)}: ${s.monitor.by} ${mode} via ${dial}`);
     this.emit('change', s);
     return s;
   }
 
-  async stopMonitor(guid: string, note = ''): Promise<QaSession | undefined> {
+  /**
+   * The supervisor takes the call. Agent line: their phone is called, the member leg is
+   * re-bridged to it and the agent's leg is released (the agent's task ends). Savannah's side: the
+   * call is escalated to the supervisor through WxCC (routes.ts records department "supervisor",
+   * the controller hands the call back, the flow queues it to them); Savannah's leg is dropped so
+   * the hand-back happens at once.
+   */
+  async takeOver(guid: string, by: string, phone: string): Promise<QaSession> {
+    const esl = this.esl;
     const s = this.sessions.get(guid);
-    if (!s?.monitor) return s;
-    const uuid = s.monitor.uuid;
-    s.monitor = undefined;
-    if (note) s.monitorNote = note;
-    if (this.esl) await this.esl.api(`uuid_kill ${uuid}`).catch(() => undefined);
+    if (!s || s.state !== 'live') throw new Error('That call has ended.');
+    if (s.paused) throw new Error('Savannah is taking a payment on this call; wait until the member is back with the agent.');
+    if (s.phase === 'supervisor') throw new Error('A supervisor already has this call.');
+    const who = by || 'supervisor';
+    if (s.phase === 'savannah') {
+      if (!this.opts.sendToSupervisor) throw new Error('Taking a call from Savannah is not set up on this service.');
+      if (s.monitor) await this.stopMonitor(s.guid);
+      const ok = await this.opts.sendToSupervisor({ guid: s.guid, ani: s.ani, member: s.member }, who);
+      if (!ok) throw new Error('The controller did not accept the hand-back.');
+      if (esl && s.savannahLeg) await esl.api(`uuid_kill ${s.savannahLeg}`).catch(() => undefined);
+      s.monitorNote = `Taken over by ${who}.`;
+      console.log(`HORRY QA ${s.guid.slice(0, 8)}: ${who} is taking the call from Savannah (escalated to the supervisor queue)`);
+      this.emit('change', s);
+      return s;
+    }
+    if (!esl) throw new Error('The WFC AI Controller is not connected to this service.');
+    if (!s.legA) throw new Error('This call did not come through the WFC AI Controller, so it cannot be taken from here.');
+    const dial = this.dialFor(phone);
+    if (s.monitor) await this.stopMonitor(s.guid);
+    const uuid = await this.originate(`originate {${this.callerVars(s).join(',')}}${dial} &park()`);
+    const r = await esl.api(`uuid_bridge ${s.legA} ${uuid}`);
+    if (r.startsWith('-ERR')) {
+      await esl.api(`uuid_kill ${uuid}`).catch(() => undefined);
+      throw new Error(`The controller could not connect you to the member (${r}).`);
+    }
+    // Phase first: agent-first's 'ended' (from release) must not close this session.
+    s.phase = 'supervisor';
+    s.monitor = { by: who, mode: 'takeover', uuid, dial, startedAt: new Date().toISOString() };
+    s.monitorNote = `Taken over by ${who}.`;
+    this.agentFirst?.release(s.legA, who);
+    console.log(`HORRY QA ${s.guid.slice(0, 8)}: ${who} took the call via ${dial}`);
     this.emit('change', s);
     return s;
   }
 
-  private onEslEvent(ev: EslEvent): void {
-    if (ev['Event-Name'] !== 'CHANNEL_HANGUP') return;
+  private dialFor(phone: string): string {
+    const number = last10(phone);
+    if (this.opts.monitorDial.includes('{number}') && number.length !== 10) throw new Error('Enter the 10-digit phone the controller should call you on.');
+    return this.opts.monitorDial.replace('{number}', number);
+  }
+
+  private callerVars(s: QaSession): string[] {
+    return [
+      `origination_caller_id_number=${this.opts.monitorCallerId}`,
+      `origination_caller_id_name='Horry QA'`,
+      'ignore_early_media=true',
+      'originate_timeout=30',
+      `horry_qa_monitor=${s.guid}`,
+    ];
+  }
+
+  private async originate(cmd: string): Promise<string> {
+    const res = await this.esl!.bgapi(cmd, 45_000);
+    const m = /^\+OK\s+([0-9a-f-]{36})/i.exec(res);
+    if (!m) throw new Error(`The controller could not reach your phone (${res.slice(0, 80)}).`);
+    return m[1]!;
+  }
+
+  async stopMonitor(guid: string, note = ''): Promise<QaSession | undefined> {
+    const s = this.sessions.get(guid);
+    if (!s?.monitor) return s;
+    const uuid = s.monitor.uuid;
+    const takeover = s.monitor.mode === 'takeover';
+    s.monitor = undefined;
+    if (note) s.monitorNote = note;
+    if (this.esl) await this.esl.api(`uuid_kill ${uuid}`).catch(() => undefined);
+    // Hanging up on a call you took ends it for the member too (there is nobody else on it).
+    if (takeover && this.esl && s.legA) await this.esl.api(`uuid_kill ${s.legA}`).catch(() => undefined);
+    this.emit('change', s);
+    return s;
+  }
+
+  private async onEslEvent(ev: EslEvent): Promise<void> {
+    const name = ev['Event-Name'];
     const uuid = ev['Unique-ID'] ?? '';
+    if (!uuid) return;
+    if (name === 'CHANNEL_BRIDGE') {
+      if (this.opts.savannahSolution && ev['variable_sip_h_X-Solution-Name'] === this.opts.savannahSolution && ev['Call-Direction'] !== 'outbound' && !this.agentFirst?.byLeg(uuid)) {
+        await this.onSavannahBridged(ev).catch((err: Error) => console.log(`HORRY QA ${uuid.slice(0, 8)}: Savannah session failed (${err.message})`));
+      }
+      return;
+    }
+    if (name !== 'CHANNEL_HANGUP') return;
+    // The member hung up (or the controller ended the call): the session is over.
+    const mine = this.byLeg(uuid);
+    if (mine?.state === 'live') {
+      this.end(mine.guid);
+      return;
+    }
+    // Savannah's leg ended on her own call: the member is being handed back to WxCC (the
+    // controller ends the member leg within seconds) or, after a take-over, is on their way to
+    // the supervisor. Either way she is no longer on the line.
+    const hers = this.live().find((x) => x.savannahLeg === uuid);
+    if (hers && hers.phase === 'savannah') {
+      hers.savannahLeg = '';
+      hers.phase = 'agent';
+      this.emit('change', hers);
+    }
+    // The supervisor hung up their phone.
     const s = this.live().find((x) => x.monitor?.uuid === uuid);
     if (s) {
+      const takeover = s.monitor?.mode === 'takeover';
       s.monitor = undefined;
+      if (takeover && this.esl && s.legA) await this.esl.api(`uuid_kill ${s.legA}`).catch(() => undefined);
       this.emit('change', s);
     }
   }
@@ -494,7 +653,7 @@ export function claudeScorer(apiKey: string, model: string): Scorer {
   const client = () => (clientP ??= import('@anthropic-ai/sdk').then((m) => new m.default({ apiKey, maxRetries: 1, timeout: 20_000 })));
   return async (turns, previous) => {
     const c = await client();
-    const who: Record<Speaker, string> = { member: 'Member', agent: 'Agent', savannah: 'Savannah' };
+    const who: Record<Speaker, string> = { member: 'Member', agent: 'Agent', savannah: 'Savannah', supervisor: 'Supervisor' };
     const text = turns.map((t) => `${who[t.speaker]}: ${t.text}`).join('\n');
     const res = await c.messages.create({
       model,

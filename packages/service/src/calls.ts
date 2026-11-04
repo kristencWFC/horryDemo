@@ -62,10 +62,11 @@ export interface CallRow {
     label: 'positive' | 'neutral' | 'negative';
     why: string;
     readings: { at: string; score: number; label: 'positive' | 'neutral' | 'negative'; why: string }[];
-    turns: { at: string; speaker: 'member' | 'agent' | 'savannah'; text: string }[];
+    turns: { at: string; speaker: 'member' | 'agent' | 'savannah' | 'supervisor'; text: string }[];
     alertAt?: string;
     acknowledgedBy?: string;
     monitoredBy?: string;
+    takenOverBy?: string;
     agentName: string;
     scorer: 'claude' | 'rules';
     transcription: 'live' | 'off';

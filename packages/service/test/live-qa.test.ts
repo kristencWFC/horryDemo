@@ -19,7 +19,8 @@ class FakeEsl extends EventEmitter {
   }
   async bgapi(cmd: string): Promise<string> {
     this.cmds.push(cmd);
-    return cmd.startsWith('originate') && cmd.includes('eavesdrop') ? '+OK 9e9e9e9e-1111-2222-3333-444444444444' : '+OK 2b2b2b2b';
+    // Eavesdrop legs and the supervisor's take-over leg get a full uuid back (live-qa.ts parses it).
+    return cmd.startsWith('originate') && cmd.includes('eavesdrop') ? '+OK 9e9e9e9e-1111-2222-3333-444444444444' : cmd.includes('horry_qa_monitor') ? '+OK 2b2b2b2b-1111-2222-3333-444444444444' : '+OK 2b2b2b2b';
   }
   park(uuid: string, vars: Record<string, string>) {
     this.emit('event', { 'Event-Name': 'CHANNEL_PARK', 'Unique-ID': uuid, ...vars });
@@ -162,6 +163,98 @@ describe('LiveQa with the controller', () => {
     await memberArrives(esl);
     await qa.monitor('guid-qa-1', 'listen', 'Kristen', '');
     expect(esl.cmds.find((x) => x.includes('eavesdrop'))).toContain('}user/1000 &eavesdrop(');
+  });
+
+  it('take over on the agent line: the member leg is re-bridged to the supervisor and the agent\'s leg is dropped', async () => {
+    const { esl, qa, bridge } = setup();
+    await memberArrives(esl);
+    const s = qa.get('guid-qa-1')!;
+    const b = bridge.activeByAni('843-555-0118')!.b;
+    expect(qa.actions(s)).toEqual({ listen: true, whisper: true, join: true, takeover: true });
+    await qa.monitor('guid-qa-1', 'takeover', 'Kristen', '2145550100');
+    const originate = esl.cmds.find((x) => x.startsWith('originate') && x.includes('horry_qa_monitor'))!;
+    expect(originate).toContain('sofia/gateway/cube/+12145550100');
+    expect(originate).toContain('&park()');
+    expect(esl.cmds).toContain(`uuid_bridge ${A} 2b2b2b2b-1111-2222-3333-444444444444`);
+    expect(esl.cmds).toContain(`uuid_kill ${b}`);
+    expect(esl.cmds).not.toContain(`uuid_kill ${A}`);
+    expect(s.phase).toBe('supervisor');
+    expect(s.monitor?.mode).toBe('takeover');
+    expect(qa.actions(s)).toEqual({ listen: false, whisper: false, join: false, takeover: false });
+    // The agent's leg hangs up: the session stays live with the supervisor.
+    esl.hangup(b);
+    await tick();
+    expect(s.state).toBe('live');
+    // The supervisor hangs up: the member's leg is ended and the row records who took the call.
+    esl.hangup('2b2b2b2b-1111-2222-3333-444444444444');
+    await tick();
+    expect(esl.cmds).toContain(`uuid_kill ${A}`);
+    esl.hangup(A);
+    await tick();
+    expect(s.state).toBe('ended');
+    expect(qa['calls'].get('guid-qa-1')!.qa?.takenOverBy).toBe('Kristen');
+  });
+});
+
+describe("LiveQa on Savannah's calls", () => {
+  const EL = 'e1e1e1e1-0000-0000-0000-000000000002';
+  const SAV = 'a5a5a5a5-0000-0000-0000-000000000003';
+  function savannahAnswers(esl: FakeEsl) {
+    esl.emit('event', {
+      'Event-Name': 'CHANNEL_BRIDGE',
+      'Unique-ID': SAV,
+      'Other-Leg-Unique-ID': EL,
+      'Call-Direction': 'inbound',
+      'Caller-Caller-ID-Number': '+18435550101',
+      'variable_sip_h_X-Solution-Name': 'horryelectric',
+      'variable_sip_h_X-Call-GUID': 'guid-sav-1',
+    });
+    return tick();
+  }
+
+  it('starts a session from the controller\'s bridge event and rates the member live', async () => {
+    const { esl, qa, calls } = setup();
+    calls.seed({ guid: 'guid-sav-1', ani: '8435550101', dnis: '', channel: 'voice', stormMode: false, memberName: 'Casey Hardee' });
+    await savannahAnswers(esl);
+    const s = qa.get('guid-sav-1')!;
+    expect(s.phase).toBe('savannah');
+    expect(s.member).toBe('Casey Hardee');
+    expect(esl.cmds).toContain(`uuid_audio_stream ${SAV} start ws://127.0.0.1:8165/api/qa/stream?guid=guid-sav-1&ani=8435550101 stereo 8000`);
+    qa.addTurn('guid-sav-1', 'savannah', 'Hi Casey, this is Savannah. Are you calling about the outage in Socastee?');
+    qa.addTurn('guid-sav-1', 'member', 'Yes and this is ridiculous, it is the third time this month.');
+    await tick(1500);
+    expect(s.label).toBe('negative');
+    expect(qa.actions(s)).toEqual({ listen: true, whisper: false, join: true, takeover: false });
+    await expect(qa.monitor('guid-sav-1', 'whisper', 'Kristen', '2145550100')).rejects.toThrow(/Savannah/);
+    // Her leg ends (she handed the call back), then the member leg: the row keeps the rating.
+    esl.hangup(EL);
+    expect(s.phase).toBe('agent');
+    esl.hangup(SAV);
+    await tick();
+    expect(s.state).toBe('ended');
+    expect(calls.get('guid-sav-1')!.sentiment).toBe('negative');
+  });
+
+  it('take the call from Savannah: escalates to the supervisor and drops her leg', async () => {
+    const sent: string[] = [];
+    const { esl, qa } = setup({ sendToSupervisor: async (c, by) => void sent.push(`${c.guid}:${by}`) || true });
+    await savannahAnswers(esl);
+    const s = qa.get('guid-sav-1')!;
+    expect(qa.actions(s).takeover).toBe(true);
+    await qa.monitor('guid-sav-1', 'takeover', 'Kristen', '');
+    expect(sent).toEqual(['guid-sav-1:Kristen']);
+    expect(esl.cmds).toContain(`uuid_kill ${EL}`);
+    expect(s.monitorNote).toBe('Taken over by Kristen.');
+  });
+
+  it('ignores bridge events for other solutions and for the agent line', async () => {
+    const { esl, qa } = setup();
+    esl.emit('event', { 'Event-Name': 'CHANNEL_BRIDGE', 'Unique-ID': 'x-1', 'Other-Leg-Unique-ID': 'x-2', 'Call-Direction': 'inbound', 'variable_sip_h_X-Solution-Name': 'cretedemo' });
+    await memberArrives(esl);
+    esl.emit('event', { 'Event-Name': 'CHANNEL_BRIDGE', 'Unique-ID': A, 'Other-Leg-Unique-ID': 'b-1', 'Call-Direction': 'inbound', 'variable_sip_h_X-Solution-Name': 'horryelectric' });
+    await tick();
+    expect(qa.live()).toHaveLength(1);
+    expect(qa.get('guid-qa-1')!.phase).toBe('agent');
   });
 });
 

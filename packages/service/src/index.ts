@@ -61,6 +61,17 @@ const qa = new LiveQa(esl, calls, agentFirst, {
   transcription: Boolean(env.DEEPGRAM_API_KEY),
   alertSmsTo: env.QA_ALERT_SMS_TO ?? '',
   sendSms: (to, body, purpose) => sms.send(to, body, purpose),
+  savannahSolution: env.QA_SAVANNAH_SOLUTION,
+  // Take over on Savannah's side = an escalation to the supervisor: the flow reads it back from
+  // api/intake/:guid after the controller hands the call back (department "supervisor").
+  sendToSupervisor: async (call, by) => {
+    const row = calls.get(call.guid) ?? calls.seed({ guid: call.guid, ani: call.ani, dnis: '', channel: 'voice', stormMode: false, memberName: call.member });
+    const esc = { department: 'supervisor', urgency: 'emergency', reason: 'supervisor_takeover', summary: `${by} is taking this call from Savannah.`, at: new Date().toISOString() };
+    calls.patch(row, { escalation: esc });
+    calls.step(row, 'escalated', `supervisor / emergency: ${by} is taking the call`, 'escalation');
+    const { relayResultToFreeswitch } = await import('./freeswitch.js');
+    return relayResultToFreeswitch(row.guid, { escalate: 'true', department: esc.department, urgency: esc.urgency, reason: esc.reason, summary: esc.summary, caller_name: row.memberName ?? '', account_number: row.memberSep ?? '' });
+  },
 });
 
 const app = await buildServer({ dataDir, members, nextgen, outages, calls, sms, payments, mode, staffing, handoffs, reminders, agentFirst, qa });

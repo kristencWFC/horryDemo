@@ -52,11 +52,15 @@ Read `docs/HLD.md` and `TODO.md` (STATE + Decisions) first.
 - Demo-phone override: Storm Console "Demo caller" maps the presenter's ANI to any
   member (default Kristen's cell → Casey Hardee, in the seeded Socastee outage).
 - Runtime state `packages/service/data/*.json` (gitignored); console "Reset demo data".
-- **Live quality management** (`src/live-qa.ts`, HLD §2.10): agent-line calls are streamed
-  from the controller (`uuid_audio_stream`, stereo) to `api/qa/stream`; Deepgram +
-  Claude (`DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`, `QA_MODEL`) rate the member live; listen /
-  whisper / join = `originate … &eavesdrop(<member leg>)` to `QA_MONITOR_DIAL`. The stream
-  pauses and any monitor drops during a Savannah hand-off (PCI); 11+ digit runs are masked.
+- **Live quality management** (`src/live-qa.ts`, HLD §2.10): every call on the controller is
+  streamed (`uuid_audio_stream`, stereo) to `api/qa/stream` — Savannah's calls are found from
+  the controller's CHANNEL_BRIDGE events (`QA_SAVANNAH_SOLUTION` = horryelectric), agent-line
+  calls from agent-first.ts; Deepgram + Claude (`DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`,
+  `QA_MODEL`) rate the member live. Customer Review "Live now" lists every call in progress:
+  listen / whisper / join = `originate … &eavesdrop(<member leg>)` to `QA_MONITOR_DIAL`; take
+  over = re-bridge the member leg to the supervisor (agent line) or escalate to department
+  `supervisor` through the flow (Savannah's side — the flow needs a `supervisor` Case). The
+  stream pauses and any monitor drops during a payment hand-off (PCI); 11+ digit runs masked.
 
 ## Reuse map
 
