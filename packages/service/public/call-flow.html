@@ -124,8 +124,8 @@
 <script>
   const scenarios = [
     { name: '1 · Agent hands a payment to Savannah', steps: [
-      { nodes: ['caller', 'wxcc', 'agent'], edges: ['e-caller-wxcc', 'e-wxcc-agent'], text: 'Savannah is off. Dorothy calls and goes straight to the billing agent.' },
-      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab pops her account: $194 past due, the due date in red. She wants to pay.' },
+      { nodes: ['caller', 'wxcc', 'agent'], edges: ['e-caller-wxcc', 'e-wxcc-agent'], text: 'Savannah is off. Jamie calls and goes straight to the billing agent.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab pops their account: $194 past due, the due date in red. They want to pay.' },
       { nodes: ['agent', 'svc'], edges: [], text: 'The agent clicks Hand payment to Savannah and transfers the call to the payment entry point. The service has recorded the hand-off under a 4-digit reference.' },
       { nodes: ['wxcc', 'fs', 'el', 'svc'], edges: ['e-wxcc-fs', 'e-fs-el', 'e-el-svc'], text: 'The payment flow looks up the hand-off and bridges to Savannah. She already knows the member and the amount, asks "card on file, e-check on file, or a new card?", and reports each step to the service.' },
       { nodes: ['svc', 'agent'], edges: ['e-cis-agent'], text: "The agent's Calls page keeps the member on screen and shows the steps as they happen: Savannah answered, payment approved, confirmation number." },
@@ -134,17 +134,17 @@
     ]},
     { name: '2 · Storm: outage known', steps: [
       { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'The supervisor turns Savannah on on the AI Operations page. The flow now sends members to her.' },
-      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Linda calls. The flow sees the switch is on and looks up who is calling.' },
-      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The WFC AI Controller connects the call to Savannah. She greets Linda by name and confirms the service address.' },
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Casey calls. The flow sees the switch is on and looks up who is calling.' },
+      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The WFC AI Controller connects the call to Savannah. She greets Casey by name and confirms the service address.' },
       { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: '"I see there is an outage in your area. Is this the reason for your call?" Yes: Socastee, 1,240 members, a tree on the line, about 2½ hours.' },
-      { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Linda asks for a text when the power is back. She gets one if the estimate changes and another when it is restored. She could ask for a person at any point.' },
+      { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Casey asks for a text when the power is back. They get one if the estimate changes and another when it is restored. They could ask for a person at any point.' },
       { nodes: ['el'], edges: [], text: 'Savannah wraps up and hangs up. No agent was needed, and the call shows on Customer Review with a summary and sentiment.' }
     ]},
     { name: '2 · Storm: wire down, to a person', steps: [
-      { nodes: ['caller', 'wxcc', 'fs', 'el'], edges: ['e-caller-wxcc', 'e-wxcc-fs', 'e-fs-el'], text: 'Marcus calls during the storm and Savannah answers.' },
-      { nodes: ['el'], edges: [], text: 'He says a line is down by his driveway. Savannah tells him to stay at least 35 feet away.' },
-      { nodes: ['el', 'agent'], edges: ['e-el-back'], text: 'Savannah says she is connecting him, then hands the call back to WxCC marked as an emergency outage call.' },
-      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'He goes first to the outage teams. The agent sees his account, the active outage and what Savannah already collected.' }
+      { nodes: ['caller', 'wxcc', 'fs', 'el'], edges: ['e-caller-wxcc', 'e-wxcc-fs', 'e-fs-el'], text: 'Morgan calls during the storm and Savannah answers.' },
+      { nodes: ['el'], edges: [], text: 'They say a line is down by their driveway. Savannah tells them to stay at least 35 feet away.' },
+      { nodes: ['el', 'agent'], edges: ['e-el-back'], text: 'Savannah says she is connecting them, then hands the call back to WxCC marked as an emergency outage call.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'They go first to the outage teams. The agent sees their account, the active outage and what Savannah already collected.' }
     ]},
     { name: '3 · Payment reminders', steps: [
       { nodes: ['sup', 'svc'], edges: [], text: 'The supervisor uploads a list of past-due accounts and picks voice or text.' },

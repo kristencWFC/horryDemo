@@ -399,7 +399,7 @@ export class HorrySupervisor extends LitElement {
       </div>
       ${this.confirm === 'reset'
         ? html`<div class="note">
-            Reset the demo? Balances (Linda's ".18 is due again), outages and their estimates, calls, chats and emails go back
+            Reset the demo? Balances (Casey's $142.18 is due again), outages and their estimates, calls, chats and emails go back
             to the start. Your demo numbers and the AI switches stay as they are.
             <div class="row" style="margin-top:6px">
               <button class="apply" ?disabled=${!!this.busy} @click=${() => void this.resetDemo()}>${this.busy === 'reset' ? 'Resetting…' : 'Yes, reset'}</button>

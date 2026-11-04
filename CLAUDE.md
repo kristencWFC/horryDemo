@@ -50,7 +50,7 @@ Read `docs/HLD.md` and `TODO.md` (STATE + Decisions) first.
 - Call rows are keyed by the WxCC interaction GUID (`X-Call-GUID` → `sip_call_guid`);
   tools fall back to the caller's recent row by ANI.
 - Demo-phone override: Storm Console "Demo caller" maps the presenter's ANI to any
-  member (default Kristen's cell → Linda Hardee, in the seeded Socastee outage).
+  member (default Kristen's cell → Casey Hardee, in the seeded Socastee outage).
 - Runtime state `packages/service/data/*.json` (gitignored); console "Reset demo data".
 
 ## Reuse map

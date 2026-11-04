@@ -134,7 +134,7 @@ function rng(seed: number): () => number {
   };
 }
 
-const FIRST = ['James', 'Mary', 'Robert', 'Patricia', 'Willie', 'Linda', 'Charles', 'Barbara', 'Thomas', 'Shirley', 'Larry', 'Brenda', 'Jerry', 'Carolyn', 'Wayne', 'Gloria', 'Tony', 'Tammy', 'Dale', 'Angela', 'Keith', 'Teresa', 'Marcus', 'Denise'];
+const FIRST = ['Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Avery', 'Jamie', 'Alex', 'Sam', 'Jesse', 'Drew', 'Dakota', 'Skyler', 'Quinn', 'Cameron', 'Reese', 'Rowan', 'Parker', 'Blake', 'Emerson', 'Harper', 'Peyton', 'Sawyer', 'Finley'];
 const LAST = ['Johnson', 'Hardee', 'Graham', 'Lewis', 'McCray', 'Skipper', 'Floyd', 'Jordan', 'Cox', 'Hucks', 'Strickland', 'Grainger', 'Prince', 'Bellamy', 'Vereen', 'Causey', 'Todd', 'Hughes', 'Gore', 'Faircloth'];
 const TOWNS = ['Socastee', 'Conway', 'Aynor', 'Loris', 'Longs', 'Myrtle Beach', 'Carolina Forest', 'Galivants Ferry', 'Green Sea'];
 

@@ -148,3 +148,4 @@ deployed yet).**
 ## Phase 6 — docs
 
 - [ ] DEMO-STEPS.md run-of-show; kc-wiki topology claim for :8165
+2026-11-04 — Demo personas renamed gender-neutral so any presenter can play them (Kristen): Casey Hardee, Morgan Jordan, Jamie Skipper, Riley Nguyen, Avery Bellamy, Taylor Causey (seeds, emails, sample CSV, docs, call-flow page); member pronouns in the docs → they/them; Customer Review sample names neutral too. Savannah unchanged.

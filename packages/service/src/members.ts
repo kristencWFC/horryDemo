@@ -146,7 +146,7 @@ export class MemberStore {
   }
 }
 
-/** "HARDEE LINDA" → "Linda Hardee" */
+/** "HARDEE CASEY" → "Casey Hardee" */
 export function displayName(m: Member): string {
   const [last, ...rest] = m.Name.trim().split(/\s+/);
   const cap = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();

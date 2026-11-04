@@ -174,7 +174,7 @@ Outage location fields (SubStation, Circuit, Location) come from `AllUpnAccounts
 OMS itself is still a stand-in (`src/outages.ts`) — OMS vendor open.
 
 Six seeded members (`data/members.seed.json`) in Socastee/Myrtle Beach, Conway, Loris,
-Aynor and Longs; Linda Hardee's cell = Kristen's cell, and the Storm Console's **Demo
+Aynor and Longs; Casey Hardee's cell = Kristen's cell, and the Storm Console's **Demo
 caller** picker points that phone at any member per scene.
 
 ### 2.5 Secure payments (PCI) — AI-taken and agent-handed
@@ -218,7 +218,7 @@ AI: confirms account, balance, amount ("Shall I take a payment of 142 dollars 18
 2. Agent **blind-transfers** to the secure-pay DN/EP (the widget can trigger the
    transfer via the desktop SDK, or the agent uses the normal transfer button + a speed
    dial). Agent's leg is free — they can take notes in wrap.
-3. The AI greets ("Hi Linda, I'm Ava — I'll take that 142 dollar 18 payment for you on
+3. The AI greets ("Hi Casey, I'm Ava — I'll take that 142 dollar 18 payment for you on
    your keypad, nothing you enter is heard by anyone"), runs the Twilio Pay step above.
 4. Return: freeSWITCH transfers the caller back into a WxCC entry point with CAD
    `paymentRef` + `returnToAgent=<agentId>`; the flow uses **Queue to Agent** (last-agent

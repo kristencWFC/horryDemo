@@ -1,8 +1,8 @@
 {
-  "_comment": "Fictional Horry Electric members, shaped like NextGen CIS UPN accounts (AllUpnAccounts + UpnAccountsFinancialInformation). MemberSep = 8-digit member number + 3-digit separator, 11 chars left-padded. Phones are 555-01xx except Linda Hardee's cell = Kristen's cell (the default demo caller; the ops console can point that ANI at any member). SubStation/Circuit drive outage matching.",
+  "_comment": "Fictional Horry Electric members, shaped like NextGen CIS UPN accounts (AllUpnAccounts + UpnAccountsFinancialInformation). MemberSep = 8-digit member number + 3-digit separator, 11 chars left-padded. Phones are 555-01xx except Casey Hardee's cell = Kristen's cell (the default demo caller; the ops console can point that ANI at any member). SubStation/Circuit drive outage matching.",
   "members": [
     {
-      "MemberSep": "00212040001", "Name": "HARDEE LINDA", "FirstName": "Linda",
+      "MemberSep": "00212040001", "Name": "HARDEE CASEY", "FirstName": "Casey",
       "ServAddr": "4810 DICK POND RD", "City": "MYRTLE BEACH", "Zip": "29588",
       "CellPhone": "2142823566", "Telephone": "8435550101", "EmailAddr": "linda.hardee@example.com",
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124639041", "Location": "76638017000",
@@ -14,7 +14,7 @@
       "KwhLast30": 1210, "KwhPriorMonth": 1105, "KwhSameMonthLastYear": 1180
     },
     {
-      "MemberSep": "00187520002", "Name": "JORDAN MARCUS", "FirstName": "Marcus",
+      "MemberSep": "00187520002", "Name": "JORDAN MORGAN", "FirstName": "Morgan",
       "ServAddr": "2215 PEACHTREE RD", "City": "MYRTLE BEACH", "Zip": "29588",
       "CellPhone": "8435550142", "Telephone": "8435550143", "EmailAddr": "mjordan@example.com",
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124618158", "Location": "76638034000",
@@ -26,7 +26,7 @@
       "KwhLast30": 780, "KwhPriorMonth": 802, "KwhSameMonthLastYear": 760
     },
     {
-      "MemberSep": "00230115001", "Name": "SKIPPER DOROTHY", "FirstName": "Dorothy",
+      "MemberSep": "00230115001", "Name": "SKIPPER JAMIE", "FirstName": "Jamie",
       "ServAddr": "1420 CULTRA RD", "City": "CONWAY", "Zip": "29526",
       "CellPhone": "8435550118", "Telephone": "8435550119", "EmailAddr": null,
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124677302", "Location": "74315051000",
@@ -38,7 +38,7 @@
       "KwhLast30": 1640, "KwhPriorMonth": 1320, "KwhSameMonthLastYear": 1290
     },
     {
-      "MemberSep": "00198844001", "Name": "NGUYEN DAVID", "FirstName": "David",
+      "MemberSep": "00198844001", "Name": "NGUYEN RILEY", "FirstName": "Riley",
       "ServAddr": "731 HWY 9 BUS", "City": "LORIS", "Zip": "29569",
       "CellPhone": "8435550165", "Telephone": null, "EmailAddr": "dnguyen@example.com",
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124690177", "Location": "66338012000",
@@ -50,7 +50,7 @@
       "KwhLast30": 1450, "KwhPriorMonth": 1410, "KwhSameMonthLastYear": 1500
     },
     {
-      "MemberSep": "00244501003", "Name": "BELLAMY GRACE", "FirstName": "Grace",
+      "MemberSep": "00244501003", "Name": "BELLAMY AVERY", "FirstName": "Avery",
       "ServAddr": "4120 HWY 501", "City": "AYNOR", "Zip": "29511",
       "CellPhone": "8435550177", "Telephone": "8435550178", "EmailAddr": "gbellamy@example.com",
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124601993", "Location": "71122045000",
@@ -62,7 +62,7 @@
       "KwhLast30": 990, "KwhPriorMonth": 1010, "KwhSameMonthLastYear": 970
     },
     {
-      "MemberSep": "00176230001", "Name": "CAUSEY ROBERT", "FirstName": "Robert",
+      "MemberSep": "00176230001", "Name": "CAUSEY TAYLOR", "FirstName": "Taylor",
       "ServAddr": "2601 HWY 90", "City": "LONGS", "Zip": "29568",
       "CellPhone": "8435550190", "Telephone": null, "EmailAddr": null,
       "AcctStatus": "A", "Rate": "RES-1", "Meter": "124655410", "Location": "69901022000",

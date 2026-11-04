@@ -72,8 +72,8 @@
   <header>
     <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · use case 1 · Kristen Christopher · 2026-11-03 · live-tested</div>
     <h1>Payment Hand-off Design</h1>
-    <p class="lede">The live agent hands Dorothy to Savannah for the payment and never hears it. The WFC AI Controller sits in
-    the middle of the call, holds the agent, sends Dorothy to Savannah, and puts them back together on the same call.
+    <p class="lede">The live agent hands Jamie to Savannah for the payment and never hears it. The WFC AI Controller sits in
+    the middle of the call, holds the agent, sends Jamie to Savannah, and puts them back together on the same call.
     Members dial <strong>972-903-8486</strong>; the controller brings them back in on <strong>972-430-9658</strong>.</p>
   </header>
 
@@ -82,7 +82,7 @@
     <p>Pick a situation, then step through it. Orange = active this step; amber dotted = a leg on hold.</p>
     <div class="controls" id="scenarios" role="group" aria-label="Situations"></div>
     <div class="sheet">
-      <svg viewBox="0 0 1000 300" role="img" aria-label="Dorothy reaches the WxCC flow, which bridges to the WFC AI Controller; the controller dials back into WxCC as Dorothy to reach the live agent, and can send Dorothy's leg to Savannah while the agent's leg waits; the Horry service records the hand-off and shows live steps on the agent's Member tab">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="Jamie reaches the WxCC flow, which bridges to the WFC AI Controller; the controller dials back into WxCC as Jamie to reach the live agent, and can send Jamie's leg to Savannah while the agent's leg waits; the Horry service records the hand-off and shows live steps on the agent's Member tab">
         <defs>
           <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
         </defs>
@@ -90,13 +90,13 @@
         <path class="edge" id="e-wxcc-fs" d="M332 200 L368 200" marker-end="url(#ah)"/>
         <text class="elabel" x="300" y="245">bridge 1122 + headers</text>
         <path class="edge" id="e-fs-ep" d="M562 200 L598 200" marker-end="url(#ah)"/>
-        <text class="elabel" x="520" y="245">dials 972-430-9658 as Dorothy</text>
+        <text class="elabel" x="520" y="245">dials 972-430-9658 as Jamie</text>
         <path class="edge" id="e-ep-agent" d="M772 200 L808 200" marker-end="url(#ah)"/>
         <text class="elabel" x="760" y="245">Q_Horry_Billing</text>
         <path class="edge" id="e-fs-sav" d="M420 168 L420 130 L265 130 L265 94" marker-end="url(#ah)" marker-start="url(#ah)"/>
         <text class="elabel" x="285" y="124">leg A ↔ Savannah (SIP 1151)</text>
         <path class="edge" id="e-svc-fs" d="M685 94 L685 130 L500 130 L500 168" marker-end="url(#ah)"/>
-        <text class="elabel" x="505" y="124">ESL: hold the agent, send Dorothy</text>
+        <text class="elabel" x="505" y="124">ESL: hold the agent, send Jamie</text>
         <path class="edge" id="e-sav-svc" d="M352 60 L598 60" marker-end="url(#ah)"/>
         <text class="elabel" x="410" y="52">tools report each step</text>
         <path class="edge" id="e-agent-svc" d="M895 168 L895 60 L772 60" marker-end="url(#ah)" marker-start="url(#ah)"/>
@@ -106,9 +106,9 @@
 
         <g class="node" id="n-sav"><rect x="180" y="30" width="170" height="62" rx="6"/><text class="t" x="196" y="56">Savannah</text><text class="s" x="196" y="76">WFC AI Agent · 1151</text></g>
         <g class="node" id="n-svc"><rect x="600" y="30" width="170" height="62" rx="6"/><text class="t" x="616" y="56">Horry service</text><text class="s" x="616" y="76">kc-dev-2 · ESL + hand-off</text></g>
-        <g class="node" id="n-mem"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Dorothy</text><text class="s" x="36" y="216">972-903-8486</text></g>
+        <g class="node" id="n-mem"><rect x="20" y="170" width="120" height="62" rx="6"/><text class="t" x="36" y="196">Jamie</text><text class="s" x="36" y="216">972-903-8486</text></g>
         <g class="node" id="n-wxcc"><rect x="180" y="170" width="150" height="62" rx="6"/><text class="t" x="196" y="196">WxCC flow</text><text class="s" x="196" y="216">EP_KC_Horry_Payment</text></g>
-        <g class="node" id="n-fs"><rect x="370" y="170" width="190" height="62" rx="6"/><text class="t" x="386" y="196">WFC AI Controller</text><text class="s" x="386" y="216">leg A (Dorothy) · leg B (agent)</text></g>
+        <g class="node" id="n-fs"><rect x="370" y="170" width="190" height="62" rx="6"/><text class="t" x="386" y="196">WFC AI Controller</text><text class="s" x="386" y="216">leg A (Jamie) · leg B (agent)</text></g>
         <g class="node" id="n-ep"><rect x="600" y="170" width="170" height="62" rx="6"/><text class="t" x="616" y="196">Re-entry EP</text><text class="s" x="616" y="216">EP_KC_Horry · main flow</text></g>
         <g class="node" id="n-agent"><rect x="810" y="170" width="170" height="62" rx="6"/><text class="t" x="826" y="196">Live agent</text><text class="s" x="826" y="216">Desktop · Member tab</text></g>
       </svg>
@@ -126,13 +126,13 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Hop</th><th>Where the call goes</th><th>What carries the identity</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>Dorothy dials <strong>(972) 903-8486</strong> → entry point <code>EP_KC_Horry_Payment</code> → flow <code>KC_Horry_Electric</code>, DNIS 9729038486 branch.</td><td>Her caller ID (Demo caller maps the presenter's phone to Dorothy)</td></tr>
+        <tr><td class="num">1</td><td>Jamie dials <strong>(972) 903-8486</strong> → entry point <code>EP_KC_Horry_Payment</code> → flow <code>KC_Horry_Electric</code>, DNIS 9729038486 branch.</td><td>Her caller ID (Demo caller maps the presenter's phone to Jamie)</td></tr>
         <tr><td class="num">2</td><td><strong>Bridge Transfer to 1122</strong> → CUBE dial-peer 1122 → WFC AI Controller. Failure → Queue <code>Q_Horry_Billing</code>.</td><td>Headers <code>X-Solution-Name = HorryAgentFirst</code>, <code>X-Call-GUID</code></td></tr>
-        <tr><td class="num">3</td><td>The controller answers and parks Dorothy (leg A); the Horry service on the same VM sees it.</td><td>Caller ID, GUID</td></tr>
-        <tr><td class="num">4</td><td>The service dials back into WxCC as Dorothy: <code>+19724309658</code> via CUBE dial-peers <strong>1145/1146</strong> → <code>EP_KC_Horry</code> → the main flow's normal path → Queue <code>Q_Horry_Billing</code> (leg B). Agent answers; the service bridges A and B.</td><td>Caller ID = Dorothy's number, so the Member tab pops</td></tr>
-        <tr><td class="num">5</td><td><strong>Hand payment to Savannah</strong> → the service records the hand-off and moves leg A to Savannah (<strong>SIP 1151</strong>, the WFC AI Agent trunk). Leg B parks: the agent hears "Savannah is taking the member's payment now…" then hold music.</td><td>GUID on the SIP leg; Dorothy's caller ID finds the open hand-off → payment greeting</td></tr>
+        <tr><td class="num">3</td><td>The controller answers and parks Jamie (leg A); the Horry service on the same VM sees it.</td><td>Caller ID, GUID</td></tr>
+        <tr><td class="num">4</td><td>The service dials back into WxCC as Jamie: <code>+19724309658</code> via CUBE dial-peers <strong>1145/1146</strong> → <code>EP_KC_Horry</code> → the main flow's normal path → Queue <code>Q_Horry_Billing</code> (leg B). Agent answers; the service bridges A and B.</td><td>Caller ID = Jamie's number, so the Member tab pops</td></tr>
+        <tr><td class="num">5</td><td><strong>Hand payment to Savannah</strong> → the service records the hand-off and moves leg A to Savannah (<strong>SIP 1151</strong>, the WFC AI Agent trunk). Leg B parks: the agent hears "Savannah is taking the member's payment now…" then hold music.</td><td>GUID on the SIP leg; Jamie's caller ID finds the open hand-off → payment greeting</td></tr>
         <tr><td class="num">6</td><td>Savannah takes the payment; each tool posts a step and the Member tab shows it live.</td><td>Hand-off ref</td></tr>
-        <tr><td class="num">7</td><td>Savannah wraps up → the service pulls Dorothy back and re-bridges A and B. The agent hears "The member is back with you." <strong>Cancel hand-off</strong> or Savannah unreachable → the same re-bridge.</td><td>Same two legs the service has held since hop 3</td></tr>
+        <tr><td class="num">7</td><td>Savannah wraps up → the service pulls Jamie back and re-bridges A and B. The agent hears "The member is back with you." <strong>Cancel hand-off</strong> or Savannah unreachable → the same re-bridge.</td><td>Same two legs the service has held since hop 3</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -157,24 +157,24 @@
 <script>
   const scenarios = [
     { name: 'Payment hand-off', steps: [
-      { nodes: ['mem', 'wxcc'], edges: ['e-mem-wxcc'], text: 'Dorothy calls (972) 903-8486 → EP_KC_Horry_Payment → the 9729038486 branch of KC_Horry_Electric: Bridge Transfer to 1122 with X-Solution-Name = HorryAgentFirst and X-Call-GUID. Same activity as the Savannah branch, different solution name.' },
-      { nodes: ['wxcc', 'fs', 'ep'], edges: ['e-wxcc-fs', 'e-fs-ep'], text: "The WFC AI Controller answers Dorothy (leg A) and immediately dials back into WxCC on +1 972-430-9658 through CUBE dial-peers 1145/1146, presenting Dorothy's own number (leg B). What Dorothy hears is WxCC's own queue treatment on that leg: hold music, then ringback and the connection when an agent is available." },
-      { nodes: ['ep', 'agent'], edges: ['e-ep-agent'], text: "EP_KC_Horry's main flow treats leg B like any normal-day call (Savannah is off) and queues to Q_Horry_Billing. The agent answers and the Member tab pops Dorothy from the caller ID, exactly as it did tonight." },
-      { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Legs A and B are bridged. Dorothy and the agent talk; the controller is invisible. Every call to 972-903-8486 takes this path, so to the agent it looks and sounds like a call on the demo line.' },
-      { nodes: ['agent', 'svc'], edges: ['e-agent-svc'], text: 'Dorothy wants to pay. The agent clicks Hand payment to Savannah. The Horry service records the hand-off (ref, GUID, agent, member, $194) and, over the event socket, moves leg A: uuid_transfer A horry_savannah.' },
+      { nodes: ['mem', 'wxcc'], edges: ['e-mem-wxcc'], text: 'Jamie calls (972) 903-8486 → EP_KC_Horry_Payment → the 9729038486 branch of KC_Horry_Electric: Bridge Transfer to 1122 with X-Solution-Name = HorryAgentFirst and X-Call-GUID. Same activity as the Savannah branch, different solution name.' },
+      { nodes: ['wxcc', 'fs', 'ep'], edges: ['e-wxcc-fs', 'e-fs-ep'], text: "The WFC AI Controller answers Jamie (leg A) and immediately dials back into WxCC on +1 972-430-9658 through CUBE dial-peers 1145/1146, presenting Jamie's own number (leg B). What Jamie hears is WxCC's own queue treatment on that leg: hold music, then ringback and the connection when an agent is available." },
+      { nodes: ['ep', 'agent'], edges: ['e-ep-agent'], text: "EP_KC_Horry's main flow treats leg B like any normal-day call (Savannah is off) and queues to Q_Horry_Billing. The agent answers and the Member tab pops Jamie from the caller ID, exactly as it did tonight." },
+      { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Legs A and B are bridged. Jamie and the agent talk; the controller is invisible. Every call to 972-903-8486 takes this path, so to the agent it looks and sounds like a call on the demo line.' },
+      { nodes: ['agent', 'svc'], edges: ['e-agent-svc'], text: 'Jamie wants to pay. The agent clicks Hand payment to Savannah. The Horry service records the hand-off (ref, GUID, agent, member, $194) and, over the event socket, moves leg A: uuid_transfer A horry_savannah.' },
       { nodes: ['svc', 'fs', 'agent'], edges: ['e-svc-fs'], held: ['e-ep-agent'], text: "Leg B parks. The agent hears \"Savannah is taking the payment now. Stay on the line; you'll be reconnected when it's done,\" then hold music. The agent's task stays live; nothing on the Desktop changes." },
-      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is bridged to Savannah on SIP 1151 with X-Call-GUID, caller ID still Dorothy's. Her webhook sees the open hand-off for that number and opens with the payment greeting: \"Dorothy, the agent asked me to take care of your payment of $194. Would you like to use the card on file, the e-check on file, or a new card?\"" },
+      { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is bridged to Savannah on SIP 1151 with X-Call-GUID, caller ID still Jamie's. Savannah's webhook sees the open hand-off for that number and opens with the payment greeting: \"Jamie, the agent asked me to take care of your payment of $194. Would you like to use the card on file, the e-check on file, or a new card?\"" },
       { nodes: ['sav', 'svc', 'agent'], edges: ['e-sav-svc', 'e-agent-svc'], held: ['e-ep-agent'], text: 'Savannah takes the payment. Each tool posts a step, and the Member tab shows them live: Savannah answered · e-check drafted · confirmation 482913. The agent sees every step and hears none of it.' },
       { nodes: ['sav', 'fs'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Savannah says \"I'll put you back with the agent now\" and hangs up her side. Leg A returns to park; the service stops the hold music (uuid_break B all) and bridges A and B again (uuid_bridge A B)." },
-      { nodes: ['mem', 'fs', 'agent', 'svc'], edges: ['e-ab'], text: "Dorothy and the agent are talking again: same task, no wrap-up, no re-queue. The Member tab says \"Back with you\" with the confirmation. Customer Review shows the path Agent → Savannah (payment) → agent." }
+      { nodes: ['mem', 'fs', 'agent', 'svc'], edges: ['e-ab'], text: "Jamie and the agent are talking again: same task, no wrap-up, no re-queue. The Member tab says \"Back with you\" with the confirmation. Customer Review shows the path Agent → Savannah (payment) → agent." }
     ]},
     { name: 'Savannah unreachable, or Cancel', steps: [
       { nodes: ['fs', 'sav'], edges: ['e-fs-sav'], held: ['e-ep-agent'], text: "Leg A is sent to SIP 1151, but Savannah doesn't answer within 20 seconds, or she drops before any step is posted — or the agent presses Cancel hand-off (uuid_transfer A horry_return)." },
-      { nodes: ['fs', 'agent', 'svc'], edges: ['e-ab', 'e-svc-fs'], text: 'The service re-bridges A and B at once and posts a failed step (or cancelled). The agent hears Dorothy again and the Member tab says "Savannah couldn\'t take the payment — send the secure pay link instead."' }
+      { nodes: ['fs', 'agent', 'svc'], edges: ['e-ab', 'e-svc-fs'], text: 'The service re-bridges A and B at once and posts a failed step (or cancelled). The agent hears Jamie again and the Member tab says "Savannah couldn\'t take the payment — send the secure pay link instead."' }
     ]},
     { name: 'Normal billing call (no hand-off)', steps: [
-      { nodes: ['mem', 'wxcc', 'fs'], edges: ['e-mem-wxcc', 'e-wxcc-fs'], text: 'David calls (972) 903-8486 with a question about his bill. That branch bridges to 1122 (HorryAgentFirst) as in every agent-first call.' },
-      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: "The controller dials back in on 972-430-9658 presenting David's number; he hears WxCC's queue treatment; the main flow queues to Q_Horry_Billing. The Member tab pops David." },
+      { nodes: ['mem', 'wxcc', 'fs'], edges: ['e-mem-wxcc', 'e-wxcc-fs'], text: 'Riley calls (972) 903-8486 with a question about their bill. That branch bridges to 1122 (HorryAgentFirst) as in every agent-first call.' },
+      { nodes: ['fs', 'ep', 'agent'], edges: ['e-fs-ep', 'e-ep-agent'], text: "The controller dials back in on 972-430-9658 presenting Riley's number; they hear WxCC's queue treatment; the main flow queues to Q_Horry_Billing. The Member tab pops Riley." },
       { nodes: ['mem', 'fs', 'agent'], edges: ['e-ab'], text: 'Bridged. The agent answers the question and the call ends normally. The controller was never noticed, and the Hand payment button simply wasn\'t pressed.' }
     ]}
   ];

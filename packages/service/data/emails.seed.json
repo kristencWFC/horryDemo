@@ -4,7 +4,7 @@
     {
       "id": "EM-1001",
       "from": "linda.hardee@example.com",
-      "fromName": "Linda Hardee",
+      "fromName": "Casey Hardee",
       "subject": "Power out on Dick Pond Rd",
       "topic": "outage",
       "minutesAgo": 14,
@@ -13,7 +13,7 @@
     {
       "id": "EM-1002",
       "from": "mjordan@example.com",
-      "fromName": "Marcus Jordan",
+      "fromName": "Morgan Jordan",
       "subject": "URGENT - outage, my father is on oxygen",
       "topic": "outage",
       "minutesAgo": 9,
@@ -52,7 +52,7 @@
     {
       "id": "EM-1006",
       "from": "rcausey.longs@example.net",
-      "fromName": "Robert Causey",
+      "fromName": "Taylor Causey",
       "subject": "Why is my bill so high?",
       "topic": "billing",
       "minutesAgo": 52,
@@ -61,7 +61,7 @@
     {
       "id": "EM-1007",
       "from": "skipper.family@example.net",
-      "fromName": "Dorothy Skipper",
+      "fromName": "Jamie Skipper",
       "subject": "Need more time to pay",
       "topic": "arrangement",
       "minutesAgo": 96,
@@ -70,7 +70,7 @@
     {
       "id": "EM-1008",
       "from": "gbellamy@example.com",
-      "fromName": "Grace Bellamy",
+      "fromName": "Avery Bellamy",
       "subject": "Did my payment go through?",
       "topic": "payment",
       "minutesAgo": 27,
@@ -79,7 +79,7 @@
     {
       "id": "EM-1009",
       "from": "gbellamy@example.com",
-      "fromName": "Grace Bellamy",
+      "fromName": "Avery Bellamy",
       "subject": "Tree limbs touching the line",
       "topic": "trees",
       "minutesAgo": 205,
@@ -88,7 +88,7 @@
     {
       "id": "EM-1010",
       "from": "dnguyen@example.com",
-      "fromName": "David Nguyen",
+      "fromName": "Riley Nguyen",
       "subject": "Moving - transfer service",
       "topic": "start_stop",
       "minutesAgo": 168,
@@ -98,7 +98,7 @@
     {
       "id": "EM-1011",
       "from": "linda.hardee@example.com",
-      "fromName": "Linda Hardee",
+      "fromName": "Casey Hardee",
       "subject": "Budget billing?",
       "topic": "budget",
       "minutesAgo": 134,

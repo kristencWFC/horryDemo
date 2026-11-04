@@ -69,7 +69,7 @@
 
 <main>
   <header>
-    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · WxCC demo · Kristen Christopher · 2026-11-03 · demo Wed 10:00 ET</div>
+    <div class="eyebrow">Workflow Concepts · Horry Electric Cooperative · WxCC demo · Kristen Christopher · 2026-11-04 · demo Wed 10:00 ET</div>
     <h1>Horry Electric Demo</h1>
     <div class="note"><strong>Demo line: (972) 430-9658.</strong> Savannah on: she answers first, greets members by name and asks about a known outage. Savannah off: calls go straight to the billing agent. <strong>Agent-first line: (972) 903-8486</strong> — use case 1: the agent can hand the payment to Savannah mid-call.</div>
   </header>
@@ -125,8 +125,8 @@
     <div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Use case</th><th>What they see</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>Agent hands a payment to Savannah</td><td>Savannah is off. Dorothy calls (972) 903-8486 and reaches the billing agent, whose Member tab shows her account with the amount due in red (past due). The agent hands the member to Savannah to take the payment, is held while she does, watches each step on the Member tab, and is reconnected on the same call when it's done.</td><td><span class="pill done">built · live test Tue</span></td></tr>
-        <tr><td class="num">2</td><td>Storm</td><td>The supervisor turns Savannah on. Linda calls: Savannah greets her by name, checks the address, asks "I see there is an outage in your area. Is this the reason for your call?", gives the estimate, offers a text or a call when the power is back, and connects her with a person if she asks. Extra teams join outage calls with one click.</td><td><span class="pill done">built</span></td></tr>
+        <tr><td class="num">1</td><td>Agent hands a payment to Savannah</td><td>Savannah is off. Jamie calls (972) 903-8486 and reaches the billing agent, whose Member tab shows the account with the amount due in red (past due). The agent hands the member to Savannah to take the payment, is held while she does, watches each step on the Member tab, and is reconnected on the same call when it's done.</td><td><span class="pill done">built · live test Tue</span></td></tr>
+        <tr><td class="num">2</td><td>Storm</td><td>The supervisor turns Savannah on. Casey calls: Savannah greets them by name, checks the address, asks "I see there is an outage in your area. Is this the reason for your call?", gives the estimate, offers a text or a call when the power is back, and connects them with a person if they ask. Extra teams join outage calls with one click.</td><td><span class="pill done">built</span></td></tr>
         <tr><td class="num">3</td><td>Payment reminders</td><td>Upload a list of past-due accounts (CSV) and choose voice or text. Savannah calls each member, reminds them of the past-due amount and offers to take the payment: card on file, ACH e-check on file, or a new card read to her by voice; or a text goes out with a secure pay link. Results land on Customer Review.</td><td><span class="pill done">built · live test Tue</span></td></tr>
       </tbody>
     </table></div>
@@ -136,17 +136,17 @@
     Contact Center.</p>
     <div class="note"><strong>Set-up before the call (2 minutes).</strong> On the supervisor's <strong>AI Operations</strong>
     page (or the Storm Console, section 02), open the <strong>Demo caller</strong> card: put the presenter's 10-digit
-    phone in <em>Presenter phone</em>, choose <em>Dorothy Skipper</em> under <em>Plays the member</em>, Save. That one
-    setting makes both Savannah and the agent desktop treat your phone as Dorothy (Visa and ACH on file, $194 past due,
+    phone in <em>Presenter phone</em>, choose <em>Jamie Skipper</em> under <em>Plays the member</em>, Save. That one
+    setting makes both Savannah and the agent desktop treat your phone as Jamie (Visa and ACH on file, $194 past due,
     cut-off 11/10); otherwise the desktop shows whichever member the phone was last set to. Then make sure
     <strong>AI agent · Savannah</strong> is <em>off</em>, log in as the billing agent in the other browser and open the
-    <strong>Member</strong> tab. Dorothy dials <strong>(972) 903-8486</strong> for this story. Switch the dropdown between calls to play Marcus or Linda; Reset demo data leaves it alone.</div>
+    <strong>Member</strong> tab. Jamie dials <strong>(972) 903-8486</strong> for this story. Switch the dropdown between calls to play Morgan or Casey; Reset demo data leaves it alone.</div>
     <ol>
-      <li>Savannah is off. Dorothy calls (972) 903-8486. The flow hands the call to the WFC AI Controller, which brings her straight back into the contact center on (972) 430-9658 as herself; the billing agent answers and the Member tab pops her account: $194 past due, the due date in red.</li>
-      <li>She wants to pay. The agent clicks <strong>Hand payment to Savannah</strong>. The service records the hand-off (member, agent, amount) under a 4-digit reference keyed to the caller's number.</li>
-      <li>The controller puts the agent on hold (a short announcement, then music) and connects Dorothy to Savannah. Savannah already knows the member and the amount: "Dorothy, the agent asked me to take care of your payment of $194. Would you like to use the credit card on file, the ACH e-check on file, or a new credit card?" A new card is read to Savannah by voice, one item at a time; she repeats back only the last four digits. The agent hears none of it.</li>
+      <li>Savannah is off. Jamie calls (972) 903-8486. The flow hands the call to the WFC AI Controller, which brings them straight back into the contact center on (972) 430-9658 as themselves; the billing agent answers and the Member tab pops their account: $194 past due, the due date in red.</li>
+      <li>They want to pay. The agent clicks <strong>Hand payment to Savannah</strong>. The service records the hand-off (member, agent, amount) under a 4-digit reference keyed to the caller's number.</li>
+      <li>The controller puts the agent on hold (a short announcement, then music) and connects Jamie to Savannah. Savannah already knows the member and the amount: "Jamie, the agent asked me to take care of your payment of $194. Would you like to use the credit card on file, the ACH e-check on file, or a new credit card?" A new card is read to Savannah by voice, one item at a time; she repeats back only the last four digits. The agent hears none of it.</li>
       <li>The agent's <strong>Member</strong> tab shows each step as it happens: hand-off started, Savannah answered, payment approved with the confirmation number, sending the member back. The agent sees every step and hears none of the payment.</li>
-      <li>Savannah says "I'll put you back with the agent now" and hangs up her side. The controller reconnects the agent and Dorothy on the same call: no wrap-up, no re-queue.</li>
+      <li>Savannah says "I'll put you back with the agent now" and hangs up her side. The controller reconnects the agent and Jamie on the same call: no wrap-up, no re-queue.</li>
       <li>The Member tab says "Back with you" and shows the payment. The agent finishes the conversation.</li>
     </ol>
     <div class="table-wrap"><table>
@@ -166,26 +166,26 @@
 
     <h3>Use case 2 in detail: storm mode</h3>
     <div class="note"><strong>Set-up (1 minute).</strong> AI Operations → <strong>AI agent · Savannah</strong> <em>on</em> (the
-    Storm Console's switch is the same one). Demo caller → <em>Linda Hardee</em> (in the Socastee outage, Visa on file); for the
-    wire-down variant switch to <em>Marcus Jordan</em>. Optional: tick <code>KC_Horry_Billing</code> under <strong>Outage team
+    Storm Console's switch is the same one). Demo caller → <em>Casey Hardee</em> (in the Socastee outage, Visa on file); for the
+    wire-down variant switch to <em>Morgan Jordan</em>. Optional: tick <code>KC_Horry_Billing</code> under <strong>Outage team
     staffing</strong> so the billing agent also takes outage calls. Dial <strong>(972) 430-9658</strong>.</div>
     <ol>
       <li>The supervisor turns Savannah on. The flow's switch flips the same moment, and every call to the demo line goes to Savannah first.</li>
-      <li>Linda calls. Savannah greets her by name (caller ID → account) and confirms the service address.</li>
+      <li>Casey calls. Savannah greets them by name (caller ID → account) and confirms the service address.</li>
       <li>"I see there is an outage in your area. Is this the reason for your call?" Yes: Socastee, about 1,240 members, a tree on the line, restoration in about 2½ hours.</li>
-      <li>Savannah offers a text when the power is back (and another if the estimate changes). Linda says yes and is signed up. No agent rings. In the Storm Console, <strong>Mark restored</strong> sends the "power is back" text.</li>
-      <li>Wire down: Marcus calls and says a line is down across his driveway. Savannah gives the 35-foot safety warning and connects him to a person at top priority; the agent's Member tab shows his account, the active outage and what Savannah already collected.</li>
+      <li>Savannah offers a text when the power is back (and another if the estimate changes). Casey says yes and is signed up. No agent rings. In the Storm Console, <strong>Mark restored</strong> sends the "power is back" text.</li>
+      <li>Wire down: Morgan calls and says a line is down across their driveway. Savannah gives the 35-foot safety warning and connects them to a person at top priority; the agent's Member tab shows their account, the active outage and what Savannah already collected.</li>
       <li>Outage team staffing: one click adds a department's team to outage calls; <strong>Return to normal</strong> undoes it. Customer Review shows containment, why members called and each call's story.</li>
     </ol>
 
     <h3>Use case 3 in detail: payment reminders</h3>
     <ul>
       <li>A <strong>Payment reminders</strong> page for the supervisor: choose the CSV from the billing system (account, name, phone, amount, due date) or paste the rows, check and edit the list, choose <strong>Voice</strong> or <strong>Text</strong>, send.</li>
-      <li>Voice: Savannah calls each member in turn from the co-op's outbound number, 207-531-5136. "Hi, this is Savannah calling from Horry Electric Cooperative. Am I speaking with Dorothy?" Then the past-due amount and the same payment question: credit card on file, ACH e-check on file, or a new card by voice. If they can't pay today she offers an extension. Outcome per row: paid, promised to pay, no answer, declined.</li>
+      <li>Voice: Savannah calls each member in turn from the co-op's outbound number, 207-531-5136. "Hi, this is Savannah calling from Horry Electric Cooperative. Am I speaking with Jamie?" Then the past-due amount and the same payment question: credit card on file, ACH e-check on file, or a new card by voice. If they can't pay today she offers an extension. Outcome per row: paid, promised to pay, no answer, declined.</li>
       <li>Text: each member gets a reminder with a secure pay link; the row flips to "paid" when the link is used.</li>
       <li>Customer Review shows every reminder as an outbound call or a text under the topic "Payment reminder".</li>
     </ul>
-    <div class="note">For the demo, <strong>Send every row to the demo number</strong> points the whole list at the presenter's phone, so one person can answer as Dorothy.</div>
+    <div class="note">For the demo, <strong>Send every row to the demo number</strong> points the whole list at the presenter's phone, so one person can answer as Jamie.</div>
 
     <h3>Use case 4: web chat</h3>
     <div class="note"><strong>Set-up.</strong> Open the demo co-op site in a browser the audience can see:
@@ -193,10 +193,10 @@
     The chat bubble is bottom-right. The billing agent is logged in with the <strong>Web Chats</strong> page open.
     Savannah answers every chat first, whether or not she is on for calls.</div>
     <ol>
-      <li>Click the bubble and start a chat as Linda Hardee (phone 843-555-0101): "Is my power outage known?"</li>
+      <li>Click the bubble and start a chat as Casey Hardee (phone 843-555-0101): "Is my power outage known?"</li>
       <li>Savannah finds the account from the phone number and answers with the Socastee outage, the estimate and the offer of a text when power is back, exactly as she would on a call.</li>
       <li>Type "Can I talk to a person?" Savannah hands the chat over; the agent's <strong>Web chats</strong> badge at the top of the Desktop lights up.</li>
-      <li>On the Web Chats page the agent accepts the chat and sees Savannah's part of the conversation and Linda's account alongside it, then replies in the same window the member is typing in.</li>
+      <li>On the Web Chats page the agent accepts the chat and sees Savannah's part of the conversation and Casey's account alongside it, then replies in the same window the member is typing in.</li>
       <li>The chat shows on Customer Review under <em>Web chat</em> with its topic, path and sentiment, next to the phone calls.</li>
     </ol>
 
@@ -215,28 +215,28 @@
 <script>
   const scenarios = [
     { name: '1 · Agent hands a payment to Savannah', steps: [
-      { nodes: ['caller', 'wxcc', 'fs'], edges: ['e-caller-wxcc', 'e-wxcc-fs'], text: 'Savannah is off. Dorothy calls (972) 903-8486; the flow hands the call to the WFC AI Controller.' },
-      { nodes: ['fs', 'wxcc', 'agent'], edges: ['e-wxcc-agent'], text: 'The controller brings her straight back in on (972) 430-9658 as herself; the call queues to the billing agent, who answers.' },
-      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab pops her account: $194 past due, the due date in red. She wants to pay.' },
-      { nodes: ['agent', 'svc', 'fs'], edges: [], text: 'The agent clicks Hand payment to Savannah. The service records the hand-off under a 4-digit reference and tells the controller to hold the agent and connect Dorothy to Savannah.' },
+      { nodes: ['caller', 'wxcc', 'fs'], edges: ['e-caller-wxcc', 'e-wxcc-fs'], text: 'Savannah is off. Jamie calls (972) 903-8486; the flow hands the call to the WFC AI Controller.' },
+      { nodes: ['fs', 'wxcc', 'agent'], edges: ['e-wxcc-agent'], text: 'The controller brings them straight back in on (972) 430-9658 as themselves; the call queues to the billing agent, who answers.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab pops their account: $194 past due, the due date in red. They want to pay.' },
+      { nodes: ['agent', 'svc', 'fs'], edges: [], text: 'The agent clicks Hand payment to Savannah. The service records the hand-off under a 4-digit reference and tells the controller to hold the agent and connect Jamie to Savannah.' },
       { nodes: ['fs', 'el', 'svc'], edges: ['e-fs-el', 'e-el-svc'], text: 'The agent hears a short announcement, then music. Savannah already knows the member and the amount, asks "card on file, ACH e-check on file, or a new credit card?", takes a new card by voice if that is the answer, and reports each step to the service.' },
       { nodes: ['svc', 'agent'], edges: ['e-cis-agent'], text: "The agent's Member tab shows the steps as they happen: Savannah answered, payment approved, confirmation number. The agent hears none of the payment." },
-      { nodes: ['el', 'fs', 'agent'], edges: ['e-el-back'], text: 'Savannah says she will put Dorothy back and hangs up her side; the controller reconnects agent and member on the same call. No wrap-up, no re-queue.' },
+      { nodes: ['el', 'fs', 'agent'], edges: ['e-el-back'], text: 'Savannah says she will put Jamie back and hangs up her side; the controller reconnects agent and member on the same call. No wrap-up, no re-queue.' },
       { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'The Member tab says "Back with you" with the payment on screen; the agent finishes the conversation.' }
     ]},
     { name: '2 · Storm: outage known', steps: [
       { nodes: ['sup', 'wxcc'], edges: ['e-sup-wxcc'], text: 'The supervisor turns Savannah on on the AI Operations page. The flow now sends members to her.' },
-      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Linda calls. The flow sees the switch is on and looks up who is calling.' },
-      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The WFC AI Controller connects the call to Savannah. She greets Linda by name and confirms the service address.' },
+      { nodes: ['caller', 'wxcc'], edges: ['e-caller-wxcc'], text: 'Casey calls. The flow sees the switch is on and looks up who is calling.' },
+      { nodes: ['wxcc', 'fs', 'el'], edges: ['e-wxcc-fs', 'e-fs-el'], text: 'The WFC AI Controller connects the call to Savannah. She greets Casey by name and confirms the service address.' },
       { nodes: ['el', 'svc', 'cis'], edges: ['e-el-svc', 'e-svc-cis'], text: '"I see there is an outage in your area. Is this the reason for your call?" Yes: Socastee, 1,240 members, a tree on the line, about 2½ hours.' },
-      { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Linda asks for a text when the power is back. She gets one if the estimate changes and another when it is restored. She could ask for a person at any point.' },
+      { nodes: ['el', 'svc', 'sms'], edges: ['e-el-svc', 'e-svc-sms'], text: 'Casey asks for a text when the power is back. They get one if the estimate changes and another when it is restored. They could ask for a person at any point.' },
       { nodes: ['el'], edges: [], text: 'Savannah wraps up and hangs up. No agent was needed, and the call shows on Customer Review with a summary and sentiment.' }
     ]},
     { name: '2 · Storm: wire down, to a person', steps: [
-      { nodes: ['caller', 'wxcc', 'fs', 'el'], edges: ['e-caller-wxcc', 'e-wxcc-fs', 'e-fs-el'], text: 'Marcus calls during the storm and Savannah answers.' },
-      { nodes: ['el'], edges: [], text: 'He says a line is down by his driveway. Savannah tells him to stay at least 35 feet away.' },
-      { nodes: ['el', 'agent'], edges: ['e-el-back'], text: 'Savannah says she is connecting him, then hands the call back to WxCC marked as an emergency outage call.' },
-      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'He goes first to the outage teams. The agent sees his account, the active outage and what Savannah already collected.' }
+      { nodes: ['caller', 'wxcc', 'fs', 'el'], edges: ['e-caller-wxcc', 'e-wxcc-fs', 'e-fs-el'], text: 'Morgan calls during the storm and Savannah answers.' },
+      { nodes: ['el'], edges: [], text: 'They say a line is down by their driveway. Savannah tells them to stay at least 35 feet away.' },
+      { nodes: ['el', 'agent'], edges: ['e-el-back'], text: 'Savannah says she is connecting them, then hands the call back to WxCC marked as an emergency outage call.' },
+      { nodes: ['agent', 'cis'], edges: ['e-cis-agent'], text: 'They go first to the outage teams. The agent sees their account, the active outage and what Savannah already collected.' }
     ]},
     { name: '3 · Payment reminders', steps: [
       { nodes: ['sup', 'svc'], edges: [], text: 'The supervisor uploads a list of past-due accounts and picks voice or text.' },

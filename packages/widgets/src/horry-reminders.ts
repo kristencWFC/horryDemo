@@ -229,7 +229,7 @@ export class HorryReminders extends LitElement {
             <span class="dim small">or paste the rows below</span>
           </div>
           <textarea placeholder="Account,Name,Phone,Amount,Due date
-00230115001,Dorothy Skipper,843-555-0118,194.00,10/28/26" .value=${this.csvText} @input=${(e: Event) => (this.csvText = (e.target as HTMLTextAreaElement).value)}></textarea>
+00230115001,Jamie Skipper,843-555-0118,194.00,10/28/26" .value=${this.csvText} @input=${(e: Event) => (this.csvText = (e.target as HTMLTextAreaElement).value)}></textarea>
           <div class="row"><button ?disabled=${!!this.busy || !this.csvText.trim()} @click=${() => void this.parse(this.csvText)}>${this.busy === 'parse' ? 'Reading…' : 'Check the list'}</button></div>`
         : html`<table>
             <thead><tr><th>#</th><th>Member</th><th>Account</th><th>Phone</th><th class="r">Amount</th><th>Due</th><th></th></tr></thead>
